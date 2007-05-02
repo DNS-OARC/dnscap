@@ -1,0 +1,187 @@
+.Dd April 25, 2007
+.Dt DNSCAP 1
+.Os
+.Sh NAME
+.Nm dnscap
+.Nd DNS network traffic capture utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl avf6
+.Op Fl i Ar if ...
+.Op Fl l Ar vlan ...
+.Op Fl p Ar port
+.Oo
+.Fl m
+.Op quire
+.Oc
+.Oo
+.Fl h
+.Op ir
+.Oc
+.Op Fl q Ar host ...
+.Op Fl r Ar host ...
+.Oo
+.Fl d
+.Ar base
+.Op Fl k Ar cmd
+.Oc
+.Op Fl t Ar lim
+.Op Fl c Ar lim
+.Sh DESCRIPTION
+.Nm
+is a network capture utility designed specifically for DNS traffic.  It
+produces binary data in
+.Xr pcap 3
+format, either on standard output (by default) or in successive dump files
+(if the
+.Fl d
+command line option is given.)  This utility is similar to
+.Xr tcpdump 1 ,
+but has finer grained packet recognition tailored to DNS transactions and
+protocol options.
+.Nm
+is expected to be used for gathering continuous research or audit traces.
+.Pp
+The following options are available:
+.Bl -tag -width 10n
+.It Fl a
+Puts the interface into promiscuous mode.  Note that even without this option,
+the interface could be in promiscuous mode for some other reason.
+.It Fl v
+Tells a verbose story of options and patterns chosen, files opened, and so on.
+.It Fl f
+Flush the
+.Xr pcap 3
+packet dump after every packet.  Mostly this is useful when the
+packet dump is standard output (the default), and has been piped to
+.Xr tcpdump 1 .
+.It Fl 6
+Avoid patterns which depend on correctly functioning kernel BPF engines.  Most
+such engines at least through 2007 have bugs in analyzing IPv6 packets.
+.It Fl i Ar if
+Select an interface to be monitored.  On BSD systems, the default is the first
+interface that was configured at system boot time.  On Linux systems, the
+default is to monitor all interfaces.  More than one interface may be selected
+which will cause output to be interleaved from all selected interfaces.  If
+multiple interfaces are selected having disparite datalink types (framing),
+then the output datalink will be demoted to DLT_LOOP (protocol family only).
+.It Fl l Ar vlan
+Captures only 802.1Q encapsulated packets, and selects specific vlans to be
+monitored.  Can be specified more than once to select multiple vlans.
+.It Fl p Ar port
+Capture only packets on this UDP port, and treat as DNS traffic.  The default
+port is 53.
+.It Fl m Op quire
+Capture only packets containing designated message types (query, update,
+initiation, response, and error).  Default is query initiation and responses.
+An "error" means a non-zero RCODE or a truncation (TC) flag.
+.It Fl h Op ir
+Hide initiator or responder of each captured transaction.  Hiding an initiator
+means wiping out the address and port number.  Hiding a responder means to wipe
+out the address only.  The wiping occurs on the copy of the packet sent to the
+.Xr pcap 3
+dump output, and both the IP and UDP checksums will be recomputed in that case.
+.It Fl q Ar host
+Capture only transactions having these initiators.  Can be specified more than
+once to select multiple initiators.  If a host name is used, then all of that
+host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
+.It Fl r Ar host
+Capture only transactions having these responders.  Can be specified more than
+once to select multiple responders.  If a host name is used, then all of that
+host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
+.It Fl d Ar base
+Dump the captured packets to files rather than to standard output.  Each file
+will have a name like "%s.%u.%09u" where %s is
+.Ar base ,
+%u is the time in seconds, and %09u is the time in microseconds.
+.It Fl k Ar cmd
+After each dump file specified by
+.Fl d
+is closed, this command will be executed in a nonblocking subprocess with the
+file name as its one argument.  It's expected that this command will be a shell
+script that submits the finished file to a batch processing analytics system.
+.It Fl t Ar lim
+By default,
+.Nm
+will close its packet dump file after 86400 seconds (one day).  A shorter or
+longer time can be chosen with the
+.Fl t
+option.  If the packet dump file is standard output (the default), then after
+closing this file,
+.Nm
+exits.  This option is inclusive with
+.Fl c .
+.It Fl c Ar lim
+By default,
+.Nm
+will close its packet dump file after writing 1000000000 (one billion)
+packets.  A larger or smaller dump file size can be chosen with the
+.Fl c
+option.  If the packet dump file is standard output (the default), then after
+closing this file,
+.Nm
+exits.  This option is inclusive with
+.Fl t .
+.El
+.Pp
+If started up with no options,
+.Nm
+will immediately begin spewing binary data to its standard output.  This is
+almost never desireable, and at a minimum, it's recommended that the output
+be piped to
+.Xr tcpdump 1
+as in:
+.Bd -literal -offset indent
+dnscap | tcpdump -r -
+.Ed
+.Pp
+You can safely add the
+.Fl v
+option since the output resulting from that option goes to diagnostic output
+rather than standard output.  And since everybody who's anybody always uses
+the
+.Fl n
+option to
+.Xr tcpdump 1 ,
+the minimum useful incantation is probably:
+.Bd -literal -offset indent
+dnscap -v | tcpdump -r - -n
+.Ed
+.Pp
+The more interesting use for
+.Nm
+is long term or continuous data collection.  Assuming a shell script called
+.Ar dnscap-upload
+whose job was to transfer a
+.Xr pcap 3 -
+format file to an analytics system and remove it, then a root name server
+operating system startup could invoke
+.Nm dnscap
+for continuous DNS auditing using a command like:
+.Bd -literal -offset indent
+dnscap -m quire -h i -r f.root-servers.net \\
+       -d /var/local/dnscaps/f-root -t 1800 \\
+       -k /usr/local/sbin/dnscap-upload
+.Ed
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr pcap 3
+.Sh HISTORY
+.Nm
+was written by Paul Vixie and ported to IPv6 by Duane Wessels.
+.Sh LICENSE
+Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
+.Pp
+Permission to use, copy, modify, and distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+.Pp
+THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
