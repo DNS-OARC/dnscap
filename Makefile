@@ -17,7 +17,7 @@ all: ${ALL}
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && \
 		${CC} ${CFLAGS} \
-		`PATH=/usr/local/bin:$PATH isc-config.sh --cflags isc` \
+		`PATH=/usr/local/bin:$$PATH isc-config.sh --cflags isc` \
 		-c $<
 
 DNSCAP_OBJ= dnscap.o

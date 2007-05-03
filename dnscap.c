@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.1.1.1 2007-05-02 18:32:07 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.2 2007-05-03 16:55:05 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -715,11 +715,11 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	pcapif_ptr pcapif = (pcapif_ptr) user;
 	u_int etype, proto, sport, dport;
 	size_t len = hdr->caplen;
-	struct udphdr *udp;
-	const HEADER *dns;
-	struct ip *ip;
 	struct ip6_hdr *ipv6;
+	struct udphdr *udp;
 	u_int vlan, pf;
+	struct ip *ip;
+	HEADER dns;
 
 	memcpy(pkt, opkt, len);
 
@@ -747,15 +747,14 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 
 		if (len < NS_INT32SZ)
 			return;
-		x = ns_get32(pkt);
+		NS_GET32(x, pkt);
+		len -= NS_INT32SZ;
 		if (x == PF_INET)
 			etype = ETHERTYPE_IP;
 		else if (x == PF_INET6)
 			etype = ETHERTYPE_IPV6;
 		else
 			return;
-		pkt += NS_INT32SZ;
-		len -= NS_INT32SZ;
 		break;
 	    }
 	case DLT_EN10MB: {
@@ -913,9 +912,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	}
 
 	/* Application. */
-	if (len < sizeof *dns)
+	if (len < sizeof dns)
 		return;
-	dns = (void *) pkt;
+	dns = *(HEADER *)pkt;
 
 	/* Policy filtering. */
 	if (!ISC_LIST_EMPTY(vlans)) {
@@ -929,12 +928,12 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (vl == NULL)
 			return;
 	}
-	if (dns->qr == 0 && dport == dns_port) {
+	if (dns.qr == 0 && dport == dns_port) {
 		if ((msg_wanted & MSG_INITIATE) == 0)
 			return;
 		initiator = from;
 		responder = to;
-	} else if (dns->qr != 0 && sport == dns_port) {
+	} else if (dns.qr != 0 && sport == dns_port) {
 		if ((msg_wanted & MSG_RESPONSE) == 0)
 			return;
 		initiator = to;
@@ -947,11 +946,11 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	      (ISC_LIST_EMPTY(responders) ||
 	       ep_present(&responders, responder))))
 		return;
-	if (!(((msg_wanted & MSG_QUERY) != 0 && dns->opcode == ns_o_query) ||
-	      ((msg_wanted & MSG_UPDATE) != 0 && dns->opcode == ns_o_update)))
+	if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) ||
+	      ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update)))
 		return;
 	if ((msg_wanted & MSG_ERROR) == 0 &&
-	    (dns->tc != 0 || dns->rcode != ns_r_noerror))
+	    (dns.tc != 0 || dns.rcode != ns_r_noerror))
 		return;
 
 	/* Policy hiding. */
@@ -961,7 +960,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			struct in_addr *init_addr, *resp_addr;
 			u_int16_t *init_port;
 
-			if (dns->qr == 0) {
+			if (dns.qr == 0) {
 				init_addr = &ip->ip_src;
 				resp_addr = &ip->ip_dst;
 				init_port = &udp->uh_sport;
@@ -984,7 +983,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			struct in6_addr *init_addr, *resp_addr;
 			u_int16_t *init_port;
 
-			if (dns->qr == 0) {
+			if (dns.qr == 0) {
 				init_addr = &ipv6->ip6_src;
 				resp_addr = &ipv6->ip6_dst;
 				init_port = &udp->uh_sport;
@@ -1024,9 +1023,10 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		pcap_dump((u_char *)dumper, hdr, pkt_copy+NS_INT32SZ);
 	} else {
 		struct pcap_pkthdr h;
+		u_char *tmp;
 
 		netpkt -= NS_INT32SZ;
-		ns_put32(pf, netpkt);
+		tmp = netpkt; NS_PUT32(pf, tmp);
 		h = *hdr;
 		h.caplen -= (netpkt - pkt);
 		h.len -= (netpkt - pkt);
