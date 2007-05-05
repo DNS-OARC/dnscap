@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.2 2007-05-03 16:55:05 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.3 2007-05-05 02:57:57 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -38,7 +38,13 @@ static const char copyright[] =
 # define _GNU_SOURCE
 #endif
 
+#ifndef __NetBSD__
 #include <net/ethernet.h>
+#else
+#include <net/ethertypes.h>
+#include <net/if.h>
+#include <net/if_ether.h>
+#endif 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -48,8 +54,10 @@ static const char copyright[] =
 #include <arpa/inet.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <netdb.h>
 #include <pcap.h>
+#include <resolv.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -131,15 +139,15 @@ struct endpoint {
 typedef struct endpoint *endpoint_ptr;
 typedef ISC_LIST(struct endpoint) endpoint_list;
 
-struct pcapif {
-	ISC_LINK(struct pcapif)	link;
+struct mypcap {
+	ISC_LINK(struct mypcap)	link;
 	const char *		name;
 	int			fdes;
 	pcap_t *		pcap;
 	int			dlt;
 };
-typedef struct pcapif *pcapif_ptr;
-typedef ISC_LIST(struct pcapif) pcapif_list;
+typedef struct mypcap *mypcap_ptr;
+typedef ISC_LIST(struct mypcap) mypcap_list;
 
 struct vlan {
 	ISC_LINK(struct vlan)	link;
@@ -161,6 +169,8 @@ typedef ISC_LIST(struct text) text_list;
 
 static void setsig(int, int);
 static void usage(const char *) __attribute__((noreturn));
+static void help_1(void);
+static void help_2(void);
 static void parse_args(int, char *[]);
 static void endpoint_arg(endpoint_list *, const char *);
 static void endpoint_add(endpoint_list *, iaddr);
@@ -188,24 +198,27 @@ static u_int msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
 static u_int end_hide = 0U;
 static endpoint_list initiators;
 static endpoint_list responders;
-static pcapif_list pcapifs;
+static mypcap_list mypcaps;
+static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
+static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static const char *kick_cmd = NULL;
 static u_int limit_seconds = DAY;
 static u_int limit_packets = BILLION;
-static fd_set pcapif_fdset;
+static fd_set mypcap_fdset;
 static int pcap_maxfd;
+static pcap_t *pcap_dead;
 static int linktype;
-static pcap_t *dead;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
-static u_int dumpcount;
+static u_int msgcount;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static u_int dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
+static int dig_it = FALSE;
 static int main_exit = FALSE;
 
 /* Public. */
@@ -219,6 +232,8 @@ main(int argc, char *argv[]) {
 	setsig(SIGINT, TRUE);
 	setsig(SIGALRM, FALSE);
 	setsig(SIGTERM, TRUE);
+	if (dump_type == nowhere)
+		dumpstart = time(NULL);
 	while (!main_exit)
 		poll_pcaps();
 	close_pcaps();
@@ -249,35 +264,51 @@ setsig(int sig, int oneshot) {
 
 static void
 usage(const char *msg) {
-	fprintf(stderr, "%s: usage error (%s)\n", ProgramName, msg);
+	fprintf(stderr, "%s: usage error: %s\n", ProgramName, msg);
 	fprintf(stderr, "\n");
+	help_1();
 	fprintf(stderr,
-		"usage: %s [-avf6] [-i <if>]+ [-l <vlan>]+ [-p <port>]\n"
-		"\t[-m [quire]] [-h [ir]] [-q <host>]+ [-r <host>]+\n"
-		"\t[-d <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
-		ProgramName);
-	fprintf(stderr, "\noptions:\n"
-			"\t-a         collect packets promiscuously\n"
-			"\t-v         be verbose to stderr\n"
-			"\t-f         flush output on every packet\n"
-			"\t-6         compensate for PCAP/BPF IPv6 bug\n"
-			"\t-i <if>    pcap interface(s)\n"
-			"\t-l <vlan>  pcap vlan(s)\n"
-			"\t-p <port>  dns port (default: 53)\n"
-			"\t-m [quire] query, update, initiate, response, err\n"
-			"\t-h [ir]    hide initiators and/or responders\n"
-			"\t-q <host>  initiator(s)\n"
-			"\t-r <host>  responder(s)\n"
-			"\t-d <base>  dump to <base>.<timesec>.<timeusec>\n"
-			"\t-k <cmd>   kick off <cmd> when each dump closes\n"
-			"\t-t <lim>   close dump or exit every <lim> secs\n"
-			"\t-c <lim>   close dump or exit every <lim> pkts\n");
+		"\nnote: the -? or -\\? option will display full help text\n");
 	exit(1);
 }
 
 static void
+help_1(void) {
+	fprintf(stderr,
+		"usage: %s\n"
+		"\t[-avfg6] [-i <if>]+ [-o <file>] [-l <vlan>]+ [-p <port>]\n"
+		"\t[-m [quire]] [-h [ir]] [-q <host>]+ [-r <host>]+\n"
+		"\t[-d <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
+		ProgramName);
+}
+
+static void
+help_2(void) {
+	help_1();
+	fprintf(stderr,
+		"\noptions:\n"
+		"\t-a         collect packets promiscuously\n"
+		"\t-v         be verbose to stderr\n"
+		"\t-f         flush output on every packet\n"
+		"\t-g         dump packets dig-style on stderr\n"
+		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
+		"\t-i <if>    pcap interface(s)\n"
+		"\t-o <file>  pcap offline file\n"
+		"\t-l <vlan>  pcap vlan(s)\n"
+		"\t-p <port>  dns port (default: 53)\n"
+		"\t-m [quire] query, update, initiate, response, err\n"
+		"\t-h [ir]    hide initiators and/or responders\n"
+		"\t-q <host>  initiator(s)\n"
+		"\t-r <host>  responder(s)\n"
+		"\t-d <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
+		"\t-t <lim>   close dump or exit every <lim> secs\n"
+		"\t-c <lim>   close dump or exit every <lim> pkts\n");
+}
+
+static void
 parse_args(int argc, char *argv[]) {
-	pcapif_ptr pcapif;
+	mypcap_ptr mypcap;
 	vlan_ptr vlan;
 	char *p, ch;
 	int i;
@@ -287,10 +318,13 @@ parse_args(int argc, char *argv[]) {
 	else
 		ProgramName = p+1;
 	ISC_LIST_INIT(vlans);
-	ISC_LIST_INIT(pcapifs);
+	ISC_LIST_INIT(mypcaps);
 	ISC_LIST_INIT(initiators);
 	ISC_LIST_INIT(responders);
-	while ((ch = getopt(argc, argv, "avf6i:l:p:m:h:q:r:d:k:t:c:")) != EOF){
+	while ((ch = getopt(argc, argv,
+			    "avfg6?i:o:l:p:m:h:q:r:d:k:t:c:")
+		) != EOF)
+	{
 		switch (ch) {
 		case 'a':
 			promisc = TRUE;
@@ -301,16 +335,35 @@ parse_args(int argc, char *argv[]) {
 		case 'f':
 			flush = TRUE;
 			break;
+		case 'g':
+			dig_it = TRUE;
+			break;
 		case '6':
 			v6bug = TRUE;
 			break;
+		case '?':
+			help_2();
+			exit(0);
+			break;
 		case 'i':
-			pcapif = malloc(sizeof *pcapif);
-			ISC_LINK_INIT(pcapif, link);
-			pcapif->name = strdup(optarg);
-			assert(pcapif->name != NULL);
-			pcapif->fdes = -1;
-			ISC_LIST_APPEND(pcapifs, pcapif, link);
+			if (pcap_offline != NULL)
+				usage("-i makes no sense after -o");
+			mypcap = malloc(sizeof *mypcap);
+			ISC_LINK_INIT(mypcap, link);
+			mypcap->name = strdup(optarg);
+			assert(mypcap->name != NULL);
+			mypcap->fdes = -1;
+			ISC_LIST_APPEND(mypcaps, mypcap, link);
+			break;
+		case 'o':
+			if (!ISC_LIST_EMPTY(mypcaps))
+				usage("-o makes no sense after -i");
+			pcap_offline = malloc(sizeof *pcap_offline);
+			ISC_LINK_INIT(pcap_offline, link);
+			pcap_offline->name = strdup(optarg);
+			assert(pcap_offline->name != NULL);
+			pcap_offline->fdes = -1;
+			ISC_LIST_APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
 			i = atoi(optarg);
@@ -358,10 +411,15 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'd':
 			dump_base = optarg;
+			if (strcmp(optarg, "-") == 0)
+				dump_type = to_stdout;
+			else
+				dump_type = to_file;
 			break;
 		case 'k':
-			if (dump_base == NULL)
-				usage("-k depends on -d");
+			if (dump_type != to_file)
+				usage("-k depends on -d"
+				      " (note: can't be stdout)");
 			kick_cmd = optarg;
 			break;
 		case 't':
@@ -381,6 +439,8 @@ parse_args(int argc, char *argv[]) {
 		}
 	}
 	assert(msg_wanted != 0U);
+	if (dump_type == nowhere && !dig_it)
+		usage("without -d or -g, there would be no output");
 	if (verbose) {
 		endpoint_ptr ep;
 		const char *sep;
@@ -416,22 +476,23 @@ parse_args(int argc, char *argv[]) {
 		if (!ISC_LIST_EMPTY(responders))
 			fprintf(stderr, "\n");
 	}
-	if (ISC_LIST_EMPTY(pcapifs)) {
+	if (ISC_LIST_EMPTY(mypcaps)) {
 		const char *name;
 #ifdef __linux__
 		name = NULL;	/* "all interfaces" */
 #else
 		name = pcap_lookupdev(errbuf);
 		if (name == NULL) {
-			fprintf(stderr, "%s: pcap: %s\n", ProgramName, errbuf);
+			fprintf(stderr, "%s: pcap_lookupdev: %s\n",
+				ProgramName, errbuf);
 			exit(1);
 		}
 #endif
-		pcapif = malloc(sizeof *pcapif);
-		ISC_LINK_INIT(pcapif, link);
-		pcapif->name = name;
-		pcapif->fdes = -1;
-		ISC_LIST_APPEND(pcapifs, pcapif, link);
+		mypcap = malloc(sizeof *mypcap);
+		ISC_LINK_INIT(mypcap, link);
+		mypcap->name = name;
+		mypcap->fdes = -1;
+		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
 }
 
@@ -612,83 +673,85 @@ text_add(text_list *list, const char *fmt, ...) {
 
 static void
 open_pcaps(void) {
-	pcapif_ptr pcapif;
+	mypcap_ptr mypcap;
 
-	assert(!ISC_LIST_EMPTY(pcapifs));
+	assert(!ISC_LIST_EMPTY(mypcaps));
 	linktype = -1;
-	FD_ZERO(&pcapif_fdset);
+	FD_ZERO(&mypcap_fdset);
 	pcap_maxfd = 0;
-	for (pcapif = ISC_LIST_HEAD(pcapifs);
-	     pcapif != NULL;
-	     pcapif = ISC_LIST_NEXT(pcapif, link))
+	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	     mypcap != NULL;
+	     mypcap = ISC_LIST_NEXT(mypcap, link))
 	{
 		struct bpf_program bpfp;
 
 		errbuf[0] = '\0';
-		pcapif->pcap = pcap_open_live(pcapif->name, SNAPLEN, promisc,
-					      TO_MS, errbuf);
-		if (pcapif->pcap == NULL) {
-			fprintf(stderr, "%s: pcap_open_live: %s\n",
+		if (pcap_offline == NULL)
+			mypcap->pcap = pcap_open_live(mypcap->name, SNAPLEN,
+						      promisc, TO_MS, errbuf);
+		else
+			mypcap->pcap = pcap_open_offline(mypcap->name, errbuf);
+		if (mypcap->pcap == NULL) {
+			fprintf(stderr, "%s: pcap open: %s\n",
 				ProgramName, errbuf);
 			exit(1);
 		}
 		if (errbuf[0] != '\0')
 			fprintf(stderr, "%s: pcap warning: %s",
 				ProgramName, errbuf);
-		pcapif->dlt = pcap_datalink(pcapif->pcap);
+		mypcap->dlt = pcap_datalink(mypcap->pcap);
 		if (linktype == -1)
-			linktype = pcapif->dlt;
-		else if (linktype != pcapif->dlt)
+			linktype = mypcap->dlt;
+		else if (linktype != mypcap->dlt)
 			linktype = DLT_LOOP;
-		pcapif->fdes = pcap_get_selectable_fd(pcapif->pcap);
-		FD_SET(pcapif->fdes, &pcapif_fdset);
-		if (pcapif->fdes > pcap_maxfd)
-			pcap_maxfd = pcapif->fdes;
-		if (pcap_setnonblock(pcapif->pcap, TRUE, errbuf) < 0) {
-			fprintf(stderr, "%s: pcap_setnonblock: %s\n",
-				ProgramName, errbuf);
-			exit(1);
-		}
-		if (pcap_compile(pcapif->pcap, &bpfp, bpft, TRUE, 0) < 0 ||
-		    pcap_setfilter(pcapif->pcap, &bpfp) < 0) {
+		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
+		if (pcap_offline == NULL)
+			if (pcap_setnonblock(mypcap->pcap, TRUE, errbuf) < 0) {
+				fprintf(stderr, "%s: pcap_setnonblock: %s\n",
+					ProgramName, errbuf);
+				exit(1);
+			}
+		FD_SET(mypcap->fdes, &mypcap_fdset);
+		if (mypcap->fdes > pcap_maxfd)
+			pcap_maxfd = mypcap->fdes;
+		if (pcap_compile(mypcap->pcap, &bpfp, bpft, TRUE, 0) < 0 ||
+		    pcap_setfilter(mypcap->pcap, &bpfp) < 0) {
 			fprintf(stderr, "%s: pcap error: %s\n",
-				ProgramName, pcap_geterr(pcapif->pcap));
+				ProgramName, pcap_geterr(mypcap->pcap));
 			exit(1);
 		}
 		pcap_freecode(&bpfp);
 	}
 	assert(linktype != -1);
-	dead = pcap_open_dead(linktype, SNAPLEN);
-	if (dead == NULL) {
-		fprintf(stderr, "%s: pcap_open_dead failed\n", ProgramName);
-		exit(1);
-	}
+	pcap_dead = pcap_open_dead(linktype, SNAPLEN);
 }
 
 static void
 poll_pcaps(void) {
-	pcapif_ptr pcapif;
+	mypcap_ptr mypcap;
 	fd_set readfds;
 	int n;
 
-	readfds = pcapif_fdset;
-	n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+	do {
+		readfds = mypcap_fdset;
+		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+	} while (n < 0 && errno == EINTR);
 	if (n < 0) {
 		perror("select");
 		main_exit = TRUE;
 		return;
 	}
 	/* Poll them all. */
-	for (pcapif = ISC_LIST_HEAD(pcapifs);
-	     pcapif != NULL;
-	     pcapif = ISC_LIST_NEXT(pcapif, link))
+	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	     mypcap != NULL;
+	     mypcap = ISC_LIST_NEXT(mypcap, link))
 	{
-		n = pcap_dispatch(pcapif->pcap, -1, live_packet,
-				  (u_char *)pcapif);
+		n = pcap_dispatch(mypcap->pcap, -1, live_packet,
+				  (u_char *)mypcap);
 		if (n == -1)
 			fprintf(stderr, "%s: pcap_dispatch: %s\n",
 				ProgramName, errbuf);
-		if (n < 0) {
+		if (n < 0 || pcap_offline != NULL) {
 			main_exit = TRUE;
 			return;
 		}
@@ -697,22 +760,22 @@ poll_pcaps(void) {
 
 static void
 close_pcaps(void) {
-	pcapif_ptr pcapif;
+	mypcap_ptr mypcap;
 
-	for (pcapif = ISC_LIST_HEAD(pcapifs);
-	     pcapif != NULL;
-	     pcapif = ISC_LIST_NEXT(pcapif, link))
-		pcap_close(pcapif->pcap);
-	pcap_close(dead);
+	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	     mypcap != NULL;
+	     mypcap = ISC_LIST_NEXT(mypcap, link))
+		pcap_close(mypcap->pcap);
+	pcap_close(pcap_dead);
 }
 
 static void
 live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	u_char pkt_copy[SNAPLEN+NS_INT32SZ],
 		*pkt = pkt_copy+NS_INT32SZ,
-		*netpkt;
+		*netptr, *dlptr;
+	mypcap_ptr mypcap = (mypcap_ptr) user;
 	iaddr from, to, initiator, responder;
-	pcapif_ptr pcapif = (pcapif_ptr) user;
 	u_int etype, proto, sport, dport;
 	size_t len = hdr->caplen;
 	struct ip6_hdr *ipv6;
@@ -721,11 +784,21 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	struct ip *ip;
 	HEADER dns;
 
+	/* Sometimes pcap_breakloop() stutters. */
+	if (main_exit)
+		return;
+
+	/* If ever SNAPLEN wasn't big enough, we have no recourse. */
+	if (hdr->len != hdr->caplen)
+		return;
+
+	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len);
 
 	/* Data link. */
 	vlan = 0;
-	switch (pcapif->dlt) {
+	dlptr = pkt;
+	switch (mypcap->dlt) {
 	case DLT_NULL: {
 		u_int32_t x;
 
@@ -795,9 +868,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	}
 
 	/* Network. */
-	netpkt = pkt;
 	ip = NULL;
 	ipv6 = NULL;
+	netptr = pkt;
 	switch (etype) {
 	case ETHERTYPE_IP: {
 		u_int offset;
@@ -914,7 +987,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	/* Application. */
 	if (len < sizeof dns)
 		return;
-	dns = *(HEADER *)pkt;
+	memcpy(&dns, pkt, sizeof dns);
 
 	/* Policy filtering. */
 	if (!ISC_LIST_EMPTY(vlans)) {
@@ -1007,45 +1080,78 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			abort();
 		}
 	}
+	msgcount++;
 
-	if (dumper != NULL && hdr->ts.tv_sec > dumpstart &&
+	/* Output stage. */
+	if (hdr->ts.tv_sec > dumpstart &&
 	    (u_int)(hdr->ts.tv_sec - dumpstart) >= limit_seconds)
-		if (dumper_close()) {
-			main_exit = TRUE;
-			return;
-		}
-	if (dumper == NULL)
-		if (dumper_open(hdr->ts)) {
-			main_exit = TRUE;
-			return;
-		}
-	if (pcapif->dlt == linktype) {
-		pcap_dump((u_char *)dumper, hdr, pkt_copy+NS_INT32SZ);
-	} else {
-		struct pcap_pkthdr h;
-		u_char *tmp;
+	{
+		if (dump_type == nowhere)
+			goto breakloop;
+		if (dumper != NULL && dumper_close())
+			goto breakloop;
+	}
+	if (dig_it) {
+		const struct tm *tm;
+		const char *via;
+		char tmp[100];
+		time_t t;
 
-		netpkt -= NS_INT32SZ;
-		tmp = netpkt; NS_PUT32(pf, tmp);
-		h = *hdr;
-		h.caplen -= (netpkt - pkt);
-		h.len -= (netpkt - pkt);
-		pcap_dump((u_char *)dumper, &h, netpkt);
+		t = (time_t) hdr->ts.tv_sec;
+		tm = gmtime(&t);
+		strftime(tmp, sizeof tmp, "%F %T", tm);
+		if (mypcap->name == NULL)
+			via = "\"some interface\"";
+		else
+			via = mypcap->name;
+		fprintf(stderr, ";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
+			tmp, (u_long)hdr->ts.tv_usec, (u_long)len, via,
+			(long)msgcount);
+		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
+		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
+		fp_nquery(pkt, len, stderr);
+		fprintf(stderr, ";--\n");
 	}
-	if (flush)
-		pcap_dump_flush(dumper);
-	if (++dumpcount == limit_packets) {
-		dumpcount = 0;
-		if (dumper_close())
-			return;
+	if (dump_type != nowhere) {
+		if (dumper == NULL)
+			if (dumper_open(hdr->ts))
+				goto breakloop;
+		if (mypcap->dlt == linktype) {
+			pcap_dump((u_char *)dumper, hdr, pkt_copy+NS_INT32SZ);
+		} else {
+			struct pcap_pkthdr h;
+			u_char *new;
+
+			new = netptr - NS_INT32SZ;
+			ns_put32(pf, new);
+			h = *hdr;
+			if (new > dlptr)
+				h.caplen = (h.len -= (new - dlptr));
+			else
+				h.caplen = (h.len += (dlptr - new));
+			pcap_dump((u_char *)dumper, &h, new);
+		}
+		if (flush)
+			pcap_dump_flush(dumper);
 	}
+	if (msgcount == limit_packets) {
+		if (dump_type == nowhere)
+			goto breakloop;
+		if (dumper != NULL && dumper_close())
+			goto breakloop;
+		msgcount = 0;
+	}
+	return;
+ breakloop:
+	pcap_breakloop(mypcap->pcap);
+	main_exit = TRUE;
 }
 
 static int
 dumper_open(struct timeval ts) {
 	const char *t = NULL;
 
-	if (dump_base == NULL) {
+	if (dump_type == to_stdout) {
 		t = "-";
 	} else {
 		while (ts.tv_usec >= MILLION) {
@@ -1062,9 +1168,10 @@ dumper_open(struct timeval ts) {
 		}
 		t = dumpnamepart;
 	}
-	dumper = pcap_dump_open(dead, t);
+	dumper = pcap_dump_open(pcap_dead, t);
 	if (dumper == NULL) {
-		fprintf(stderr, "pcap: %s\n", pcap_geterr(dead));
+		fprintf(stderr, "pcap dump open: %s\n",
+			pcap_geterr(pcap_dead));
 		return (TRUE);
 	}
 	dumpstart = ts.tv_sec;
@@ -1074,12 +1181,11 @@ dumper_open(struct timeval ts) {
 
 static int
 dumper_close(void) {
-	FILE *dumpfile = pcap_dump_file(dumper);
 	int ret = FALSE;
 
 	alarm(0);
 	pcap_dump_close(dumper); dumper = FALSE;
-	if (dumpfile == stdout) {
+	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
 		if (verbose)

@@ -6,8 +6,9 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl avf6
+.Op Fl avfg?6
 .Op Fl i Ar if ...
+.Op Fl o Ar file
 .Op Fl l Ar vlan ...
 .Op Fl p Ar port
 .Oo
@@ -30,12 +31,12 @@
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
-produces binary data in
+normally produces binary data in
 .Xr pcap 3
-format, either on standard output (by default) or in successive dump files
-(if the
+format, either on standard output or in successive dump files
+(based on the
 .Fl d
-command line option is given.)  This utility is similar to
+command line option.)  This utility is similar to
 .Xr tcpdump 1 ,
 but has finer grained packet recognition tailored to DNS transactions and
 protocol options.
@@ -53,8 +54,20 @@ Tells a verbose story of options and patterns chosen, files opened, and so on.
 Flush the
 .Xr pcap 3
 packet dump after every packet.  Mostly this is useful when the
-packet dump is standard output (the default), and has been piped to
+packet dump is standard output, and has been piped to
 .Xr tcpdump 1 .
+.It Fl g
+Produce
+.Xr dig 1 -like
+output on diagnostic output, showing the presentation form of DNS messages
+which passed through all of the filters.  If
+.Fl d
+is also used, then every message will be dumped in both binary and
+presentation form.
+.It Fl ?
+Prints some text to stdout describing the command line options, so that you
+won't have to refer back to this man page as often.  Probably you will have
+to say "-\\?" to get this option past your shell.
 .It Fl 6
 Avoid patterns which depend on correctly functioning kernel BPF engines.  Most
 such engines at least through 2007 have bugs in analyzing IPv6 packets.
@@ -64,7 +77,14 @@ interface that was configured at system boot time.  On Linux systems, the
 default is to monitor all interfaces.  More than one interface may be selected
 which will cause output to be interleaved from all selected interfaces.  If
 multiple interfaces are selected having disparite datalink types (framing),
-then the output datalink will be demoted to DLT_LOOP (protocol family only).
+then the output datalink will be demoted to DLT_LOOP (protocol family only,
+no link layer source/destination addresses or other framing information.)
+.It Fl o Ar file
+Select an offline
+.Xr pcap 3
+file produced by this utility or by
+.Xr tcpdump 1
+as the input packet source.  Can be given as "-" to indicate standard input.
 .It Fl l Ar vlan
 Captures only 802.1Q encapsulated packets, and selects specific vlans to be
 monitored.  Can be specified more than once to select multiple vlans.
@@ -78,7 +98,7 @@ An "error" means a non-zero RCODE or a truncation (TC) flag.
 .It Fl h Op ir
 Hide initiator or responder of each captured transaction.  Hiding an initiator
 means wiping out the address and port number.  Hiding a responder means to wipe
-out the address only.  The wiping occurs on the copy of the packet sent to the
+out the address only.  This wiping occurs on the copy of the packet sent to the
 .Xr pcap 3
 dump output, and both the IP and UDP checksums will be recomputed in that case.
 .It Fl q Ar host
@@ -90,10 +110,18 @@ Capture only transactions having these responders.  Can be specified more than
 once to select multiple responders.  If a host name is used, then all of that
 host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
 .It Fl d Ar base
-Dump the captured packets to files rather than to standard output.  Each file
-will have a name like "%s.%u.%09u" where %s is
+Dump the captured packets to successive binary files in
+.Xr pcap 3
+format.  Each file will have a name like "%s.%u.%06u" where %s is
 .Ar base ,
-%u is the time in seconds, and %09u is the time in microseconds.
+%u is the time in seconds, and %06u is the time in microseconds.  The argument
+"-" may be given (so, "-d -") to send the binary output to standard output.
+In that case, the
+.Fl c
+and
+.Fl t
+options affect the total duration of the capture, and not merely the size and
+time limits of each individual dump file.
 .It Fl k Ar cmd
 After each dump file specified by
 .Fl d
@@ -106,8 +134,8 @@ By default,
 will close its packet dump file after 86400 seconds (one day).  A shorter or
 longer time can be chosen with the
 .Fl t
-option.  If the packet dump file is standard output (the default), then after
-closing this file,
+option.  If the packet dump file is standard output, then after closing this
+file,
 .Nm
 exits.  This option is inclusive with
 .Fl c .
@@ -117,8 +145,8 @@ By default,
 will close its packet dump file after writing 1000000000 (one billion)
 packets.  A larger or smaller dump file size can be chosen with the
 .Fl c
-option.  If the packet dump file is standard output (the default), then after
-closing this file,
+option.  If the packet dump file is standard output, then after closing this
+file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
@@ -126,37 +154,41 @@ exits.  This option is inclusive with
 .Pp
 If started up with no options,
 .Nm
-will immediately begin spewing binary data to its standard output.  This is
-almost never desireable, and at a minimum, it's recommended that the output
-be piped to
+will exit with a complaint that without either the
+.Fl d
+or
+.Fl g
+options, it's pointless to run the program at all.  In its simplest form,
+the output can be piped to
 .Xr tcpdump 1
 as in:
 .Bd -literal -offset indent
-dnscap | tcpdump -r -
+dnscap -d - | tcpdump -r -
 .Ed
 .Pp
 You can safely add the
 .Fl v
-option since the output resulting from that option goes to diagnostic output
-rather than standard output.  And since everybody who's anybody always uses
-the
+option since the output resulting from
+.Fl v
+goes to diagnostic output rather than standard output.  And since everybody
+who's anybody always uses the
 .Fl n
 option to
 .Xr tcpdump 1 ,
 the minimum useful incantation is probably:
 .Bd -literal -offset indent
-dnscap -v | tcpdump -r - -n
+dnscap -v -d - | tcpdump -r - -n
 .Ed
 .Pp
 The more interesting use for
 .Nm
 is long term or continuous data collection.  Assuming a shell script called
 .Ar dnscap-upload
-whose job was to transfer a
+whose function is to transfer a
 .Xr pcap 3 -
-format file to an analytics system and remove it, then a root name server
-operating system startup could invoke
-.Nm dnscap
+format file to an analytics system and then remove the local copy of it, then
+a name server operating system startup could invoke
+.Nm
 for continuous DNS auditing using a command like:
 .Bd -literal -offset indent
 dnscap -m quire -h i -r f.root-servers.net \\

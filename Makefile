@@ -8,7 +8,7 @@ CWARN=-W -Wall -Werror -Wcast-qual -Wpointer-arith -Wwrite-strings \
 	-Wunused -Wshadow -Wmissing-noreturn -Wswitch-enum -Wformat-nonliteral
 CFLAGS= ${CDEBUG} ${CWARN}
 
-LDLIBS= -lpcap
+LDLIBS= -lpcap -lbind
 LDFLAGS=
 
 all: ${ALL}
@@ -17,12 +17,14 @@ all: ${ALL}
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && \
 		${CC} ${CFLAGS} \
-		`PATH=/usr/local/bin:$$PATH isc-config.sh --cflags isc` \
+		`PATH=/usr/local/bin:$$PATH isc-config.sh --cflags` \
 		-c $<
 
 DNSCAP_OBJ= dnscap.o
 dnscap: ${DNSCAP_OBJ}
-	${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
+	${CC} -o dnscap ${LDFLAGS} \
+		`PATH=/usr/local/bin:$$PATH isc-config.sh --libs` \
+		${DNSCAP_OBJ} ${LDLIBS}
 
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1
