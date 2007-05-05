@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.3 2007-05-05 02:57:57 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.4 2007-05-05 02:59:50 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -63,6 +63,7 @@ static const char copyright[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <isc/list.h>
