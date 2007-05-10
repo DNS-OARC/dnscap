@@ -1,0 +1,44 @@
+Date: Thu, 10 May 2007 13:56:46 -0400 (EDT)
+From: "Marcus N. Morgan" <marcus@ufl.edu>
+
+Readme for Linux installations.
+
+Building and installing DNSCAP requires that bind 9 and pcap be
+installed.  For bind 9.4.1 I specified
+
+./configure  --with-libtool \
+              --disable-threads \
+              --disable-openssl-version-check \
+              --enable-libbind \
+              --prefix=/usr/local/bind \
+              --sysconfdir=/etc \
+              --localstatedir=/var
+
+enable-libbind is necessary so that the bind libraries will be
+built and installed.  disable-openssl-version-check is probably
+necessary because the vendor supplied updates to openssl will
+have strange numbers that won't pass the checks in configure.
+
+pcap will probably already be installed.  if not you can add it
+using via rpm.
+
+You'll probably need to edit /etc/ld.so.conf.d/
+and add a file so that ld processing will be able to find
+the bind libraries.  I added added a file called local.conf
+with contents
+
+/usr/local/lib
+/usr/local/bind/lib
+
+then run ldconfig as root after you've built and installed
+bind.
+
+Building DNSCAP is now something like:
+
+  mkdir dnscap
+  cd dnscap
+  tar -zxf /path-to-dnscap.tar.gz
+  cd dnscap
+  make
+  cp dnscap.1 /usr/local/man/man1
+  cp dnscap /usr/local/sbin
