@@ -69,8 +69,9 @@ Prints some text to stdout describing the command line options, so that you
 won't have to refer back to this man page as often.  Probably you will have
 to say "-\\?" to get this option past your shell.
 .It Fl 6
-Avoid patterns which depend on correctly functioning kernel BPF engines.  Most
-such engines at least through 2007 have bugs in analyzing IPv6 packets.
+Suppress the use of packet filter patterns that are known (as of 2007) to
+cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
+expected to be present.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
