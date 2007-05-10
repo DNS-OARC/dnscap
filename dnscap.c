@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.4 2007-05-05 02:59:50 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.5 2007-05-10 17:40:10 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -311,8 +311,8 @@ static void
 parse_args(int argc, char *argv[]) {
 	mypcap_ptr mypcap;
 	vlan_ptr vlan;
-	char *p, ch;
-	int i;
+	int i, ch;
+	char *p;
 
 	if ((p = strrchr(argv[0], '/')) == NULL)
 		ProgramName = argv[0];
