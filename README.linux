@@ -42,3 +42,14 @@ Building DNSCAP is now something like:
   make
   cp dnscap.1 /usr/local/man/man1
   cp dnscap /usr/local/sbin
+
+---
+
+comment on fedora core 6
+this is a redhat varient.   the bind libraries will be present if
+dns server is selected.  isc-config.sh will not be.  an alias will
+be needed from /usr/bin/isc-config.sh to wherever it is installed.
+
+it may be necessary to install the pcap development libraries
+even if the base pcap is installed to get pcap.h for compile.
+
