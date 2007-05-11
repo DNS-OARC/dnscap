@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.6 2007-05-11 17:29:26 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.7 2007-05-11 17:50:16 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -152,7 +152,7 @@ typedef ISC_LIST(struct mypcap) mypcap_list;
 
 struct vlan {
 	ISC_LINK(struct vlan)	link;
-	u_int			vlan;
+	unsigned		vlan;
 };
 typedef struct vlan *vlan_ptr;
 typedef ISC_LIST(struct vlan) vlan_list;
@@ -187,7 +187,7 @@ static int dumper_open(struct timeval);
 static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
-static u_int16_t in_checksum(const u_char *, size_t);
+static uint16_t in_checksum(const u_char *, size_t);
 
 /* Private data. */
 
@@ -195,8 +195,8 @@ static const char *ProgramName = "amnesia";
 static int verbose = FALSE;
 static int flush = FALSE;
 static vlan_list vlans;
-static u_int msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
-static u_int end_hide = 0U;
+static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
+static unsigned end_hide = 0U;
 static endpoint_list initiators;
 static endpoint_list responders;
 static mypcap_list mypcaps;
@@ -204,18 +204,18 @@ static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static const char *kick_cmd = NULL;
-static u_int limit_seconds = DAY;
-static u_int limit_packets = BILLION;
+static unsigned limit_seconds = DAY;
+static unsigned limit_packets = BILLION;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
 static pcap_t *pcap_dead;
 static int linktype;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
-static u_int msgcount;
+static unsigned msgcount;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
-static u_int dns_port = DNS_PORT;
+static unsigned dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
@@ -337,7 +337,11 @@ parse_args(int argc, char *argv[]) {
 			flush = TRUE;
 			break;
 		case 'g':
+#if HAVE_BINDLIB
 			dig_it = TRUE;
+#else
+			usage("-g option is disabled due to lack of libbind");
+#endif
 			break;
 		case '6':
 			v6bug = TRUE;
@@ -552,7 +556,7 @@ endpoint_add(endpoint_list *list, iaddr ia) {
 
 static void
 prepare_bpft(void) {
-	u_int udp10_mbs, udp10_mbc, udp11_mbs, udp11_mbc;
+	unsigned udp10_mbs, udp10_mbc, udp11_mbs, udp11_mbc;
 	text_list bpfl;
 	text_ptr text;
 	size_t len;
@@ -783,11 +787,11 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		*netptr, *dlptr;
 	mypcap_ptr mypcap = (mypcap_ptr) user;
 	iaddr from, to, initiator, responder;
-	u_int etype, proto, sport, dport;
+	unsigned etype, proto, sport, dport;
 	size_t len = hdr->caplen;
 	struct ip6_hdr *ipv6;
 	struct udphdr *udp;
-	u_int vlan, pf;
+	unsigned vlan, pf;
 	struct ip *ip;
 	HEADER dns;
 
@@ -807,11 +811,11 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	dlptr = pkt;
 	switch (mypcap->dlt) {
 	case DLT_NULL: {
-		u_int32_t x;
+		uint32_t x;
 
 		if (len < NS_INT32SZ)
 			return;
-		x = *(const u_int32_t *)pkt;
+		x = *(const uint32_t *)pkt;
 		if (x == PF_INET)
 			etype = ETHERTYPE_IP;
 		else if (x == PF_INET6)
@@ -823,7 +827,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		break;
 	    }
 	case DLT_LOOP: {
-		u_int32_t x;
+		uint32_t x;
 
 		if (len < NS_INT32SZ)
 			return;
@@ -849,12 +853,12 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (etype == ETHERTYPE_VLAN) {
 			if (len < 4)
 				return;
-			vlan = ntohs(*(const u_int16_t *) pkt);
+			vlan = ntohs(*(const uint16_t *) pkt);
 			pkt += 2;
 			len -= 2;
 			if (vlan < 1 || vlan > MAX_VLAN)
 				return;
-			etype = ntohs(*(const u_int16_t *) pkt);
+			etype = ntohs(*(const uint16_t *) pkt);
 			pkt += 2;
 			len -= 2;
 		}
@@ -864,7 +868,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	case DLT_LINUX_SLL: {
 		if (len < 16)
 			return;
-		etype = ntohs(*(const u_int16_t *) &pkt[14]);
+		etype = ntohs(*(const uint16_t *) &pkt[14]);
 		pkt += 16;
 		len -= 16;
 		break;
@@ -880,7 +884,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	netptr = pkt;
 	switch (etype) {
 	case ETHERTYPE_IP: {
-		u_int offset;
+		unsigned offset;
 
 		if (len < sizeof *ip)
 			return;
@@ -903,9 +907,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		break;
 	    }
 	case ETHERTYPE_IPV6: {
-		u_int16_t payload_len;
-		u_int8_t nexthdr;
-		u_int offset;
+		uint16_t payload_len;
+		uint8_t nexthdr;
+		unsigned offset;
 
 		if (len < sizeof *ipv6)
 			return;
@@ -930,10 +934,10 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		       nexthdr == IPPROTO_ESP)		/* encap sec payload */
 		{
 			struct {
-				u_int8_t nexthdr;
-				u_int8_t length;
+				uint8_t nexthdr;
+				uint8_t length;
 			} ext_hdr;
-			u_int16_t ext_hdr_len;
+			uint16_t ext_hdr_len;
 
 			/* Catch broken packets */
 			if ((offset + sizeof ext_hdr) > len)
@@ -1038,7 +1042,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		switch (from.af) {
 		case AF_INET: {
 			struct in_addr *init_addr, *resp_addr;
-			u_int16_t *init_port;
+			uint16_t *init_port;
 
 			if (dns.qr == 0) {
 				init_addr = &ip->ip_src;
@@ -1061,7 +1065,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		    }
 		case AF_INET6: {
 			struct in6_addr *init_addr, *resp_addr;
-			u_int16_t *init_port;
+			uint16_t *init_port;
 
 			if (dns.qr == 0) {
 				init_addr = &ipv6->ip6_src;
@@ -1091,13 +1095,14 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 
 	/* Output stage. */
 	if (hdr->ts.tv_sec > dumpstart &&
-	    (u_int)(hdr->ts.tv_sec - dumpstart) >= limit_seconds)
+	    (unsigned)(hdr->ts.tv_sec - dumpstart) >= limit_seconds)
 	{
 		if (dump_type == nowhere)
 			goto breakloop;
 		if (dumper != NULL && dumper_close())
 			goto breakloop;
 	}
+#if HAVE_LIBBIND
 	if (dig_it) {
 		const struct tm *tm;
 		const char *via;
@@ -1119,6 +1124,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		fp_nquery(pkt, len, stderr);
 		fprintf(stderr, ";--\n");
 	}
+#endif
 	if (dump_type != nowhere) {
 		if (dumper == NULL)
 			if (dumper_open(hdr->ts))
@@ -1127,10 +1133,11 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			pcap_dump((u_char *)dumper, hdr, pkt_copy+NS_INT32SZ);
 		} else {
 			struct pcap_pkthdr h;
-			u_char *new;
+			u_char *new, *tmp;
 
 			new = netptr - NS_INT32SZ;
-			ns_put32(pf, new);
+			tmp = new;
+			NS_PUT32(pf, tmp);
 			h = *hdr;
 			if (new > dlptr)
 				h.caplen = (h.len -= (new - dlptr));
@@ -1233,13 +1240,13 @@ sigbreak(int signum __attribute__((unused))) {
 	main_exit = TRUE;
 }
 
-static u_int16_t
+static uint16_t
 in_checksum(const u_char *ptr, size_t len) {
 	unsigned sum = 0, top;
 
 	/* Main body. */
 	while (len >= NS_INT16SZ) {
-		sum += *(const u_int16_t *)ptr;
+		sum += *(const uint16_t *)ptr;
 		ptr += NS_INT16SZ;
 		len -= NS_INT16SZ;
 	}
@@ -1250,8 +1257,8 @@ in_checksum(const u_char *ptr, size_t len) {
 
 	/* Leftover carries? */
 	while ((top = (sum >> 16)) != 0)
-		sum = ((u_int16_t)sum) + top;
+		sum = ((uint16_t)sum) + top;
 
 	/* Caller should ~ this result. */
-	return ((u_int16_t) sum);
+	return ((uint16_t) sum);
 }
