@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.5 2007-05-10 17:40:10 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.6 2007-05-11 17:29:26 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -350,6 +350,7 @@ parse_args(int argc, char *argv[]) {
 			if (pcap_offline != NULL)
 				usage("-i makes no sense after -o");
 			mypcap = malloc(sizeof *mypcap);
+			assert(mypcap != NULL);
 			ISC_LINK_INIT(mypcap, link);
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
@@ -360,6 +361,7 @@ parse_args(int argc, char *argv[]) {
 			if (!ISC_LIST_EMPTY(mypcaps))
 				usage("-o makes no sense after -i");
 			pcap_offline = malloc(sizeof *pcap_offline);
+			assert(pcap_offline != NULL);
 			ISC_LINK_INIT(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
 			assert(pcap_offline->name != NULL);
@@ -371,6 +373,7 @@ parse_args(int argc, char *argv[]) {
 			if (i < 1 || i > MAX_VLAN)
 				usage("vlan must be an integer 1..4095");
 			vlan = malloc(sizeof *vlan);
+			assert(vlan != NULL);
 			ISC_LINK_INIT(vlan, link);
 			vlan->vlan = i;
 			ISC_LIST_APPEND(vlans, vlan, link);
@@ -490,6 +493,7 @@ parse_args(int argc, char *argv[]) {
 		}
 #endif
 		mypcap = malloc(sizeof *mypcap);
+		assert(mypcap != NULL);
 		ISC_LINK_INIT(mypcap, link);
 		mypcap->name = name;
 		mypcap->fdes = -1;
@@ -537,8 +541,9 @@ endpoint_arg(endpoint_list *list, const char *arg) {
 
 static void
 endpoint_add(endpoint_list *list, iaddr ia) {
-	endpoint_ptr ep = malloc(sizeof *ep);
+	endpoint_ptr ep;
 
+	ep = malloc(sizeof *ep);
 	assert(ep != NULL);
 	ISC_LINK_INIT(ep, link);
 	ep->ia = ia;
@@ -614,6 +619,7 @@ prepare_bpft(void) {
 		len += text_add(&bpfl, " )");
 	}
 	bpft = malloc(len + 1);
+	assert(bpft != NULL);
 	bpft[0] = '\0';
 	for (text = ISC_LIST_HEAD(bpfl);
 	     text != NULL;
@@ -1207,6 +1213,8 @@ dumper_close(void) {
 		free(dumpnamepart); dumpnamepart = NULL;
 		free(dumpname); dumpname = NULL;
 		if (cmd != NULL) {
+			setuid(getuid());
+			setgid(getgid());
 			system(cmd);
 			free(cmd);
 		}
