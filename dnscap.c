@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.7 2007-05-11 17:50:16 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.8 2007-05-14 22:09:29 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -1102,7 +1102,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (dumper != NULL && dumper_close())
 			goto breakloop;
 	}
-#if HAVE_LIBBIND
+#if HAVE_BINDLIB
 	if (dig_it) {
 		const struct tm *tm;
 		const char *via;
