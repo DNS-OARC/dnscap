@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.8 2007-05-14 22:09:29 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.9 2007-05-15 16:04:32 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -746,7 +746,7 @@ poll_pcaps(void) {
 	do {
 		readfds = mypcap_fdset;
 		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
-	} while (n < 0 && errno == EINTR);
+	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
 		perror("select");
 		main_exit = TRUE;
