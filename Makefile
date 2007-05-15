@@ -28,7 +28,7 @@ LDFLAGS= ${BINDLDFLAGS}
 LDLIBS= -lpcap ${BINDLIB}
 
 all: ${ALL}
-	touch all
+	rm -f all; touch all
 
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
