@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.9 2007-05-15 16:04:32 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.10 2007-05-15 23:50:29 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -36,15 +36,27 @@ static const char copyright[] =
 # define __FAVOR_BSD
 # define __USE_GNU
 # define _GNU_SOURCE
+# include <net/ethernet.h>
 #endif
 
-#ifndef __NetBSD__
-#include <net/ethernet.h>
-#else
-#include <net/ethertypes.h>
-#include <net/if.h>
-#include <net/if_ether.h>
+#ifdef __FreeBSD__
+# include <net/ethernet.h>
+#endif
+
+#ifdef __NetBSD__
+# include <net/ethertypes.h>
+# include <net/if.h>
+# include <net/if_ether.h>
 #endif 
+
+#ifdef __OpenBSD__
+# include <net/ethertypes.h>
+# include <net/if.h>
+# include <netinet/in.h>
+# include <netinet/in_var.h>
+# include <netinet/if_ether.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -748,7 +760,8 @@ poll_pcaps(void) {
 		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
-		perror("select");
+		if (errno != EINTR)
+			perror("select");
 		main_exit = TRUE;
 		return;
 	}
