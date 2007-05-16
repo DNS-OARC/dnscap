@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.10 2007-05-15 23:50:29 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.11 2007-05-16 22:55:21 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -69,6 +69,7 @@ static const char copyright[] =
 #include <errno.h>
 #include <netdb.h>
 #include <pcap.h>
+#include <regex.h>
 #include <resolv.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -134,6 +135,7 @@ static const char copyright[] =
 #define SNAPLEN		65536
 #define TRUE		1
 #define FALSE		0
+#define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 
 /* Data structures. */
 
@@ -178,6 +180,13 @@ typedef struct text *text_ptr;
 typedef ISC_LIST(struct text) text_list;
 #define text_size(len) (sizeof(struct text) + len)
 
+struct myregex {
+	ISC_LINK(struct myregex)  link;
+	regex_t			reg;
+};
+typedef struct myregex *myregex_ptr;
+typedef ISC_LIST(struct myregex) myregex_list;
+
 /* Forward. */
 
 static void setsig(int, int);
@@ -211,6 +220,7 @@ static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
 static unsigned end_hide = 0U;
 static endpoint_list initiators;
 static endpoint_list responders;
+static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
@@ -291,7 +301,7 @@ help_1(void) {
 		"usage: %s\n"
 		"\t[-avfg6] [-i <if>]+ [-o <file>] [-l <vlan>]+ [-p <port>]\n"
 		"\t[-m [quire]] [-h [ir]] [-q <host>]+ [-r <host>]+\n"
-		"\t[-d <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
+		"\t[-d <base> [-k <cmd>]] [-t <lim>] [-c <lim>] [-x <pat>]+\n",
 		ProgramName);
 }
 
@@ -316,11 +326,15 @@ help_2(void) {
 		"\t-d <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every <lim> secs\n"
-		"\t-c <lim>   close dump or exit every <lim> pkts\n");
+		"\t-c <lim>   close dump or exit every <lim> pkts\n"
+		"\t-x <pat>   display messages matching regex <pat>\n");
 }
 
 static void
 parse_args(int argc, char *argv[]) {
+#ifdef HAVE_BINDLIB
+	myregex_ptr myregex;
+#endif
 	mypcap_ptr mypcap;
 	vlan_ptr vlan;
 	int i, ch;
@@ -335,7 +349,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(initiators);
 	ISC_LIST_INIT(responders);
 	while ((ch = getopt(argc, argv,
-			    "avfg6?i:o:l:p:m:h:q:r:d:k:t:c:")
+			    "avfg6?i:o:l:p:m:h:q:r:d:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -454,6 +468,22 @@ parse_args(int argc, char *argv[]) {
 				usage("-c argument is out of range");
 			limit_packets = i;
 			break;
+		case 'x':
+#if HAVE_BINDLIB
+			myregex = malloc(sizeof *myregex);
+			assert(myregex != NULL);
+			ISC_LINK_INIT(myregex, link);
+			i = regcomp(&myregex->reg, optarg, REGEX_CFLAGS);
+			if (i != 0) {
+				regerror(i, &myregex->reg,
+					 errbuf, sizeof errbuf);
+				usage(errbuf);
+			}
+			ISC_LIST_APPEND(myregexes, myregex, link);
+			break;
+#else
+			usage("-x option is disabled due to lack of libbind");
+#endif
 		default:
 			usage("unrecognized command line option");
 		}
@@ -1049,6 +1079,38 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	if ((msg_wanted & MSG_ERROR) == 0 &&
 	    (dns.tc != 0 || dns.rcode != ns_r_noerror))
 		return;
+	if (!ISC_LIST_EMPTY(myregexes)) {
+		char output[SNAPLEN*4];
+		ns_msg msg;
+		ns_sect s;
+		int ok;
+
+		ok = FALSE;
+		if (ns_initparse(pkt, len, &msg) < 0)
+			return;
+		for (s = ns_s_an; s < ns_s_max && !ok; s++) {
+			int count, n;
+			ns_rr rr;
+
+			count = ns_msg_count(msg, s);
+			for (n = 0; n < count && !ok; n++) {
+				myregex_ptr myregex;
+
+				if (ns_parserr(&msg, s, n, &rr) < 0 ||
+				    ns_sprintrr(&msg, &rr, NULL, ".",
+						output, sizeof output) < 0)
+					return;
+				for (myregex = ISC_LIST_HEAD(myregexes);
+				     myregex != NULL && !ok;
+				     myregex = ISC_LIST_NEXT(myregex, link))
+					if (regexec(&myregex->reg, output,
+						    0, NULL, 0) == 0)
+						ok = TRUE;
+			}
+		}
+		if (!ok)
+			return;
+	}
 
 	/* Policy hiding. */
 	if (end_hide != 0) {

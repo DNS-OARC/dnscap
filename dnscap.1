@@ -28,6 +28,7 @@
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
+.Op Fl x Ar pat ...
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -151,6 +152,17 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
+.It Fl x Ar pat
+If one or more
+.Fl x
+options are provided, then DNS messages will only be selected if their
+presentation format representation matches at least one of the provided
+.Ar pat
+patterns.  See
+.Xr regex 3
+and
+.Xr re_format 7
+for more information about extended regular expression syntax.
 .El
 .Pp
 If started up with no options,
