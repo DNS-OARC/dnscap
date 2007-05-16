@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.11 2007-05-16 22:55:21 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.12 2007-05-16 23:10:18 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 #endif
@@ -12,7 +12,7 @@ static const char copyright[] =
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or redistribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -55,6 +55,11 @@ static const char copyright[] =
 # include <netinet/in.h>
 # include <netinet/in_var.h>
 # include <netinet/if_ether.h>
+# define MY_BPFTIMEVAL bpf_timeval
+#endif
+
+#ifndef MY_BPFTIMEVAL
+# define MY_BPFTIMEVAL timeval
 #endif
 
 #include <netinet/in_systm.h>
@@ -204,7 +209,7 @@ static void open_pcaps(void);
 static void poll_pcaps(void);
 static void close_pcaps(void);
 static void live_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
-static int dumper_open(struct timeval);
+static int dumper_open(struct MY_BPFTIMEVAL);
 static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
@@ -332,7 +337,7 @@ help_2(void) {
 
 static void
 parse_args(int argc, char *argv[]) {
-#ifdef HAVE_BINDLIB
+#if HAVE_BINDLIB
 	myregex_ptr myregex;
 #endif
 	mypcap_ptr mypcap;
@@ -348,6 +353,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(mypcaps);
 	ISC_LIST_INIT(initiators);
 	ISC_LIST_INIT(responders);
+	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
 			    "avfg6?i:o:l:p:m:h:q:r:d:k:t:c:x:")
 		) != EOF)
@@ -1079,6 +1085,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	if ((msg_wanted & MSG_ERROR) == 0 &&
 	    (dns.tc != 0 || dns.rcode != ns_r_noerror))
 		return;
+#if HAVE_BINDLIB
 	if (!ISC_LIST_EMPTY(myregexes)) {
 		char output[SNAPLEN*4];
 		ns_msg msg;
@@ -1111,6 +1118,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (!ok)
 			return;
 	}
+#endif
 
 	/* Policy hiding. */
 	if (end_hide != 0) {
@@ -1170,7 +1178,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 
 	/* Output stage. */
 	if (hdr->ts.tv_sec > dumpstart &&
-	    (unsigned)(hdr->ts.tv_sec - dumpstart) >= limit_seconds)
+	    (unsigned)(((time_t)hdr->ts.tv_sec) - dumpstart) >= limit_seconds)
 	{
 		if (dump_type == nowhere)
 			goto breakloop;
@@ -1237,7 +1245,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 }
 
 static int
-dumper_open(struct timeval ts) {
+dumper_open(struct MY_BPFTIMEVAL ts) {
 	const char *t = NULL;
 
 	if (dump_type == to_stdout) {
