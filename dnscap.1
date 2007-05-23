@@ -6,11 +6,12 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl avfg?6
+.Op Fl ad1g?6v
 .Op Fl i Ar if ...
 .Op Fl o Ar file
 .Op Fl l Ar vlan ...
 .Op Fl p Ar port
+.Op Fl x Ar pat ...
 .Oo
 .Fl m
 .Op quire
@@ -22,13 +23,12 @@
 .Op Fl q Ar host ...
 .Op Fl r Ar host ...
 .Oo
-.Fl d
+.Fl b
 .Ar base
 .Op Fl k Ar cmd
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
-.Op Fl x Ar pat ...
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -36,7 +36,7 @@ normally produces binary data in
 .Xr pcap 3
 format, either on standard output or in successive dump files
 (based on the
-.Fl d
+.Fl b
 command line option.)  This utility is similar to
 .Xr tcpdump 1 ,
 but has finer grained packet recognition tailored to DNS transactions and
@@ -49,9 +49,9 @@ The following options are available:
 .It Fl a
 Puts the interface into promiscuous mode.  Note that even without this option,
 the interface could be in promiscuous mode for some other reason.
-.It Fl v
+.It Fl d
 Tells a verbose story of options and patterns chosen, files opened, and so on.
-.It Fl f
+.It Fl 1
 Flush the
 .Xr pcap 3
 packet dump after every packet.  Mostly this is useful when the
@@ -62,7 +62,7 @@ Produce
 .Xr dig 1 -like
 output on diagnostic output, showing the presentation form of DNS messages
 which passed through all of the filters.  If
-.Fl d
+.Fl b
 is also used, then every message will be dumped in both binary and
 presentation form.
 .It Fl ?
@@ -73,6 +73,10 @@ to say "-\\?" to get this option past your shell.
 Suppress the use of packet filter patterns that are known (as of 2007) to
 cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
 expected to be present.
+.It Fl v
+Invert the sense of
+.Fl x ,
+such that only nonmatching messages are selected.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
@@ -93,6 +97,17 @@ monitored.  Can be specified more than once to select multiple vlans.
 .It Fl p Ar port
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
 port is 53.
+.It Fl x Ar pat
+If one or more
+.Fl x
+options are provided, then DNS messages will only be selected if their
+presentation format representation matches at least one of the provided
+.Ar pat
+patterns.  See
+.Xr regex 3
+and
+.Xr re_format 7
+for more information about extended regular expression syntax.
 .It Fl m Op quire
 Capture only packets containing designated message types (query, update,
 initiation, response, and error).  Default is query initiation and responses.
@@ -111,13 +126,13 @@ host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
 Capture only transactions having these responders.  Can be specified more than
 once to select multiple responders.  If a host name is used, then all of that
 host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
-.It Fl d Ar base
+.It Fl b Ar base
 Dump the captured packets to successive binary files in
 .Xr pcap 3
 format.  Each file will have a name like "%s.%u.%06u" where %s is
 .Ar base ,
 %u is the time in seconds, and %06u is the time in microseconds.  The argument
-"-" may be given (so, "-d -") to send the binary output to standard output.
+"-" may be given (so, "-b -") to send the binary output to standard output.
 In that case, the
 .Fl c
 and
@@ -126,7 +141,7 @@ options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
 .It Fl k Ar cmd
 After each dump file specified by
-.Fl d
+.Fl b
 is closed, this command will be executed in a nonblocking subprocess with the
 file name as its one argument.  It's expected that this command will be a shell
 script that submits the finished file to a batch processing analytics system.
@@ -152,23 +167,12 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
-.It Fl x Ar pat
-If one or more
-.Fl x
-options are provided, then DNS messages will only be selected if their
-presentation format representation matches at least one of the provided
-.Ar pat
-patterns.  See
-.Xr regex 3
-and
-.Xr re_format 7
-for more information about extended regular expression syntax.
 .El
 .Pp
 If started up with no options,
 .Nm
 will exit with a complaint that without either the
-.Fl d
+.Fl b
 or
 .Fl g
 options, it's pointless to run the program at all.  In its simplest form,
@@ -176,7 +180,7 @@ the output can be piped to
 .Xr tcpdump 1
 as in:
 .Bd -literal -offset indent
-dnscap -d - | tcpdump -r -
+dnscap -b - | tcpdump -r -
 .Ed
 .Pp
 You can safely add the
@@ -190,7 +194,7 @@ option to
 .Xr tcpdump 1 ,
 the minimum useful incantation is probably:
 .Bd -literal -offset indent
-dnscap -v -d - | tcpdump -r - -n
+dnscap -v -b - | tcpdump -r - -n
 .Ed
 .Pp
 The more interesting use for
@@ -205,7 +209,7 @@ a name server operating system startup could invoke
 for continuous DNS auditing using a command like:
 .Bd -literal -offset indent
 dnscap -m quire -h i -r f.root-servers.net \\
-       -d /var/local/dnscaps/f-root -t 1800 \\
+       -b /var/local/dnscaps/f-root -t 1800 \\
        -k /usr/local/sbin/dnscap-upload
 .Ed
 .Sh DIAGNOSTICS
@@ -216,10 +220,14 @@ dnscap -m quire -h i -r f.root-servers.net \\
 .Sh HISTORY
 .Nm
 was written by Paul Vixie and ported to IPv6 by Duane Wessels.
+.Sh BUGS
+Ought to handle fragmented UDP.
+.Pp
+Ought to handle TCP.
 .Sh LICENSE
 Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
 .Pp
-Permission to use, copy, modify, and distribute this software for any
+Permission to use, copy, modify, and/or redistribute this software for any
 purpose with or without fee is hereby granted, provided that the above
 copyright notice and this permission notice appear in all copies.
 .Pp

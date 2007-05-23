@@ -4,9 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.12 2007-05-16 23:10:18 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.13 2007-05-23 18:42:47 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
+static const char version[] = "V1.0-RC1 (May 2007)";
 #endif
 
 /*
@@ -218,7 +219,7 @@ static uint16_t in_checksum(const u_char *, size_t);
 /* Private data. */
 
 static const char *ProgramName = "amnesia";
-static int verbose = FALSE;
+static int dumptrace = FALSE;
 static int flush = FALSE;
 static vlan_list vlans;
 static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
@@ -246,6 +247,7 @@ static unsigned dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
+static int nonmatching = FALSE;
 static int dig_it = FALSE;
 static int main_exit = FALSE;
 
@@ -302,11 +304,13 @@ usage(const char *msg) {
 
 static void
 help_1(void) {
+	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-avfg6] [-i <if>]+ [-o <file>] [-l <vlan>]+ [-p <port>]\n"
-		"\t[-m [quire]] [-h [ir]] [-q <host>]+ [-r <host>]+\n"
-		"\t[-d <base> [-k <cmd>]] [-t <lim>] [-c <lim>] [-x <pat>]+\n",
+		"\t[-ad1g?6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
+		"\t[-m [quire]] [-h [ir]] [-x <pat>]+\n"
+		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
 		ProgramName);
 }
 
@@ -316,23 +320,24 @@ help_2(void) {
 	fprintf(stderr,
 		"\noptions:\n"
 		"\t-a         collect packets promiscuously\n"
-		"\t-v         be verbose to stderr\n"
-		"\t-f         flush output on every packet\n"
+		"\t-d         dump verbose trace information to stderr\n"
+		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
+		"\t-v         select only nonmatching messages (see -x)\n"
 		"\t-i <if>    pcap interface(s)\n"
 		"\t-o <file>  pcap offline file\n"
 		"\t-l <vlan>  pcap vlan(s)\n"
 		"\t-p <port>  dns port (default: 53)\n"
-		"\t-m [quire] query, update, initiate, response, err\n"
+		"\t-m [quire] select query, update, initiate, response, err\n"
 		"\t-h [ir]    hide initiators and/or responders\n"
 		"\t-q <host>  initiator(s)\n"
 		"\t-r <host>  responder(s)\n"
-		"\t-d <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"\t-b <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every <lim> secs\n"
 		"\t-c <lim>   close dump or exit every <lim> pkts\n"
-		"\t-x <pat>   display messages matching regex <pat>\n");
+		"\t-x <pat>   select messages matching regex <pat>\n");
 }
 
 static void
@@ -362,10 +367,10 @@ parse_args(int argc, char *argv[]) {
 		case 'a':
 			promisc = TRUE;
 			break;
-		case 'v':
-			verbose = TRUE;
+		case 'd':
+			dumptrace = TRUE;
 			break;
-		case 'f':
+		case '1':
 			flush = TRUE;
 			break;
 		case 'g':
@@ -377,6 +382,13 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case '6':
 			v6bug = TRUE;
+			break;
+		case 'v':
+#if HAVE_BINDLIB
+			nonmatching = TRUE;
+#else
+			usage("-v option is disabled due to lack of libbind");
+#endif
 			break;
 		case '?':
 			help_2();
@@ -429,7 +441,7 @@ parse_args(int argc, char *argv[]) {
 				case 'i': i |= MSG_INITIATE; break;
 				case 'r': i |= MSG_RESPONSE; break;
 				case 'e': i |= MSG_ERROR; break;
-				default: usage("-m takes only [qure]");
+				default: usage("-m takes only [quire]");
 				}
 			msg_wanted = i;
 			break;
@@ -449,7 +461,7 @@ parse_args(int argc, char *argv[]) {
 		case 'r':
 			endpoint_arg(&responders, optarg);
 			break;
-		case 'd':
+		case 'b':
 			dump_base = optarg;
 			if (strcmp(optarg, "-") == 0)
 				dump_type = to_stdout;
@@ -458,7 +470,7 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'k':
 			if (dump_type != to_file)
-				usage("-k depends on -d"
+				usage("-k depends on -b"
 				      " (note: can't be stdout)");
 			kick_cmd = optarg;
 			break;
@@ -496,11 +508,14 @@ parse_args(int argc, char *argv[]) {
 	}
 	assert(msg_wanted != 0U);
 	if (dump_type == nowhere && !dig_it)
-		usage("without -d or -g, there would be no output");
-	if (verbose) {
+		usage("without -b or -g, there would be no output");
+	if (nonmatching && ISC_LIST_EMPTY(myregexes))
+		usage("without at least one -x, it makes no sense to say -v");
+	if (dumptrace) {
 		endpoint_ptr ep;
 		const char *sep;
 
+		fprintf(stderr, "%s: version %s\n", ProgramName, version);
 		fprintf(stderr, "%s: msg %c%c%c%c%c, hide %c%c, t %d, c %d\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
@@ -677,7 +692,7 @@ prepare_bpft(void) {
 	     text != NULL;
 	     text = ISC_LIST_NEXT(text, link))
 		strcat(bpft, text->text);
-	if (verbose)
+	if (dumptrace)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
 
@@ -1090,17 +1105,17 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		char output[SNAPLEN*4];
 		ns_msg msg;
 		ns_sect s;
-		int ok;
+		int match;
 
-		ok = FALSE;
+		match = FALSE;
 		if (ns_initparse(pkt, len, &msg) < 0)
 			return;
-		for (s = ns_s_an; s < ns_s_max && !ok; s++) {
+		for (s = ns_s_an; s < ns_s_max && !match; s++) {
 			int count, n;
 			ns_rr rr;
 
 			count = ns_msg_count(msg, s);
-			for (n = 0; n < count && !ok; n++) {
+			for (n = 0; n < count && !match; n++) {
 				myregex_ptr myregex;
 
 				if (ns_parserr(&msg, s, n, &rr) < 0 ||
@@ -1108,14 +1123,14 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 						output, sizeof output) < 0)
 					return;
 				for (myregex = ISC_LIST_HEAD(myregexes);
-				     myregex != NULL && !ok;
+				     myregex != NULL && !match;
 				     myregex = ISC_LIST_NEXT(myregex, link))
 					if (regexec(&myregex->reg, output,
 						    0, NULL, 0) == 0)
-						ok = TRUE;
+						match = TRUE;
 			}
 		}
-		if (!ok)
+		if (match == nonmatching)
 			return;
 	}
 #endif
@@ -1285,13 +1300,13 @@ dumper_close(void) {
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
-		if (verbose)
+		if (dumptrace)
 			fprintf(stderr, "%s: breaking\n", ProgramName);
 		ret = TRUE;
 	} else {
 		char *cmd = NULL;;
 
-		if (verbose)
+		if (dumptrace)
 			fprintf(stderr, "%s: closing %s\n",
 				ProgramName, dumpname);
 		rename(dumpnamepart, dumpname);
