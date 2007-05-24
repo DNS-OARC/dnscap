@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.13 2007-05-23 18:42:47 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.14 2007-05-24 00:15:48 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC1 (May 2007)";
@@ -57,6 +57,13 @@ static const char version[] = "V1.0-RC1 (May 2007)";
 # include <netinet/in_var.h>
 # include <netinet/if_ether.h>
 # define MY_BPFTIMEVAL bpf_timeval
+#endif
+
+#ifdef __APPLE__
+# include <sys/ioctl.h>
+# include <net/ethernet.h>
+# include <net/bpf.h>
+# include <arpa/nameser_compat.h>
 #endif
 
 #ifndef MY_BPFTIMEVAL
@@ -758,6 +765,9 @@ open_pcaps(void) {
 	     mypcap = ISC_LIST_NEXT(mypcap, link))
 	{
 		struct bpf_program bpfp;
+#ifdef __APPLE__
+		unsigned int ioarg = 1;
+#endif
 
 		errbuf[0] = '\0';
 		if (pcap_offline == NULL)
@@ -779,6 +789,9 @@ open_pcaps(void) {
 		else if (linktype != mypcap->dlt)
 			linktype = DLT_LOOP;
 		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
+#ifdef __APPLE__
+		ioctl(mypcap->fdes, BIOCIMMEDIATE, &ioarg);
+#endif
 		if (pcap_offline == NULL)
 			if (pcap_setnonblock(mypcap->pcap, TRUE, errbuf) < 0) {
 				fprintf(stderr, "%s: pcap_setnonblock: %s\n",
@@ -807,7 +820,7 @@ poll_pcaps(void) {
 	int n;
 
 	do {
-		readfds = mypcap_fdset;
+		FD_COPY(&mypcap_fdset, &readfds);
 		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
