@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.16 2007-05-24 14:12:59 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.17 2007-05-24 14:25:41 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC3 (May 2007)";
@@ -64,6 +64,14 @@ static const char version[] = "V1.0-RC3 (May 2007)";
 # include <net/ethernet.h>
 # include <net/bpf.h>
 # include <arpa/nameser_compat.h>
+#endif
+
+#ifdef __hpux
+# include <net/if.h>
+# include <netinet/if_ether.h>
+# define ETHER_HDR_LEN ETHER_HLEN
+# define __BIT_TYPES_DEFINED
+# define __HPLX
 #endif
 
 #ifndef MY_BPFTIMEVAL
