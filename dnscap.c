@@ -4,10 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.14 2007-05-24 00:15:48 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.15 2007-05-24 00:16:31 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC1 (May 2007)";
+static const char version[] = "V1.0-RC2 (May 2007)";
 #endif
 
 /*
