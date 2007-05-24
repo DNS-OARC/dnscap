@@ -15,10 +15,10 @@ PORTLDFLAGS=
 PORTLIBS=
 
 # uncomment these if you don't have bind9's libbind and its fp_nquery function
-HAVE_BINDLIB= 0
-BINDLIB=
-BINDCFLAGS= -I/usr/local/include -I/usr/local/bind/include
-BINDLDFLAGS=
+#HAVE_BINDLIB= 0
+#BINDLIB=
+#BINDCFLAGS= -I/usr/local/include -I/usr/local/bind/include
+#BINDLDFLAGS=
 
 # uncomment these if you don't have GCC
 #CWARN=
