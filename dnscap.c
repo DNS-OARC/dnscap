@@ -4,10 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.15 2007-05-24 00:16:31 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.16 2007-05-24 14:12:59 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC2 (May 2007)";
+static const char version[] = "V1.0-RC3 (May 2007)";
 #endif
 
 /*
@@ -367,7 +367,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "avfg6?i:o:l:p:m:h:q:r:d:k:t:c:x:")
+			    "ad1g6v?i:o:l:p:m:h:q:r:b:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
