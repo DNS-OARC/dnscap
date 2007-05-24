@@ -4,10 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.17 2007-05-24 14:25:41 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.18 2007-05-24 17:16:32 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC3 (May 2007)";
+static const char version[] = "V1.0-RC4 (May 2007)";
 #endif
 
 /*
@@ -587,6 +587,7 @@ static void
 endpoint_arg(endpoint_list *list, const char *arg) {
 	struct addrinfo *ai;
 	iaddr ia;
+	void *p;
 
 	if (inet_pton(AF_INET6, arg, &ia.u.a6) > 0) {
 		ia.af = AF_INET6;
@@ -603,13 +604,15 @@ endpoint_arg(endpoint_list *list, const char *arg) {
 			switch (a->ai_family) {
 			case PF_INET:
 				ia.af = AF_INET;
-				ia.u.a4 = ((struct sockaddr_in *)a->ai_addr)
+				p = &((struct sockaddr_in *)a->ai_addr)
 					->sin_addr;
+				memcpy(&ia.u.a4, p, sizeof ia.u.a4);
 				break;
 			case PF_INET6:
 				ia.af = AF_INET6;
-				ia.u.a6 = ((struct sockaddr_in6 *)a->ai_addr)
+				p = &((struct sockaddr_in6 *)a->ai_addr)
 					->sin6_addr;
+				memcpy(&ia.u.a6, p, sizeof ia.u.a6);
 				break;
 			default:
 				continue;
@@ -828,7 +831,7 @@ poll_pcaps(void) {
 	int n;
 
 	do {
-		FD_COPY(&mypcap_fdset, &readfds);
+		memcpy(&readfds, &mypcap_fdset, sizeof(fd_set));
 		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {

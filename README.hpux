@@ -1,13 +1,9 @@
+Andris Kalnozols wrote:
+
 > To make up for the vasprintf() and asprintf() functions which are
 > missing from HP-UX, it is necessary to utilize the `libhplx'
 > library from HP's Linux Porting Kit:
 > 
 >   http://devresource.hp.com/drc/resources/LPK/index.jsp
-> 
-> I didn't yet port the Makefile but compiled the program manually
-> as follows:
-> 
->   cc -g -DHAVE_BINDLIB -D__HPLX -D__BIT_TYPES_DEFINED__ \
->   -I/usr/local/hplx/include -I/usr/local/include -I/usr/local/bind/include \
->   -L/usr/local/lib -L/usr/local/bind/lib -L/usr/local/hplx/lib \
->   -lpcap -lbind -lhplx -o dnscap dnscap.c
+
+there is now a set of uncommentable configurables in Makefile for HPUX.
