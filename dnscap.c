@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.18 2007-05-24 17:16:32 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.19 2007-06-03 17:34:50 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC4 (May 2007)";
@@ -270,6 +270,7 @@ static int main_exit = FALSE;
 
 int
 main(int argc, char *argv[]) {
+	res_init();
 	parse_args(argc, argv);
 	prepare_bpft();
 	open_pcaps();
@@ -982,10 +983,10 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		proto = ip->ip_p;
 		memset(&from, 0, sizeof from);
 		from.af = AF_INET;
-		from.u.a4 = ip->ip_src;
+		memcpy(&from.u.a4, &ip->ip_src, sizeof(struct in_addr));
 		memset(&to, 0, sizeof to);
 		to.af = AF_INET;
-		to.u.a4 = ip->ip_dst;
+		memcpy(&to.u.a4, &ip->ip_dst, sizeof(struct in_addr));
 		offset = ip->ip_hl << 2;
 		if (len <= offset)
 			return;
@@ -1009,10 +1010,12 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		offset = sizeof(struct ip6_hdr);
 		payload_len = ntohs(ipv6->ip6_plen);
 
+		memset(&from, 0, sizeof from);
 		from.af = AF_INET6;
-		from.u.a6 = ipv6->ip6_src;
+		memcpy(&from.u.a6, &ipv6->ip6_src, sizeof(struct in6_addr));
+		memset(&to, 0, sizeof to);
 		to.af = AF_INET6;
-		to.u.a6 = ipv6->ip6_dst;
+		memcpy(&to.u.a6, &ipv6->ip6_dst, sizeof(struct in6_addr));
 
                 while (nexthdr == IPPROTO_ROUTING ||	/* routing header */
 		       nexthdr == IPPROTO_HOPOPTS ||	/* Hop-by-Hop opts */
