@@ -4,10 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.19 2007-06-03 17:34:50 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.20 2007-06-04 01:29:53 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC4 (May 2007)";
+static const char version[] = "V1.0-RC5 (June 2007)";
 #endif
 
 /*
@@ -1229,20 +1229,23 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	}
 #if HAVE_BINDLIB
 	if (dig_it) {
+		char when[100], via[100];
 		const struct tm *tm;
-		const char *via;
-		char tmp[100];
+		const char *tmp;
 		time_t t;
 
 		t = (time_t) hdr->ts.tv_sec;
 		tm = gmtime(&t);
-		strftime(tmp, sizeof tmp, "%F %T", tm);
+		strftime(when, sizeof when, "%F %T", tm);
 		if (mypcap->name == NULL)
-			via = "\"some interface\"";
+			tmp = "\"some interface\"";
 		else
-			via = mypcap->name;
+			tmp = mypcap->name;
+		strcpy(via, tmp);
+		if (vlan != 0)
+			sprintf(via + strlen(via), " (vlan %u)", vlan);
 		fprintf(stderr, ";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
-			tmp, (u_long)hdr->ts.tv_usec, (u_long)len, via,
+			when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
 			(long)msgcount);
 		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
 		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
