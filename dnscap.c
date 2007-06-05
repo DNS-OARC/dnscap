@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.20 2007-06-04 01:29:53 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.21 2007-06-05 18:48:02 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -665,9 +665,9 @@ prepare_bpft(void) {
 	/* Make a BPF program to do early course kernel-level filtering. */
 	ISC_LIST_INIT(bpfl);
 	len = 0;
-	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!ISC_LIST_EMPTY(vlans))
-		len += text_add(&bpfl, " and vlan");
+		len += text_add(&bpfl, "vlan and ");
+	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
 			len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
