@@ -16,7 +16,7 @@ PORTLIBS=
 
 # uncomment these if you don't have bind9's libbind and its fp_nquery function
 #HAVE_BINDLIB= 0
-#BINDLIB=
+BINDLIB= 
 #BINDCFLAGS= -I/usr/local/include -I/usr/local/bind/include
 #BINDLDFLAGS=
 
@@ -28,6 +28,11 @@ PORTLIBS=
 #PORTCFLAGS= -I/usr/local/hplx/include
 #PORTLDFLAGS= -L/usr/local/hplx/lib
 #PORTLIBS= -lhplx
+
+# uncomment these if you're building on FreeBSD or where fp_nquery() is in libc
+#PORTCFLAGS=
+#PORTLDFLAGS=
+#PORTLIBS=
 
 ALL= dnscap dnscap.cat1
 
