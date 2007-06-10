@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.23 2007-06-10 06:00:28 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.24 2007-06-10 22:35:51 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -226,6 +226,9 @@ static void open_pcaps(void);
 static void poll_pcaps(void);
 static void close_pcaps(void);
 static void live_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void print_packetheader(FILE *, const struct pcap_pkthdr *, u_int,
+			       size_t, const iaddr *, const iaddr *,
+			       u_int, u_int, const char *);
 static int dumper_open(struct MY_BPFTIMEVAL);
 static int dumper_close(void);
 static void sigclose(int);
@@ -391,11 +394,7 @@ parse_args(int argc, char *argv[]) {
 			flush = TRUE;
 			break;
 		case 'g':
-#if HAVE_BINDLIB
 			dig_it = TRUE;
-#else
-			usage("-g option is disabled due to lack of libbind");
-#endif
 			break;
 		case '6':
 			v6bug = TRUE;
@@ -679,6 +678,7 @@ prepare_bpft(void) {
 	len = 0;
 	if (!ISC_LIST_EMPTY(vlans))
 		len += text_add(&bpfl, "vlan and ");
+	len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
 	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
@@ -716,6 +716,7 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
+	len += text_add(&bpfl, " )");
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
@@ -886,9 +887,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	u_char pkt_copy[SNAPLEN+NS_INT32SZ],
 		*pkt = pkt_copy+NS_INT32SZ,
 		*netptr, *dlptr;
+	unsigned etype, proto, sport, dport, ip_len, ip_off, ip_mf;
 	mypcap_ptr mypcap = (mypcap_ptr) user;
 	iaddr from, to, initiator, responder;
-	unsigned etype, proto, sport, dport;
 	size_t len = hdr->caplen;
 	struct ip6_hdr *ipv6;
 	struct udphdr *udp;
@@ -983,6 +984,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	ip = NULL;
 	ipv6 = NULL;
 	netptr = pkt;
+	ip_len = 0;
+	ip_off = 0;
+	ip_mf = 0;
 	switch (etype) {
 	case ETHERTYPE_IP: {
 		unsigned offset;
@@ -991,10 +995,6 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			return;
 		ip = (void *) pkt;
 		if (ip->ip_v != IPVERSION)
-			return;
-		offset = ntohs(ip->ip_off);
-		if ((offset & IP_MF) != 0 ||
-		    (offset & IP_OFFMASK) != 0)
 			return;
 		proto = ip->ip_p;
 		memset(&from, 0, sizeof from);
@@ -1008,6 +1008,10 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			return;
 		pkt += offset;
 		len -= offset;
+		offset = ntohs(ip->ip_off);
+		ip_mf = (offset & IP_MF) != 0;
+		ip_off = (offset & IP_OFFMASK) << 3;
+		ip_len = len;
 		pf = PF_INET;
 		break;
 	    }
@@ -1080,25 +1084,43 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	}
 
 	/* Transport. */
-	switch (proto) {
-	case IPPROTO_UDP: {
-		if (len < sizeof *udp)
-			return;
-		udp = (void *) pkt;
-		switch (from.af) {
-		case AF_INET:
-		case AF_INET6:
-			sport = ntohs(udp->uh_sport);
-			dport = ntohs(udp->uh_dport);
+	if (ip_off != 0) {
+		udp = NULL;
+		sport = 0;
+		dport = 0;
+	} else {
+		switch (proto) {
+		case IPPROTO_UDP: {
+			if (len < sizeof *udp)
+				return;
+			udp = (void *) pkt;
+			switch (from.af) {
+			case AF_INET:
+			case AF_INET6:
+				sport = ntohs(udp->uh_sport);
+				dport = ntohs(udp->uh_dport);
+				break;
+			default:
+				abort();
+			}
+			pkt += sizeof *udp;
+			len -= sizeof *udp;
 			break;
-		default:
-			abort();
 		}
-		pkt += sizeof *udp;
-		len -= sizeof *udp;
-		break;
-	    }
-	default:
+		default:
+			return;
+		}
+	}
+	if (ip_mf || ip_off != 0) {
+		if (dig_it) {
+			print_packetheader(stderr, hdr, vlan, hdr->caplen,
+					   &from, &to, sport, dport,
+					   mypcap->name);
+			fprintf(stderr,	";! frag %u:%u@%u%s dropped\n",
+				ntohs(ip->ip_id), ip_len, ip_off,
+				ip_mf ? "+" : "");
+			fprintf(stderr, ";--\n");
+		}
 		return;
 	}
 
@@ -1256,32 +1278,16 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (dumper != NULL && dumper_close())
 			goto breakloop;
 	}
-#if HAVE_BINDLIB
 	if (dig_it) {
-		char when[100], via[100];
-		const struct tm *tm;
-		const char *tmp;
-		time_t t;
-
-		t = (time_t) hdr->ts.tv_sec;
-		tm = gmtime(&t);
-		strftime(when, sizeof when, "%F %T", tm);
-		if (mypcap->name == NULL)
-			tmp = "\"some interface\"";
-		else
-			tmp = mypcap->name;
-		strcpy(via, tmp);
-		if (vlan != 0)
-			sprintf(via + strlen(via), " (vlan %u)", vlan);
-		fprintf(stderr, ";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
-			when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
-			(long)msgcount);
-		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
-		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
+		print_packetheader(stderr, hdr, vlan, len, &from, &to,
+				   sport, dport, mypcap->name);
+#if HAVE_BINDLIB
 		fp_nquery(pkt, len, stderr);
+#else
+		fprintf(stderr, ";! fp_nquery() not present (BINDLIB)\n");
+#endif
 		fprintf(stderr, ";--\n");
 	}
-#endif
 	if (dump_type != nowhere) {
 		if (dumper == NULL)
 			if (dumper_open(hdr->ts))
@@ -1316,6 +1322,28 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
  breakloop:
 	pcap_breakloop(mypcap->pcap);
 	main_exit = TRUE;
+}
+
+static void
+print_packetheader(FILE *output, const struct pcap_pkthdr *hdr, u_int vlan,
+		   size_t len, const iaddr *from, const iaddr *to,
+		   u_int sport, u_int dport, const char *ifname)
+{
+	char when[100], via[100];
+	const struct tm *tm;
+	time_t t;
+
+	t = (time_t) hdr->ts.tv_sec;
+	tm = gmtime(&t);
+	strftime(when, sizeof when, "%F %T", tm);
+	strcpy(via, (ifname == NULL) ? "\"some interface\"" : ifname);
+	if (vlan != 0)
+		sprintf(via + strlen(via), " (vlan %u)", vlan);
+	fprintf(output, ";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
+		when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
+		(long)msgcount);
+	fprintf(output, ";: [%s]:%u ", ia_str(*from), sport);
+	fprintf(output, "-> [%s]:%u\n",	ia_str(*to), dport);
 }
 
 static int
