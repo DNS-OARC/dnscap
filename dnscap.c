@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.22 2007-06-10 05:53:51 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.23 2007-06-10 06:00:28 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -991,6 +991,10 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			return;
 		ip = (void *) pkt;
 		if (ip->ip_v != IPVERSION)
+			return;
+		offset = ntohs(ip->ip_off);
+		if ((offset & IP_MF) != 0 ||
+		    (offset & IP_OFFMASK) != 0)
 			return;
 		proto = ip->ip_p;
 		memset(&from, 0, sizeof from);
