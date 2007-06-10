@@ -1,9 +1,0 @@
-Andris Kalnozols wrote:
-
-> To make up for the vasprintf() and asprintf() functions which are
-> missing from HP-UX, it is necessary to utilize the `libhplx'
-> library from HP's Linux Porting Kit:
-> 
->   http://devresource.hp.com/drc/resources/LPK/index.jsp
-
-there is now a set of uncommentable configurables in Makefile for HPUX.
