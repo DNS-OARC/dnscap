@@ -51,6 +51,9 @@ Puts the interface into promiscuous mode.  Note that even without this option,
 the interface could be in promiscuous mode for some other reason.
 .It Fl d
 Tells a verbose story of options and patterns chosen, files opened, and so on.
+(Multiple
+.Fl d
+options can be given to increase verbosity and frequency of trace messages.)
 .It Fl 1
 Flush the
 .Xr pcap 3
@@ -94,14 +97,17 @@ as the input packet source.  Can be given as "-" to indicate standard input.
 .It Fl l Ar vlan
 Captures only 802.1Q encapsulated packets, and selects specific vlans to be
 monitored.  Can be specified more than once to select multiple vlans.
+.Fl l Ar 0
+means "all vlans".
 .It Fl p Ar port
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
 port is 53.
 .It Fl x Ar pat
 If one or more
 .Fl x
-options are provided, then DNS messages will only be selected if their
-presentation format representation matches at least one of the provided
+options are provided, then DNS messages will only be selected if the
+printable representation of the QNAME or any RR matches at least one of the
+provided
 .Ar pat
 patterns.  See
 .Xr regex 3
@@ -212,22 +218,66 @@ dnscap -m quire -h i -r f.root-servers.net \\
        -b /var/local/dnscaps/f-root -t 1800 \\
        -k /usr/local/sbin/dnscap-upload
 .Ed
+.Pp
+A bizarre but actual example which combines most of
+.Nm 's
+features is:
+.Bd -literal -offset indent
+dnscap -d -b - -1 -i em0 -l 0 -x ^7 | \\
+       dnscap -d -o - -x spamhaus -g -l 0 -v
+.Ed
+.Pp
+Here, we're looking for all messages having a QNAME or RR beginning with the
+decimal digit "7", but we don't want to see anything containing "spamhaus".
+The interface is tagged, and since only one interface is selected, the output
+stream from the first
+.Nm
+will also be tagged, thus we need
+.Fl l Ar 0
+on both
+.Nm 's.
+.Sh "COMPATIBILITY NOTES"
+If
+.Nm dnscap
+produces no output, it's probably due to some kind of bug in your kernel's
+.Xr bpf 4
+module or in your
+.Xr pcap 3
+library.  You may need the
+.Fl 6
+or
+.Fl l Ar 0
+options.  To diagnose your way out of "no output" hell, use the
+.Fl d
+and
+.Fl g
+options to find out what BPF program is being internally generated, and
+then cut/paste this program onto a
+.Xr tcpdump 1
+command line to see if it likewise produces no output.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
-.Xr pcap 3
+.Xr pcap 3 ,
+.Xr bpf 4
 .Sh HISTORY
 .Nm
-was written by Paul Vixie and ported to IPv6 by Duane Wessels.
+was written by Paul Vixie (ISC) and Duane Wessels (Measurement Factory).
 .Sh BUGS
 Ought to handle fragmented UDP.
 .Pp
 Ought to handle TCP.
+.Pp
+Too many design botches within
+.Xr bpf 4
+and
+.Xr pcap 3
+are made visible to the user of this utility.
 .Sh LICENSE
 Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
 .Pp
-Permission to use, copy, modify, and/or redistribute this software for any
+Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
 copyright notice and this permission notice appear in all copies.
 .Pp

@@ -1,10 +1,10 @@
 /* dnscap - DNS capture utility
  *
- * Paul Vixie (original) and Duane Wessels (IPv6 port)
+ * By Paul Vixie (ISC) and Duane Wessels (Measurement Factory), 2007.
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.21 2007-06-05 18:48:02 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.22 2007-06-10 05:53:51 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -13,7 +13,7 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and/or redistribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -204,6 +204,7 @@ typedef ISC_LIST(struct text) text_list;
 struct myregex {
 	ISC_LINK(struct myregex)  link;
 	regex_t			reg;
+	char *			str;
 };
 typedef struct myregex *myregex_ptr;
 typedef ISC_LIST(struct myregex) myregex_list;
@@ -234,7 +235,7 @@ static uint16_t in_checksum(const u_char *, size_t);
 /* Private data. */
 
 static const char *ProgramName = "amnesia";
-static int dumptrace = FALSE;
+static int dumptrace = 0;
 static int flush = FALSE;
 static vlan_list vlans;
 static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
@@ -384,7 +385,7 @@ parse_args(int argc, char *argv[]) {
 			promisc = TRUE;
 			break;
 		case 'd':
-			dumptrace = TRUE;
+			dumptrace++;
 			break;
 		case '1':
 			flush = TRUE;
@@ -434,8 +435,8 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'l':
 			i = atoi(optarg);
-			if (i < 1 || i > MAX_VLAN)
-				usage("vlan must be an integer 1..4095");
+			if (i < 0 || i > MAX_VLAN)
+				usage("vlan must be 0 or an integer 1..4095");
 			vlan = malloc(sizeof *vlan);
 			assert(vlan != NULL);
 			ISC_LINK_INIT(vlan, link);
@@ -507,7 +508,8 @@ parse_args(int argc, char *argv[]) {
 			myregex = malloc(sizeof *myregex);
 			assert(myregex != NULL);
 			ISC_LINK_INIT(myregex, link);
-			i = regcomp(&myregex->reg, optarg, REGEX_CFLAGS);
+			myregex->str = strdup(optarg);
+			i = regcomp(&myregex->reg, myregex->str, REGEX_CFLAGS);
 			if (i != 0) {
 				regerror(i, &myregex->reg,
 					 errbuf, sizeof errbuf);
@@ -527,9 +529,10 @@ parse_args(int argc, char *argv[]) {
 		usage("without -b or -g, there would be no output");
 	if (nonmatching && ISC_LIST_EMPTY(myregexes))
 		usage("without at least one -x, it makes no sense to say -v");
-	if (dumptrace) {
+	if (dumptrace >= 1) {
 		endpoint_ptr ep;
 		const char *sep;
+		myregex_ptr mr;
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version);
 		fprintf(stderr, "%s: msg %c%c%c%c%c, hide %c%c, t %d, c %d\n",
@@ -562,6 +565,15 @@ parse_args(int argc, char *argv[]) {
 		}
 		if (!ISC_LIST_EMPTY(responders))
 			fprintf(stderr, "\n");
+		if (!ISC_LIST_EMPTY(myregexes)) {
+			fprintf(stderr, "%s: pat (%smatching):",
+				ProgramName, nonmatching ? "non" : "");
+			for (mr = ISC_LIST_HEAD(myregexes);
+			     mr != NULL;
+			     mr = ISC_LIST_NEXT(mr, link))
+				fprintf(stderr, " /%s/", mr->str);
+			fprintf(stderr, "\n");
+		}
 	}
 	if (ISC_LIST_EMPTY(mypcaps)) {
 		const char *name;
@@ -711,7 +723,7 @@ prepare_bpft(void) {
 	     text != NULL;
 	     text = ISC_LIST_NEXT(text, link))
 		strcat(bpft, text->text);
-	if (dumptrace)
+	if (dumptrace >= 1)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
 
@@ -1098,7 +1110,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		for (vl = ISC_LIST_HEAD(vlans);
 		     vl != NULL;
 		     vl = ISC_LIST_NEXT(vl, link))
-			if (vl->vlan == vlan)
+			if (vl->vlan == vlan || vl->vlan == 0)
 				break;
 		if (vl == NULL)
 			return;
@@ -1129,7 +1141,6 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		return;
 #if HAVE_BINDLIB
 	if (!ISC_LIST_EMPTY(myregexes)) {
-		char output[SNAPLEN*4];
 		ns_msg msg;
 		ns_sect s;
 		int match;
@@ -1137,7 +1148,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		match = FALSE;
 		if (ns_initparse(pkt, len, &msg) < 0)
 			return;
-		for (s = ns_s_an; s < ns_s_max && !match; s++) {
+		for (s = ns_s_qd; s < ns_s_max && !match; s++) {
+			char pres[SNAPLEN*4];
+			const char *look;
 			int count, n;
 			ns_rr rr;
 
@@ -1145,16 +1158,28 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			for (n = 0; n < count && !match; n++) {
 				myregex_ptr myregex;
 
-				if (ns_parserr(&msg, s, n, &rr) < 0 ||
-				    ns_sprintrr(&msg, &rr, NULL, ".",
-						output, sizeof output) < 0)
+				if (ns_parserr(&msg, s, n, &rr) < 0)
 					return;
+				if (s == ns_s_qd) {
+					look = ns_rr_name(rr);
+				} else {
+					if (ns_sprintrr(&msg, &rr, NULL, ".",
+							pres, sizeof pres) < 0)
+						return;
+					look = pres;
+				}
 				for (myregex = ISC_LIST_HEAD(myregexes);
 				     myregex != NULL && !match;
 				     myregex = ISC_LIST_NEXT(myregex, link))
-					if (regexec(&myregex->reg, output,
+					if (regexec(&myregex->reg, look,
 						    0, NULL, 0) == 0)
+					{
 						match = TRUE;
+						if (dumptrace >= 2)
+							fprintf(stderr,
+							   "; \"%s\" ~ /%s/\n",
+							look, myregex->str);
+					}
 			}
 		}
 		if (match == nonmatching)
@@ -1330,13 +1355,13 @@ dumper_close(void) {
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
-		if (dumptrace)
+		if (dumptrace >= 1)
 			fprintf(stderr, "%s: breaking\n", ProgramName);
 		ret = TRUE;
 	} else {
 		char *cmd = NULL;;
 
-		if (dumptrace)
+		if (dumptrace >= 1)
 			fprintf(stderr, "%s: closing %s\n",
 				ProgramName, dumpname);
 		rename(dumpnamepart, dumpname);
