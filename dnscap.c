@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.24 2007-06-10 22:35:51 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.25 2007-06-11 19:10:03 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -146,10 +146,8 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 # define ETHERTYPE_IPV6 0x86DD
 #endif
 
-#define DAY		(24*60*60)
 #define THOUSAND	1000
 #define MILLION		(THOUSAND*THOUSAND)
-#define BILLION		(THOUSAND*MILLION)
 #define MAX_VLAN	4095
 #define DNS_PORT	53
 #define TO_MS		50
@@ -251,8 +249,8 @@ static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static const char *kick_cmd = NULL;
-static unsigned limit_seconds = DAY;
-static unsigned limit_packets = BILLION;
+static unsigned limit_seconds = 0U;
+static unsigned limit_packets = 0U;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
 static pcap_t *pcap_dead;
@@ -366,7 +364,9 @@ parse_args(int argc, char *argv[]) {
 	myregex_ptr myregex;
 #endif
 	mypcap_ptr mypcap;
+	unsigned long ul;
 	vlan_ptr vlan;
+	unsigned u;
 	int i, ch;
 	char *p;
 
@@ -433,43 +433,43 @@ parse_args(int argc, char *argv[]) {
 			ISC_LIST_APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
-			i = atoi(optarg);
-			if (i < 0 || i > MAX_VLAN)
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0' || ul > MAX_VLAN)
 				usage("vlan must be 0 or an integer 1..4095");
 			vlan = malloc(sizeof *vlan);
 			assert(vlan != NULL);
 			ISC_LINK_INIT(vlan, link);
-			vlan->vlan = i;
+			vlan->vlan = (unsigned) ul;
 			ISC_LIST_APPEND(vlans, vlan, link);
 			break;
 		case 'p':
-			i = atoi(optarg);
-			if (i < 1 || i > 65535)
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0' || ul < 1U || ul > 65535U)
 				usage("port must be an integer 1..65535");
-			dns_port = i;
+			dns_port = (unsigned) ul;
 			break;
 		case 'm':
-			i = 0;
+			u = 0;
 			for (p = optarg; *p; p++)
 				switch (*p) {
-				case 'q': i |= MSG_QUERY; break;
-				case 'u': i |= MSG_UPDATE; break;
-				case 'i': i |= MSG_INITIATE; break;
-				case 'r': i |= MSG_RESPONSE; break;
-				case 'e': i |= MSG_ERROR; break;
+				case 'q': u |= MSG_QUERY; break;
+				case 'u': u |= MSG_UPDATE; break;
+				case 'i': u |= MSG_INITIATE; break;
+				case 'r': u |= MSG_RESPONSE; break;
+				case 'e': u |= MSG_ERROR; break;
 				default: usage("-m takes only [quire]");
 				}
-			msg_wanted = i;
+			msg_wanted = u;
 			break;
 		case 'h':
-			i = 0;
+			u = 0;
 			for (p = optarg; *p; p++)
 				switch (*p) {
-				case 'i': i |= END_INITIATOR; break;
-				case 'r': i |= END_RESPONDER; break;
+				case 'i': u |= END_INITIATOR; break;
+				case 'r': u |= END_RESPONDER; break;
 				default: usage("-h takes only [ir]");
 				}
-			end_hide = i;
+			end_hide = u;
 			break;
 		case 'q':
 			endpoint_arg(&initiators, optarg);
@@ -491,16 +491,16 @@ parse_args(int argc, char *argv[]) {
 			kick_cmd = optarg;
 			break;
 		case 't':
-			i = atoi(optarg);
-			if (i == 0 || i > DAY)
-				usage("-t argument is out of range");
-			limit_seconds = i;
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -t must be an integer");
+			limit_seconds = (unsigned) ul;
 			break;
 		case 'c':
-			i = atoi(optarg);
-			if (i == 0 || i > BILLION)
-				usage("-c argument is out of range");
-			limit_packets = i;
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -c must be an integer");
+			limit_packets = (unsigned) ul;
 			break;
 		case 'x':
 #if HAVE_BINDLIB
@@ -534,7 +534,7 @@ parse_args(int argc, char *argv[]) {
 		myregex_ptr mr;
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version);
-		fprintf(stderr, "%s: msg %c%c%c%c%c, hide %c%c, t %d, c %d\n",
+		fprintf(stderr, "%s: msg %c%c%c%c%c, hide %c%c, t %u, c %u\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -1270,7 +1270,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	msgcount++;
 
 	/* Output stage. */
-	if (hdr->ts.tv_sec > dumpstart &&
+	if (hdr->ts.tv_sec > dumpstart && limit_seconds != 0U &&
 	    (unsigned)(((time_t)hdr->ts.tv_sec) - dumpstart) >= limit_seconds)
 	{
 		if (dump_type == nowhere)
@@ -1311,7 +1311,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		if (flush)
 			pcap_dump_flush(dumper);
 	}
-	if (msgcount == limit_packets) {
+	if (limit_packets != 0U && msgcount == limit_packets) {
 		if (dump_type == nowhere)
 			goto breakloop;
 		if (dumper != NULL && dumper_close())
@@ -1374,7 +1374,8 @@ dumper_open(struct MY_BPFTIMEVAL ts) {
 		return (TRUE);
 	}
 	dumpstart = ts.tv_sec;
-	alarm(limit_seconds);
+	if (limit_seconds != 0U)
+		alarm(limit_seconds);
 	return (FALSE);
 }
 
