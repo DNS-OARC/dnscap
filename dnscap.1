@@ -154,8 +154,8 @@ script that submits the finished file to a batch processing analytics system.
 .It Fl t Ar lim
 By default,
 .Nm
-will close its packet dump file after 86400 seconds (one day).  A shorter or
-longer time can be chosen with the
+will close its packet dump file only when interrupted.  A time limit can be
+specified with the
 .Fl t
 option.  If the packet dump file is standard output, then after closing this
 file,
@@ -165,8 +165,8 @@ exits.  This option is inclusive with
 .It Fl c Ar lim
 By default,
 .Nm
-will close its packet dump file after writing 1000000000 (one billion)
-packets.  A larger or smaller dump file size can be chosen with the
+will close its packet dump file only when interrupted.  A dump file size,
+measured in packets, can be specified with the
 .Fl c
 option.  If the packet dump file is standard output, then after closing this
 file,
