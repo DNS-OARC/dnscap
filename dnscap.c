@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.25 2007-06-11 19:10:03 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.26 2007-06-11 19:27:56 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -263,6 +263,7 @@ static char *bpft;
 static unsigned dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
+static int frags = FALSE;
 static int v6bug = FALSE;
 static int nonmatching = FALSE;
 static int dig_it = FALSE;
@@ -325,7 +326,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-ad1g?6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-ad1g?f6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
 		"\t[-m [quire]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
@@ -341,6 +342,7 @@ help_2(void) {
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
+		"\t-f         ask PCAP/BPF for IP fragments (then drop 'em)\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-v         select only nonmatching messages (see -x)\n"
 		"\t-i <if>    pcap interface(s)\n"
@@ -395,6 +397,9 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'g':
 			dig_it = TRUE;
+			break;
+		case 'f':
+			frags = TRUE;
 			break;
 		case '6':
 			v6bug = TRUE;
@@ -678,7 +683,8 @@ prepare_bpft(void) {
 	len = 0;
 	if (!ISC_LIST_EMPTY(vlans))
 		len += text_add(&bpfl, "vlan and ");
-	len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
+	if (frags)
+		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
 	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
@@ -716,7 +722,8 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-	len += text_add(&bpfl, " )");
+	if (frags)
+		len += text_add(&bpfl, " )");
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
