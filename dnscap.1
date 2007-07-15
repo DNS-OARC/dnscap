@@ -14,11 +14,15 @@
 .Op Fl x Ar pat ...
 .Oo
 .Fl m
-.Op quire
+.Op quir
 .Oc
 .Oo
 .Fl h
 .Op ir
+.Oc
+.Oo
+.Fl e
+.Op ny
 .Oc
 .Op Fl q Ar host ...
 .Op Fl r Ar host ...
@@ -119,7 +123,7 @@ patterns.  See
 and
 .Xr re_format 7
 for more information about extended regular expression syntax.
-.It Fl m Op quire
+.It Fl m Op quir
 Capture only packets containing designated message types (query, update,
 initiation, response, and error).  Default is query initiation and responses.
 An "error" means a non-zero RCODE or a truncation (TC) flag.
@@ -129,6 +133,15 @@ means wiping out the address and port number.  Hiding a responder means to wipe
 out the address only.  This wiping occurs on the copy of the packet sent to the
 .Xr pcap 3
 dump output, and both the IP and UDP checksums will be recomputed in that case.
+.It Fl e Op ny
+Among responses, consider nonzero DNS TC or DNS RCODE to indicate an error,
+and select only responses which do not have, or which have, this condition.
+The default is to only select nonerrors among responses.  If both nonerror
+and error responses are to be selected, specify both the
+.Ar n
+and
+.Ar y
+options here.
 .It Fl q Ar host
 Capture only transactions having these initiators.  Can be specified more than
 once to select multiple initiators.  If a host name is used, then all of that

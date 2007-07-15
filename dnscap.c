@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.26 2007-06-11 19:27:56 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.27 2007-07-15 17:56:37 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -129,7 +129,9 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 #define MSG_UPDATE	0x0002
 #define MSG_INITIATE	0x0004
 #define MSG_RESPONSE	0x0008
-#define MSG_ERROR	0x0010
+
+#define ERR_NO		0x0001
+#define ERR_YES		0x0002
 
 #define END_INITIATOR	0x0001
 #define END_RESPONDER	0x0002
@@ -157,6 +159,8 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 
 /* Data structures. */
+
+typedef struct MY_BPFTIMEVAL my_bpftimeval;
 
 typedef struct {
 	int			af;
@@ -223,11 +227,14 @@ static size_t text_add(text_list *, const char *, ...);
 static void open_pcaps(void);
 static void poll_pcaps(void);
 static void close_pcaps(void);
-static void live_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
-static void print_packetheader(FILE *, const struct pcap_pkthdr *, u_int,
-			       size_t, const iaddr *, const iaddr *,
-			       u_int, u_int, const char *);
-static int dumper_open(struct MY_BPFTIMEVAL);
+static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void network_pkt(mypcap_ptr, const char *, my_bpftimeval, unsigned,
+			   const u_char *, size_t);
+#if 0
+static int ip_reassemble(unsigned, iaddr, iaddr, unsigned, unsigned, unsigned,
+			 unsigned, unsigned, const u_char **, size_t *);
+#endif
+static int dumper_open(my_bpftimeval);
 static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
@@ -241,6 +248,7 @@ static int flush = FALSE;
 static vlan_list vlans;
 static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
 static unsigned end_hide = 0U;
+static unsigned err_wanted = ERR_NO;
 static endpoint_list initiators;
 static endpoint_list responders;
 static myregex_list myregexes;
@@ -254,7 +262,6 @@ static unsigned limit_packets = 0U;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
 static pcap_t *pcap_dead;
-static int linktype;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
 static unsigned msgcount;
@@ -328,7 +335,7 @@ help_1(void) {
 		"usage: %s\n"
 		"\t[-ad1g?f6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
-		"\t[-m [quire]] [-h [ir]] [-x <pat>]+\n"
+		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
 		ProgramName);
 }
@@ -349,8 +356,9 @@ help_2(void) {
 		"\t-o <file>  pcap offline file\n"
 		"\t-l <vlan>  pcap vlan(s)\n"
 		"\t-p <port>  dns port (default: 53)\n"
-		"\t-m [quire] select query, update, initiate, response, err\n"
+		"\t-m [quir]  select query, update, initiate, response\n"
 		"\t-h [ir]    hide initiators and/or responders\n"
+		"\t-e [ny]    select noerror, yeserror in responses\n"
 		"\t-q <host>  initiator(s)\n"
 		"\t-r <host>  responder(s)\n"
 		"\t-b <base>  dump to <base>.<timesec>.<timeusec>\n"
@@ -382,7 +390,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "ad1g6v?i:o:l:p:m:h:q:r:b:k:t:c:x:")
+			    "ad1g6v?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -461,8 +469,7 @@ parse_args(int argc, char *argv[]) {
 				case 'u': u |= MSG_UPDATE; break;
 				case 'i': u |= MSG_INITIATE; break;
 				case 'r': u |= MSG_RESPONSE; break;
-				case 'e': u |= MSG_ERROR; break;
-				default: usage("-m takes only [quire]");
+				default: usage("-m takes only [quir]");
 				}
 			msg_wanted = u;
 			break;
@@ -475,6 +482,16 @@ parse_args(int argc, char *argv[]) {
 				default: usage("-h takes only [ir]");
 				}
 			end_hide = u;
+			break;
+		case 'e':
+			u = 0;
+			for (p = optarg; *p; p++)
+				switch (*p) {
+				case 'n': u |= ERR_NO; break;
+				case 'y': u |= ERR_YES; break;
+				default: usage("-e takes only [ny]");
+				}
+			err_wanted = u;
 			break;
 		case 'q':
 			endpoint_arg(&initiators, optarg);
@@ -529,6 +546,7 @@ parse_args(int argc, char *argv[]) {
 		}
 	}
 	assert(msg_wanted != 0U);
+	assert(err_wanted != 0U);
 	if (dump_type == nowhere && !dig_it)
 		usage("without -b or -g, there would be no output");
 	if (nonmatching && ISC_LIST_EMPTY(myregexes))
@@ -539,15 +557,17 @@ parse_args(int argc, char *argv[]) {
 		myregex_ptr mr;
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version);
-		fprintf(stderr, "%s: msg %c%c%c%c%c, hide %c%c, t %u, c %u\n",
+		fprintf(stderr,
+			"%s: msg %c%c%c%c, hide %c%c, err %c%c, t %u, c %u\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
 			(msg_wanted & MSG_INITIATE) != 0 ? 'I' : '.',
 			(msg_wanted & MSG_RESPONSE) != 0 ? 'R' : '.',
-			(msg_wanted & MSG_ERROR) != 0 ? 'E' : '.',
 			(end_hide & END_INITIATOR) != 0 ? 'I' : '.',
 			(end_hide & END_RESPONDER) != 0 ? 'R' : '.',
+			(err_wanted & ERR_NO) != 0 ? 'N' : '.',
+			(err_wanted & ERR_YES) != 0 ? 'Y' : '.',
 			limit_seconds, limit_packets);
 		sep = "\tinit";
 		for (ep = ISC_LIST_HEAD(initiators);
@@ -673,9 +693,12 @@ prepare_bpft(void) {
 	} else if ((msg_wanted & MSG_QUERY) != 0) {
 		udp10_mbc |= UDP10_OP_MASK;
 	}
-	if ((msg_wanted & MSG_ERROR) == 0) {
+	if (err_wanted == ERR_NO) {
 		udp10_mbc |= UDP10_TC_MASK;
 		udp11_mbc |= UDP11_RC_MASK;
+	} else if (err_wanted == ERR_YES) {
+		udp10_mbs |= UDP10_TC_MASK;
+		udp11_mbs |= UDP11_RC_MASK;
 	}
 
 	/* Make a BPF program to do early course kernel-level filtering. */
@@ -789,7 +812,6 @@ open_pcaps(void) {
 	mypcap_ptr mypcap;
 
 	assert(!ISC_LIST_EMPTY(mypcaps));
-	linktype = -1;
 	FD_ZERO(&mypcap_fdset);
 	pcap_maxfd = 0;
 	for (mypcap = ISC_LIST_HEAD(mypcaps);
@@ -816,10 +838,6 @@ open_pcaps(void) {
 			fprintf(stderr, "%s: pcap warning: %s",
 				ProgramName, errbuf);
 		mypcap->dlt = pcap_datalink(mypcap->pcap);
-		if (linktype == -1)
-			linktype = mypcap->dlt;
-		else if (linktype != mypcap->dlt)
-			linktype = DLT_LOOP;
 		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
 #ifdef __APPLE__
 		ioctl(mypcap->fdes, BIOCIMMEDIATE, &ioarg);
@@ -841,8 +859,7 @@ open_pcaps(void) {
 		}
 		pcap_freecode(&bpfp);
 	}
-	assert(linktype != -1);
-	pcap_dead = pcap_open_dead(linktype, SNAPLEN);
+	pcap_dead = pcap_open_dead(DLT_LOOP, SNAPLEN);
 }
 
 static void
@@ -866,7 +883,7 @@ poll_pcaps(void) {
 	     mypcap != NULL;
 	     mypcap = ISC_LIST_NEXT(mypcap, link))
 	{
-		n = pcap_dispatch(mypcap->pcap, -1, live_packet,
+		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
 				  (u_char *)mypcap);
 		if (n == -1)
 			fprintf(stderr, "%s: pcap_dispatch: %s\n",
@@ -890,34 +907,24 @@ close_pcaps(void) {
 }
 
 static void
-live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
-	u_char pkt_copy[SNAPLEN+NS_INT32SZ],
-		*pkt = pkt_copy+NS_INT32SZ,
-		*netptr, *dlptr;
-	unsigned etype, proto, sport, dport, ip_len, ip_off, ip_mf;
+dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	mypcap_ptr mypcap = (mypcap_ptr) user;
-	iaddr from, to, initiator, responder;
 	size_t len = hdr->caplen;
-	struct ip6_hdr *ipv6;
-	struct udphdr *udp;
-	unsigned vlan, pf;
-	struct ip *ip;
-	HEADER dns;
+	unsigned etype, vlan, pf;
+	char descr[200];
 
-	/* Sometimes pcap_breakloop() stutters. */
-	if (main_exit)
+	/* One pcap_breakloop() should stop all of our pcaps, really. */
+	if (main_exit) {
+		pcap_breakloop(mypcap->pcap);
 		return;
+	}
 
 	/* If ever SNAPLEN wasn't big enough, we have no recourse. */
 	if (hdr->len != hdr->caplen)
 		return;
 
-	/* Make a writable copy of the packet and use that copy from now on. */
-	memcpy(pkt, opkt, len);
-
 	/* Data link. */
 	vlan = 0;
-	dlptr = pkt;
 	switch (mypcap->dlt) {
 	case DLT_NULL: {
 		uint32_t x;
@@ -955,7 +962,7 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 
 		if (len < ETHER_HDR_LEN)
 			return;
-		ether = (void *) pkt;
+		ether = (const struct ether_header *) pkt;
 		etype = ntohs(ether->ether_type);
 		pkt += ETHER_HDR_LEN;
 		len -= ETHER_HDR_LEN;
@@ -987,15 +994,79 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		return;
 	}
 
+	if (!ISC_LIST_EMPTY(vlans)) {
+		vlan_ptr vl;
+
+		for (vl = ISC_LIST_HEAD(vlans);
+		     vl != NULL;
+		     vl = ISC_LIST_NEXT(vl, link))
+			if (vl->vlan == vlan || vl->vlan == 0)
+				break;
+		if (vl == NULL)
+			return;
+	}
+
+	switch (etype) {
+	case ETHERTYPE_IP:
+		pf = PF_INET;
+		break;
+	case ETHERTYPE_IPV6:
+		pf = PF_INET6;
+		break;
+	default:
+		return;
+	}
+
+	if (dig_it) {
+		char when[100], via[100];
+		const struct tm *tm;
+		time_t t;
+
+		t = (time_t) hdr->ts.tv_sec;
+		tm = gmtime(&t);
+		strftime(when, sizeof when, "%F %T", tm);
+		strcpy(via, (mypcap->name == NULL)
+				? "\"some interface\""
+				: mypcap->name);
+		if (vlan != 0)
+			sprintf(via + strlen(via), " (vlan %u)", vlan);
+		sprintf(descr,
+			";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
+			when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
+			(long)msgcount);
+	} else {
+		descr[0] = '\0';
+	}
+	network_pkt(mypcap, descr, hdr->ts, pf, pkt, len);
+}
+
+static void
+network_pkt(mypcap_ptr mypcap, const char *descr,
+	    my_bpftimeval ts, unsigned pf,
+	    const u_char *opkt, size_t olen)
+{
+	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy+NS_INT32SZ;
+	unsigned proto, sport, dport, ip_len, ip_off, ip_mf;
+	iaddr from, to, initiator, responder;
+	struct ip6_hdr *ipv6;
+	struct udphdr *udp;
+	char descr2[200];
+	struct ip *ip;
+	int response;
+	size_t len;
+	HEADER dns;
+
+	/* Make a writable copy of the packet and use that copy from now on. */
+	memcpy(pkt, opkt, len = olen);
+
 	/* Network. */
 	ip = NULL;
 	ipv6 = NULL;
-	netptr = pkt;
 	ip_len = 0;
 	ip_off = 0;
 	ip_mf = 0;
-	switch (etype) {
-	case ETHERTYPE_IP: {
+	switch (pf) {
+	case PF_INET: {
 		unsigned offset;
 
 		if (len < sizeof *ip)
@@ -1019,10 +1090,9 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		ip_mf = (offset & IP_MF) != 0;
 		ip_off = (offset & IP_OFFMASK) << 3;
 		ip_len = len;
-		pf = PF_INET;
 		break;
 	    }
-	case ETHERTYPE_IPV6: {
+	case PF_INET6: {
 		uint16_t payload_len;
 		uint8_t nexthdr;
 		unsigned offset;
@@ -1083,51 +1153,60 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 		proto = nexthdr;
 		pkt += offset;
 		len -= offset;
-		pf = PF_INET6;
 		break;
 	    }
 	default:
 		return;
 	}
+	if (ip_mf || ip_off != 0) {
+		unsigned ip_id = ntohs(ip->ip_id);
+		const u_char *npkt;
+		size_t nlen;
+
+		if (dig_it) {
+			char *p = descr2;
+
+			p += sprintf(p, ";! [%s] ", ia_str(from));
+			p += sprintf(p, "-> [%s] ", ia_str(to));
+			p += sprintf(p,	".. frag %u:%u@%u%s\n",
+				     ip_id, ip_len, ip_off,
+				     ip_mf ? "+" : "");
+		} else {
+			descr2[0] = '\0';
+		}
+		if (!frags)
+			return;
+#if 0
+		if (!ip_reassemble(pf, from, to, ip_id, proto,
+				   ip_len, ip_off, ip_mf,
+				   &npkt, &nlen))
+			return;
+#else
+		return;
+#endif
+		memcpy(pkt = pkt_copy+NS_INT32SZ, npkt, len = nlen);
+	}
 
 	/* Transport. */
-	if (ip_off != 0) {
-		udp = NULL;
-		sport = 0;
-		dport = 0;
-	} else {
-		switch (proto) {
-		case IPPROTO_UDP: {
-			if (len < sizeof *udp)
-				return;
-			udp = (void *) pkt;
-			switch (from.af) {
-			case AF_INET:
-			case AF_INET6:
-				sport = ntohs(udp->uh_sport);
-				dport = ntohs(udp->uh_dport);
-				break;
-			default:
-				abort();
-			}
-			pkt += sizeof *udp;
-			len -= sizeof *udp;
-			break;
-		}
-		default:
+	switch (proto) {
+	case IPPROTO_UDP: {
+		if (len < sizeof *udp)
 			return;
+		udp = (void *) pkt;
+		switch (from.af) {
+		case AF_INET:
+		case AF_INET6:
+			sport = ntohs(udp->uh_sport);
+			dport = ntohs(udp->uh_dport);
+			break;
+		default:
+			abort();
 		}
+		pkt += sizeof *udp;
+		len -= sizeof *udp;
+		break;
 	}
-	if (ip_mf || ip_off != 0) {
-		if (dig_it) {
-			print_packetheader(stderr, hdr, vlan, hdr->caplen,
-					   &from, &to, sport, dport,
-					   mypcap->name);
-			fprintf(stderr,	";! frag %u:%u@%u%s dropped\n",
-				ntohs(ip->ip_id), ip_len, ip_off,
-				ip_mf ? "+" : "");
-			fprintf(stderr, ";--\n");
-		}
+	default:
 		return;
 	}
 
@@ -1137,27 +1216,18 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	memcpy(&dns, pkt, sizeof dns);
 
 	/* Policy filtering. */
-	if (!ISC_LIST_EMPTY(vlans)) {
-		vlan_ptr vl;
-
-		for (vl = ISC_LIST_HEAD(vlans);
-		     vl != NULL;
-		     vl = ISC_LIST_NEXT(vl, link))
-			if (vl->vlan == vlan || vl->vlan == 0)
-				break;
-		if (vl == NULL)
-			return;
-	}
 	if (dns.qr == 0 && dport == dns_port) {
 		if ((msg_wanted & MSG_INITIATE) == 0)
 			return;
 		initiator = from;
 		responder = to;
+		response = FALSE;
 	} else if (dns.qr != 0 && sport == dns_port) {
 		if ((msg_wanted & MSG_RESPONSE) == 0)
 			return;
 		initiator = to;
 		responder = from;
+		response = TRUE;
 	} else {
 		return;
 	}
@@ -1169,9 +1239,13 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) ||
 	      ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update)))
 		return;
-	if ((msg_wanted & MSG_ERROR) == 0 &&
-	    (dns.tc != 0 || dns.rcode != ns_r_noerror))
-		return;
+	if (response) {
+		int error = (dns.tc != 0 || dns.rcode != ns_r_noerror);
+
+		if (((err_wanted == ERR_YES) && !error) ||
+		    ((err_wanted == ERR_NO) && error))
+			return;
+	}
 #if HAVE_BINDLIB
 	if (!ISC_LIST_EMPTY(myregexes)) {
 		ns_msg msg;
@@ -1277,8 +1351,8 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	msgcount++;
 
 	/* Output stage. */
-	if (hdr->ts.tv_sec > dumpstart && limit_seconds != 0U &&
-	    (unsigned)(((time_t)hdr->ts.tv_sec) - dumpstart) >= limit_seconds)
+	if (ts.tv_sec > dumpstart && limit_seconds != 0U &&
+	    (unsigned)(((time_t)ts.tv_sec) - dumpstart) >= limit_seconds)
 	{
 		if (dump_type == nowhere)
 			goto breakloop;
@@ -1286,34 +1360,30 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 			goto breakloop;
 	}
 	if (dig_it) {
-		print_packetheader(stderr, hdr, vlan, len, &from, &to,
-				   sport, dport, mypcap->name);
+		fputs(descr, stderr);
+		fputs(descr2, stderr);
+		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
+		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
 #if HAVE_BINDLIB
 		fp_nquery(pkt, len, stderr);
+		fputs("--\n", stderr);
 #else
 		fprintf(stderr, ";! fp_nquery() not present (BINDLIB)\n");
 #endif
-		fprintf(stderr, ";--\n");
 	}
 	if (dump_type != nowhere) {
-		if (dumper == NULL)
-			if (dumper_open(hdr->ts))
-				goto breakloop;
-		if (mypcap->dlt == linktype) {
-			pcap_dump((u_char *)dumper, hdr, pkt_copy+NS_INT32SZ);
-		} else {
+		if (dumper == NULL && dumper_open(ts))
+			goto breakloop;
+		{
 			struct pcap_pkthdr h;
-			u_char *new, *tmp;
+			u_char *tmp;
 
-			new = netptr - NS_INT32SZ;
-			tmp = new;
+			tmp = pkt_copy;
 			NS_PUT32(pf, tmp);
-			h = *hdr;
-			if (new > dlptr)
-				h.caplen = (h.len -= (new - dlptr));
-			else
-				h.caplen = (h.len += (dlptr - new));
-			pcap_dump((u_char *)dumper, &h, new);
+			memset(&h, 0, sizeof h);
+			h.ts = ts;
+			h.len = h.caplen = NS_INT32SZ + olen;
+			pcap_dump((u_char *)dumper, &h, pkt_copy);
 		}
 		if (flush)
 			pcap_dump_flush(dumper);
@@ -1331,30 +1401,18 @@ live_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *opkt) {
 	main_exit = TRUE;
 }
 
-static void
-print_packetheader(FILE *output, const struct pcap_pkthdr *hdr, u_int vlan,
-		   size_t len, const iaddr *from, const iaddr *to,
-		   u_int sport, u_int dport, const char *ifname)
+#if 0
+static int
+ip_reassemble(unsigned pf, iaddr from, iaddr to, unsigned ip_id,
+	      unsigned proto, unsigned ip_len, unsigned ip_off,
+	      unsigned ip_mf, const u_char **npkt, size_t *nlen)
 {
-	char when[100], via[100];
-	const struct tm *tm;
-	time_t t;
-
-	t = (time_t) hdr->ts.tv_sec;
-	tm = gmtime(&t);
-	strftime(when, sizeof when, "%F %T", tm);
-	strcpy(via, (ifname == NULL) ? "\"some interface\"" : ifname);
-	if (vlan != 0)
-		sprintf(via + strlen(via), " (vlan %u)", vlan);
-	fprintf(output, ";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
-		when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
-		(long)msgcount);
-	fprintf(output, ";: [%s]:%u ", ia_str(*from), sport);
-	fprintf(output, "-> [%s]:%u\n",	ia_str(*to), dport);
+	return (FALSE);
 }
+#endif
 
 static int
-dumper_open(struct MY_BPFTIMEVAL ts) {
+dumper_open(my_bpftimeval ts) {
 	const char *t = NULL;
 
 	if (dump_type == to_stdout) {
