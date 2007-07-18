@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ad1g?f6v
+.Op Fl ad1g?f6vs
 .Op Fl i Ar if ...
 .Op Fl o Ar file
 .Op Fl l Ar vlan ...
@@ -89,6 +89,11 @@ expected to be present.
 Invert the sense of
 .Fl x ,
 such that only nonmatching messages are selected.
+.It Fl s
+Synchronize the dump files to begin at the top of their interval.  So,
+.Fl s Fl t Ar 3600
+would make every dump file start at the beginning of a wall clock hour,
+even if the first dump file was therefore shorter than the rest.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the

@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.27 2007-07-15 17:56:37 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.28 2007-07-18 04:26:19 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -226,10 +226,11 @@ static int ep_present(const endpoint_list *, iaddr);
 static size_t text_add(text_list *, const char *, ...);
 static void open_pcaps(void);
 static void poll_pcaps(void);
+static void breakloop_pcaps(void);
 static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
-static void network_pkt(mypcap_ptr, const char *, my_bpftimeval, unsigned,
-			   const u_char *, size_t);
+static void network_pkt(const char *, my_bpftimeval, unsigned,
+			const u_char *, size_t);
 #if 0
 static int ip_reassemble(unsigned, iaddr, iaddr, unsigned, unsigned, unsigned,
 			 unsigned, unsigned, const u_char **, size_t *);
@@ -275,6 +276,8 @@ static int v6bug = FALSE;
 static int nonmatching = FALSE;
 static int dig_it = FALSE;
 static int main_exit = FALSE;
+static int synch_dumps = FALSE;
+static int alarm_set = FALSE;
 
 /* Public. */
 
@@ -333,7 +336,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-ad1g?f6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-ad1g?f6vs] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
 		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
@@ -352,6 +355,7 @@ help_2(void) {
 		"\t-f         ask PCAP/BPF for IP fragments (then drop 'em)\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-v         select only nonmatching messages (see -x)\n"
+		"\t-s         synch dump files to start at top of interval\n"
 		"\t-i <if>    pcap interface(s)\n"
 		"\t-o <file>  pcap offline file\n"
 		"\t-l <vlan>  pcap vlan(s)\n"
@@ -363,8 +367,8 @@ help_2(void) {
 		"\t-r <host>  responder(s)\n"
 		"\t-b <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
-		"\t-t <lim>   close dump or exit every <lim> secs\n"
-		"\t-c <lim>   close dump or exit every <lim> pkts\n"
+		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
+		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n");
 }
 
@@ -390,7 +394,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "ad1g6v?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
+			    "ad1g6vs?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -418,6 +422,9 @@ parse_args(int argc, char *argv[]) {
 #else
 			usage("-v option is disabled due to lack of libbind");
 #endif
+			break;
+		case 's':
+			synch_dumps = TRUE;
 			break;
 		case '?':
 			help_2();
@@ -896,6 +903,16 @@ poll_pcaps(void) {
 }
 
 static void
+breakloop_pcaps(void) {
+	mypcap_ptr mypcap;
+
+	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	     mypcap != NULL;
+	     mypcap = ISC_LIST_NEXT(mypcap, link))
+		pcap_breakloop(mypcap->pcap);
+}
+
+static void
 close_pcaps(void) {
 	mypcap_ptr mypcap;
 
@@ -913,11 +930,8 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	unsigned etype, vlan, pf;
 	char descr[200];
 
-	/* One pcap_breakloop() should stop all of our pcaps, really. */
-	if (main_exit) {
-		pcap_breakloop(mypcap->pcap);
+	if (main_exit)
 		return;
-	}
 
 	/* If ever SNAPLEN wasn't big enough, we have no recourse. */
 	if (hdr->len != hdr->caplen)
@@ -1037,12 +1051,11 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	} else {
 		descr[0] = '\0';
 	}
-	network_pkt(mypcap, descr, hdr->ts, pf, pkt, len);
+	network_pkt(descr, hdr->ts, pf, pkt, len);
 }
 
 static void
-network_pkt(mypcap_ptr mypcap, const char *descr,
-	    my_bpftimeval ts, unsigned pf,
+network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	    const u_char *opkt, size_t olen)
 {
 	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy+NS_INT32SZ;
@@ -1351,7 +1364,7 @@ network_pkt(mypcap_ptr mypcap, const char *descr,
 	msgcount++;
 
 	/* Output stage. */
-	if (ts.tv_sec > dumpstart && limit_seconds != 0U &&
+	if ((!alarm_set) && ts.tv_sec > dumpstart && limit_seconds != 0U &&
 	    (unsigned)(((time_t)ts.tv_sec) - dumpstart) >= limit_seconds)
 	{
 		if (dump_type == nowhere)
@@ -1397,7 +1410,7 @@ network_pkt(mypcap_ptr mypcap, const char *descr,
 	}
 	return;
  breakloop:
-	pcap_breakloop(mypcap->pcap);
+	breakloop_pcaps();
 	main_exit = TRUE;
 }
 
@@ -1439,8 +1452,29 @@ dumper_open(my_bpftimeval ts) {
 		return (TRUE);
 	}
 	dumpstart = ts.tv_sec;
-	if (limit_seconds != 0U)
-		alarm(limit_seconds);
+	if (limit_seconds != 0U) {
+		u_int seconds;
+
+		if (synch_dumps) {
+			struct timeval now;
+			time_t targ;
+
+			gettimeofday(&now, NULL);
+			while (now.tv_usec >= MILLION) {
+				now.tv_sec++;
+				now.tv_usec -= MILLION;
+			}
+			targ = (((now.tv_sec + (limit_seconds / 2))
+				 / limit_seconds) + 1) * limit_seconds;
+
+			assert(targ > now.tv_sec);
+			seconds = targ - now.tv_sec;
+		} else {
+			seconds = limit_seconds;
+		}
+		alarm(seconds);
+		alarm_set = TRUE;
+	}
 	return (FALSE);
 }
 
@@ -1449,6 +1483,7 @@ dumper_close(void) {
 	int ret = FALSE;
 
 	alarm(0);
+	alarm_set = FALSE;
 	pcap_dump_close(dumper); dumper = FALSE;
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
@@ -1481,8 +1516,11 @@ dumper_close(void) {
 }
 
 static void
-sigclose(int signum __attribute__((unused))) {
-	(void) dumper_close();
+sigclose(int signum) {
+	if (signum == SIGALRM)
+		alarm_set = FALSE;
+	if (dumper_close())
+		breakloop_pcaps();
 }
 
 static void
