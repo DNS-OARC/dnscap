@@ -34,6 +34,10 @@ BINDLIB=
 #PORTLDFLAGS=
 #PORTLIBS=
 
+# uncomment these if you're building on CentOS
+#CWARN=
+#PORTLIBS= /usr/lib/libresolv.a
+
 ALL= dnscap dnscap.cat1
 
 CDEBUG= -g -O
