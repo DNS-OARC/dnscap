@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.30 2007-08-04 05:47:44 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.31 2007-08-04 06:03:18 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -99,6 +99,8 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#define ISC_CHECK_NONE 1
 
 #include <isc/list.h>
 
@@ -224,6 +226,7 @@ static void prepare_bpft(void);
 static const char *ia_str(iaddr);
 static int ep_present(const endpoint_list *, iaddr);
 static size_t text_add(text_list *, const char *, ...);
+static void text_free(text_list *);
 static void open_pcaps(void);
 static void poll_pcaps(void);
 static void breakloop_pcaps(void);
@@ -612,7 +615,7 @@ parse_args(int argc, char *argv[]) {
 		mypcap = malloc(sizeof *mypcap);
 		assert(mypcap != NULL);
 		ISC_LINK_INIT(mypcap, link);
-		mypcap->name = name;
+		mypcap->name = strdup(name);
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
@@ -748,6 +751,7 @@ prepare_bpft(void) {
 	     text != NULL;
 	     text = ISC_LIST_NEXT(text, link))
 		strcat(bpft, text->text);
+	text_free(&bpfl);
 	if (dumptrace >= 1)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
@@ -799,6 +803,16 @@ text_add(text_list *list, const char *fmt, ...) {
 	va_end(ap);
 	ISC_LIST_APPEND(*list, text, link);
 	return (len);
+}
+
+static void
+text_free(text_list *list) {
+	text_ptr text;
+
+	while ((text = ISC_LIST_HEAD(*list)) != NULL) {
+		ISC_LIST_UNLINK(*list, text, link);
+		free(text);
+	}
 }
 
 static void
