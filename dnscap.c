@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.29 2007-08-04 04:56:21 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.30 2007-08-04 05:47:44 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -1050,7 +1050,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	iaddr from, to, initiator, responder;
 	struct ip6_hdr *ipv6;
 	struct udphdr *udp;
-	char descr2[200];
 	struct ip *ip;
 	int response;
 	size_t len;
@@ -1330,7 +1329,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	}
 	if (dig_it) {
 		fputs(descr, stderr);
-		fputs(descr2, stderr);
 		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
 		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
 #if HAVE_BINDLIB
