@@ -7,7 +7,7 @@ BINDLIB= -lbind
 BINDCFLAGS= `PATH=/usr/local/bin:$$PATH isc-config.sh --cflags`
 BINDLDFLAGS= `PATH=/usr/local/bin:$$PATH isc-config.sh --libs`
 GCCWARN= -W -Wall -Werror -Wcast-qual -Wpointer-arith -Wwrite-strings \
-	-Wmissing-prototypes  -Wbad-function-cast -Wnested-externs \
+	-Wmissing-prototypes -Wbad-function-cast -Wnested-externs \
 	-Wunused -Wshadow -Wmissing-noreturn -Wswitch-enum -Wformat-nonliteral
 CWARN= ${GCCWARN}
 PORTCFLAGS=
@@ -34,7 +34,7 @@ BINDLIB=
 #PORTLDFLAGS=
 #PORTLIBS=
 
-# uncomment these if you're building on CentOS
+# uncomment these if you're building on CentOS or many other versions of Linux
 #CWARN=
 #PORTLIBS= /usr/lib/libresolv.a
 

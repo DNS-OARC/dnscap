@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ad1g?f6vs
+.Op Fl ad1g?6vs
 .Op Fl i Ar if ...
 .Op Fl o Ar file
 .Op Fl l Ar vlan ...
@@ -76,11 +76,6 @@ presentation form.
 Prints some text to stdout describing the command line options, so that you
 won't have to refer back to this man page as often.  Probably you will have
 to say "-\\?" to get this option past your shell.
-.It Fl f
-Select fragmented IP packets, which lack UDP port numbers and thus would not
-match the normal PCAP/BPF filters used by
-.Nm
-(Note that the current behaviour is to log and drop these fragments.)
 .It Fl 6
 Suppress the use of packet filter patterns that are known (as of 2007) to
 cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is

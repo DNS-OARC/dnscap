@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.28 2007-07-18 04:26:19 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.29 2007-08-04 04:56:21 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -231,10 +231,6 @@ static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
-#if 0
-static int ip_reassemble(unsigned, iaddr, iaddr, unsigned, unsigned, unsigned,
-			 unsigned, unsigned, const u_char **, size_t *);
-#endif
 static int dumper_open(my_bpftimeval);
 static int dumper_close(void);
 static void sigclose(int);
@@ -271,7 +267,6 @@ static char *bpft;
 static unsigned dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
-static int frags = FALSE;
 static int v6bug = FALSE;
 static int nonmatching = FALSE;
 static int dig_it = FALSE;
@@ -336,7 +331,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-ad1g?f6vs] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-ad1g?6vs] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
 		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
@@ -352,7 +347,6 @@ help_2(void) {
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
-		"\t-f         ask PCAP/BPF for IP fragments (then drop 'em)\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-v         select only nonmatching messages (see -x)\n"
 		"\t-s         synch dump files to start at top of interval\n"
@@ -409,9 +403,6 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'g':
 			dig_it = TRUE;
-			break;
-		case 'f':
-			frags = TRUE;
 			break;
 		case '6':
 			v6bug = TRUE;
@@ -713,8 +704,6 @@ prepare_bpft(void) {
 	len = 0;
 	if (!ISC_LIST_EMPTY(vlans))
 		len += text_add(&bpfl, "vlan and ");
-	if (frags)
-		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
 	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
@@ -752,8 +741,6 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-	if (frags)
-		len += text_add(&bpfl, " )");
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
@@ -1059,7 +1046,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	    const u_char *opkt, size_t olen)
 {
 	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy+NS_INT32SZ;
-	unsigned proto, sport, dport, ip_len, ip_off, ip_mf;
+	unsigned proto, sport, dport;
 	iaddr from, to, initiator, responder;
 	struct ip6_hdr *ipv6;
 	struct udphdr *udp;
@@ -1075,9 +1062,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	/* Network. */
 	ip = NULL;
 	ipv6 = NULL;
-	ip_len = 0;
-	ip_off = 0;
-	ip_mf = 0;
 	switch (pf) {
 	case PF_INET: {
 		unsigned offset;
@@ -1100,9 +1084,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		pkt += offset;
 		len -= offset;
 		offset = ntohs(ip->ip_off);
-		ip_mf = (offset & IP_MF) != 0;
-		ip_off = (offset & IP_OFFMASK) << 3;
-		ip_len = len;
+		if ((offset & IP_MF) != 0 ||
+		    (offset & IP_OFFMASK) != 0)
+			return;
 		break;
 	    }
 	case PF_INET6: {
@@ -1170,34 +1154,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	    }
 	default:
 		return;
-	}
-	if (ip_mf || ip_off != 0) {
-		unsigned ip_id = ntohs(ip->ip_id);
-		const u_char *npkt;
-		size_t nlen;
-
-		if (dig_it) {
-			char *p = descr2;
-
-			p += sprintf(p, ";! [%s] ", ia_str(from));
-			p += sprintf(p, "-> [%s] ", ia_str(to));
-			p += sprintf(p,	".. frag %u:%u@%u%s\n",
-				     ip_id, ip_len, ip_off,
-				     ip_mf ? "+" : "");
-		} else {
-			descr2[0] = '\0';
-		}
-		if (!frags)
-			return;
-#if 0
-		if (!ip_reassemble(pf, from, to, ip_id, proto,
-				   ip_len, ip_off, ip_mf,
-				   &npkt, &nlen))
-			return;
-#else
-		return;
-#endif
-		memcpy(pkt = pkt_copy+NS_INT32SZ, npkt, len = nlen);
 	}
 
 	/* Transport. */
@@ -1413,16 +1369,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	breakloop_pcaps();
 	main_exit = TRUE;
 }
-
-#if 0
-static int
-ip_reassemble(unsigned pf, iaddr from, iaddr to, unsigned ip_id,
-	      unsigned proto, unsigned ip_len, unsigned ip_off,
-	      unsigned ip_mf, const u_char **npkt, size_t *nlen)
-{
-	return (FALSE);
-}
-#endif
 
 static int
 dumper_open(my_bpftimeval ts) {
