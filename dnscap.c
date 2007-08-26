@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.31 2007-08-04 06:03:18 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.32 2007-08-26 03:49:06 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -274,7 +274,6 @@ static int v6bug = FALSE;
 static int nonmatching = FALSE;
 static int dig_it = FALSE;
 static int main_exit = FALSE;
-static int synch_dumps = FALSE;
 static int alarm_set = FALSE;
 
 /* Public. */
@@ -391,7 +390,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "ad1g6vs?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
+			    "ad1g6v?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -416,9 +415,6 @@ parse_args(int argc, char *argv[]) {
 #else
 			usage("-v option is disabled due to lack of libbind");
 #endif
-			break;
-		case 's':
-			synch_dumps = TRUE;
 			break;
 		case '?':
 			help_2();
@@ -1411,25 +1407,19 @@ dumper_open(my_bpftimeval ts) {
 	}
 	dumpstart = ts.tv_sec;
 	if (limit_seconds != 0U) {
+		struct timeval now;
 		u_int seconds;
+		time_t targ;
 
-		if (synch_dumps) {
-			struct timeval now;
-			time_t targ;
-
-			gettimeofday(&now, NULL);
-			while (now.tv_usec >= MILLION) {
-				now.tv_sec++;
-				now.tv_usec -= MILLION;
-			}
-			targ = (((now.tv_sec + (limit_seconds / 2))
-				 / limit_seconds) + 1) * limit_seconds;
-
-			assert(targ > now.tv_sec);
-			seconds = targ - now.tv_sec;
-		} else {
-			seconds = limit_seconds;
+		gettimeofday(&now, NULL);
+		while (now.tv_usec >= MILLION) {
+			now.tv_sec++;
+			now.tv_usec -= MILLION;
 		}
+		targ = (((now.tv_sec + (limit_seconds / 2))
+			 / limit_seconds) + 1) * limit_seconds;
+			assert(targ > now.tv_sec);
+		seconds = targ - now.tv_sec;
 		alarm(seconds);
 		alarm_set = TRUE;
 	}
