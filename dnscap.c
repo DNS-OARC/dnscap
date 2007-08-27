@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.33 2007-08-27 20:40:15 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.34 2007-08-27 20:58:38 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -1348,19 +1348,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 #endif
 	}
 	if (dump_type != nowhere) {
+		struct pcap_pkthdr h;
+		u_char *tmp;
+
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
-		{
-			struct pcap_pkthdr h;
-			u_char *tmp;
-
-			tmp = pkt_copy;
-			NS_PUT32(pf, tmp);
-			memset(&h, 0, sizeof h);
-			h.ts = ts;
-			h.len = h.caplen = NS_INT32SZ + olen;
-			pcap_dump((u_char *)dumper, &h, pkt_copy);
-		}
+		tmp = pkt_copy;
+		NS_PUT32(pf, tmp);
+		memset(&h, 0, sizeof h);
+		h.ts = ts;
+		h.len = h.caplen = NS_INT32SZ + olen;
+		pcap_dump((u_char *)dumper, &h, pkt_copy);
 		if (flush)
 			pcap_dump_flush(dumper);
 	}
