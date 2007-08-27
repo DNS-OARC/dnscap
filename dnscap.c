@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.34 2007-08-27 20:58:38 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.35 2007-08-27 21:52:41 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -271,6 +271,7 @@ static unsigned dns_port = DNS_PORT;
 static int promisc = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
+static int wantfrags = FALSE;
 static int nonmatching = FALSE;
 static int dig_it = FALSE;
 static int main_exit = FALSE;
@@ -333,7 +334,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-ad1g?6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-?ad1g6fv] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
 		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
@@ -345,11 +346,13 @@ help_2(void) {
 	help_1();
 	fprintf(stderr,
 		"\noptions:\n"
+		"\t-? or -\?  print these instructions and exit\n"
 		"\t-a         collect packets promiscuously\n"
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
+		"\t-f         include fragmented packets\n"
 		"\t-v         select only nonmatching messages (see -x)\n"
 		"\t-i <if>    pcap interface(s)\n"
 		"\t-o <file>  pcap offline file\n"
@@ -389,7 +392,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "ad1g6v?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
+			    "ad1gfv?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -407,6 +410,9 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case '6':
 			v6bug = TRUE;
+			break;
+		case 'f':
+			wantfrags = TRUE;
 			break;
 		case 'v':
 #if HAVE_BINDLIB
@@ -547,6 +553,8 @@ parse_args(int argc, char *argv[]) {
 		usage("without -b or -g, there would be no output");
 	if (nonmatching && ISC_LIST_EMPTY(myregexes))
 		usage("without at least one -x, it makes no sense to say -v");
+	if (end_hide != 0U && wantfrags)
+		usage("the -h and -f options are incompatible");
 	if (dumptrace >= 1) {
 		endpoint_ptr ep;
 		const char *sep;
@@ -701,7 +709,11 @@ prepare_bpft(void) {
 	ISC_LIST_INIT(bpfl);
 	len = 0;
 	if (!ISC_LIST_EMPTY(vlans))
-		len += text_add(&bpfl, "vlan and ");
+		len += text_add(&bpfl, "vlan and ( ");
+	if (wantfrags) {
+		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
+		/* XXX what about IPv6 fragments? */
+	}
 	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
@@ -739,6 +751,10 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
+	if (!ISC_LIST_EMPTY(vlans))
+		len += text_add(&bpfl, " )");
+	if (wantfrags)
+		len += text_add(&bpfl, " )");
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
@@ -1058,9 +1074,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	unsigned proto, sport, dport;
 	iaddr from, to, initiator, responder;
 	struct ip6_hdr *ipv6;
+	int response, isfrag;
 	struct udphdr *udp;
 	struct ip *ip;
-	int response;
 	size_t len;
 	HEADER dns;
 
@@ -1070,6 +1086,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	/* Network. */
 	ip = NULL;
 	ipv6 = NULL;
+	isfrag = FALSE;
+	sport = dport = 0;
 	switch (pf) {
 	case PF_INET: {
 		unsigned offset;
@@ -1094,7 +1112,13 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		offset = ntohs(ip->ip_off);
 		if ((offset & IP_MF) != 0 ||
 		    (offset & IP_OFFMASK) != 0)
+		{
+			if (wantfrags) {
+				isfrag = TRUE;
+				goto output;
+			}
 			return;
+		}
 		break;
 	    }
 	case PF_INET6: {
@@ -1137,8 +1161,13 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 				return;
 
 			/* Cannot handle fragments. */
-			if (nexthdr == IPPROTO_FRAGMENT)
+			if (nexthdr == IPPROTO_FRAGMENT) {
+				if (wantfrags) {
+					isfrag = TRUE;
+					goto output;
+				}
 				return;
+			}
 
 			memcpy(&ext_hdr, (u_char *)ipv6 + offset,
 			       sizeof ext_hdr);
@@ -1328,6 +1357,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	msgcount++;
 
 	/* Output stage. */
+ output:
 	if ((!alarm_set) && ts.tv_sec > dumpstart && limit_seconds != 0U &&
 	    (unsigned)(((time_t)ts.tv_sec) - dumpstart) >= limit_seconds)
 	{
@@ -1338,8 +1368,13 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	}
 	if (dig_it) {
 		fputs(descr, stderr);
-		fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
-		fprintf(stderr, "-> [%s]:%u\n",	ia_str(to), dport);
+		if (isfrag) {
+			fprintf(stderr, ";: [%s] ", ia_str(from));
+			fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
+		} else {
+			fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
+			fprintf(stderr, "-> [%s]:%u\n", ia_str(to), dport);
+		}
 #if HAVE_BINDLIB
 		fp_nquery(pkt, len, stderr);
 		fputs("--\n", stderr);

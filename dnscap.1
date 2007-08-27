@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ad1g?6v
+.Op Fl ad1g?6fv
 .Op Fl i Ar if ...
 .Op Fl o Ar file
 .Op Fl l Ar vlan ...
@@ -80,6 +80,12 @@ to say "-\\?" to get this option past your shell.
 Suppress the use of packet filter patterns that are known (as of 2007) to
 cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
 expected to be present.
+.It Fl f
+Selects fragments (which could include unrelated flows since fragments do not
+contain port numbers), and includes fragments in the binary output.  Necessary
+if you intend to do IP Reassembly.  Note that all fragments will be collected,
+not just those using the DNS port number, since fragments don't have port
+numbers.  Beware this option if you also handle a lot of NFS traffic.
 .It Fl v
 Invert the sense of
 .Fl x ,
