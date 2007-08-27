@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.32 2007-08-26 03:49:06 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.33 2007-08-27 20:40:15 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -333,7 +333,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-ad1g?6vs] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
+		"\t[-ad1g?6v] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
 		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
 		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
 		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
@@ -351,7 +351,6 @@ help_2(void) {
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-v         select only nonmatching messages (see -x)\n"
-		"\t-s         synch dump files to start at top of interval\n"
 		"\t-i <if>    pcap interface(s)\n"
 		"\t-o <file>  pcap offline file\n"
 		"\t-l <vlan>  pcap vlan(s)\n"
