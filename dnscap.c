@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.35 2007-08-27 21:52:41 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.36 2007-08-28 16:26:52 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -1358,14 +1358,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 	/* Output stage. */
  output:
-	if ((!alarm_set) && ts.tv_sec > dumpstart && limit_seconds != 0U &&
-	    (unsigned)(((time_t)ts.tv_sec) - dumpstart) >= limit_seconds)
-	{
-		if (dump_type == nowhere)
-			goto breakloop;
-		if (dumper != NULL && dumper_close())
-			goto breakloop;
-	}
 	if (dig_it) {
 		fputs(descr, stderr);
 		if (isfrag) {
@@ -1462,8 +1454,10 @@ static int
 dumper_close(void) {
 	int ret = FALSE;
 
-	alarm(0);
-	alarm_set = FALSE;
+	if (alarm_set) {
+		alarm(0);
+		alarm_set = FALSE;
+	}
 	pcap_dump_close(dumper); dumper = FALSE;
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
