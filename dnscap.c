@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.36 2007-08-28 16:26:52 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.37 2007-08-29 05:57:50 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -1442,7 +1442,7 @@ dumper_open(my_bpftimeval ts) {
 		}
 		targ = (((now.tv_sec + (limit_seconds / 2))
 			 / limit_seconds) + 1) * limit_seconds;
-			assert(targ > now.tv_sec);
+		assert(targ > now.tv_sec);
 		seconds = targ - now.tv_sec;
 		alarm(seconds);
 		alarm_set = TRUE;
@@ -1480,8 +1480,6 @@ dumper_close(void) {
 		free(dumpnamepart); dumpnamepart = NULL;
 		free(dumpname); dumpname = NULL;
 		if (cmd != NULL) {
-			setuid(getuid());
-			setgid(getgid());
 			system(cmd);
 			free(cmd);
 		}
