@@ -4,10 +4,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.38 2007-10-25 17:05:23 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.39 2007-10-25 17:29:31 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC5 (June 2007)";
+static const char version[] = "V1.0-RC6 (October 2007)";
 #endif
 
 /*
@@ -411,9 +411,10 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "pd1gf?i:r:l:u:m:s:h:e:q:r:w:k:t:c:x:")
+			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
 		) != EOF)
 	{
+		printf("getopt: %c\n", ch);
 		switch (ch) {
 		case 'p':
 			promisc = FALSE;
@@ -1342,7 +1343,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		ns_msg msg;
 		ns_sect s;
 
-		match = ISC_LIST_EMPTY(myregexes);
+		match = FALSE;
 		negmatch = FALSE;
 		if (ns_initparse(pkt, len, &msg) < 0)
 			return;
@@ -1368,8 +1369,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 				}
 				for (myregex = ISC_LIST_HEAD(myregexes);
 				     myregex != NULL && !negmatch;
-				     myregex = ISC_LIST_NEXT(myregex, link))
-					if ((!match || myregex->not) &&
+				     myregex = ISC_LIST_NEXT(myregex, link)) {
+					if (((!match) || myregex->not) &&
 					    regexec(&myregex->reg, look,
 						    0, NULL, 0) == 0)
 					{
@@ -1380,9 +1381,13 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 							match = TRUE;
 						if (dumptrace >= 2)
 							fprintf(stderr,
-							   "; \"%s\" ~ /%s/\n",
-							look, myregex->str);
+						   "; \"%s\" ~ /%s/ %d %d\n",
+								look,
+								myregex->str,
+								match,
+								negmatch);
 					}
+				}
 			}
 		}
 		if (!match)
