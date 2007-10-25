@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.40 2007-10-25 21:03:58 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.41 2007-10-25 22:26:52 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -1142,7 +1142,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		if (vlan != 0)
 			sprintf(via + strlen(via), " (vlan %u)", vlan);
 		if (brief)
-			sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u]\n",
+			sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u] \\\n",
 				(u_long)len, when, (u_long)hdr->ts.tv_usec,
 				(long)msgcount, via, vlan);
 		else
