@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.39 2007-10-25 17:29:31 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.40 2007-10-25 21:03:58 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -113,6 +113,7 @@ static const char version[] = "V1.0-RC6 (October 2007)";
 #define ISC_CHECK_NONE 1
 
 #include <isc/list.h>
+#include "dump_dns.h"
 
 /* Constants. */
 
@@ -282,6 +283,7 @@ static unsigned msgcount;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
+static int brief = FALSE;
 static int promisc = TRUE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
@@ -411,11 +413,13 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
+			    "bpd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
 		) != EOF)
 	{
-		printf("getopt: %c\n", ch);
 		switch (ch) {
+		case 'b':
+			brief = TRUE;
+			break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -538,7 +542,7 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'k':
 			if (dump_type != to_file)
-				usage("-k depends on -b"
+				usage("-k depends on -w"
 				      " (note: can't be stdout)");
 			kick_cmd = optarg;
 			break;
@@ -580,8 +584,10 @@ parse_args(int argc, char *argv[]) {
 	}
 	assert(msg_wanted != 0U);
 	assert(err_wanted != 0U);
+	if (brief && !dig_it)
+		usage("without -g, -b makes no sense");
 	if (dump_type == nowhere && !dig_it)
-		usage("without -b or -g, there would be no output");
+		usage("without -w or -g, there would be no output");
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
 	if (dumptrace >= 1) {
@@ -1135,10 +1141,15 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 				: mypcap->name);
 		if (vlan != 0)
 			sprintf(via + strlen(via), " (vlan %u)", vlan);
-		sprintf(descr,
-			";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
-			when, (u_long)hdr->ts.tv_usec, (u_long)len, via,
-			(long)msgcount);
+		if (brief)
+			sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u]\n",
+				(u_long)len, when, (u_long)hdr->ts.tv_usec,
+				(long)msgcount, via, vlan);
+		else
+			sprintf(descr,
+				";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
+				when, (u_long)hdr->ts.tv_usec, (u_long)len,
+				via, (long)msgcount);
 	} else {
 		descr[0] = '\0';
 	}
@@ -1458,16 +1469,25 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		if (isfrag) {
 			fprintf(stderr, ";: [%s] ", ia_str(from));
 			fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
+		} else if (brief) {
+			fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
+			fprintf(stderr, "[%s].%u ", ia_str(to), sport);
 		} else {
 			fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
 			fprintf(stderr, "-> [%s]:%u\n", ia_str(to), dport);
 		}
+		if (brief) {
+			dump_dns(pkt, len, stderr, "\\\n\t");
+			putc('\n', stderr);
+		} else {
 #if HAVE_BINDLIB
-		fp_nquery(pkt, len, stderr);
-		fputs("--\n", stderr);
+			fp_nquery(pkt, len, stderr);
+			fputs("--\n", stderr);
 #else
-		fprintf(stderr, ";! fp_nquery() not present (BINDLIB)\n");
+			fprintf(stderr,
+				";! fp_nquery() not present (BINDLIB)\n");
 #endif
+		}
 	}
 	if (dump_type != nowhere) {
 		struct pcap_pkthdr h;

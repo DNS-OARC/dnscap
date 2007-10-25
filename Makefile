@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 2007-08-29 05:58:03 vixie Exp $
+# $Id: Makefile,v 1.13 2007-10-25 21:03:57 vixie Exp $
 
 #
 # Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -69,12 +69,12 @@ all: ${ALL}
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
 
-DNSCAP_OBJ= dnscap.o
+DNSCAP_OBJ= dnscap.o dump_dns.o
 dnscap: ${DNSCAP_OBJ} Makefile
 	@echo \(link $@ w/ ${LDLIBS}\) && \
 		${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
 
-${DNSCAP_OBJ}: Makefile
+${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h
 
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1

@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl pd1g?6f
+.Op Fl bpd1g?6f
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
@@ -57,6 +57,13 @@ is expected to be used for gathering continuous research or audit traces.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
+.It Fl b
+Diagnostic output based on the
+.Fl g
+option will be brief -- more like
+.Xr ncaptool
+and less like
+.Xr dig .
 .It Fl p
 Asks that the interface not be put into promiscuous mode.  Note that even
 without this option, the interface could be in promiscuous mode for some other
