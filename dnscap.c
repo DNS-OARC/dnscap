@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.37 2007-08-29 05:57:50 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.38 2007-10-25 17:05:23 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC5 (June 2007)";
@@ -100,6 +100,16 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 #include <time.h>
 #include <unistd.h>
 
+#define MY_GET32(l, cp) do { \
+	register const u_char *t_cp = (const u_char *)(cp); \
+	(l) = ((u_int32_t)t_cp[0] << 24) \
+	    | ((u_int32_t)t_cp[1] << 16) \
+	    | ((u_int32_t)t_cp[2] << 8) \
+	    | ((u_int32_t)t_cp[3]) \
+	    ; \
+	(cp) += INT32SZ; \
+} while (0)
+
 #define ISC_CHECK_NONE 1
 
 #include <isc/list.h>
@@ -129,8 +139,10 @@ static const char version[] = "V1.0-RC5 (June 2007)";
 
 #define MSG_QUERY	0x0001
 #define MSG_UPDATE	0x0002
-#define MSG_INITIATE	0x0004
-#define MSG_RESPONSE	0x0008
+#define	MSG_NOTIFY	0x0004
+
+#define DIR_INITIATE	0x0001
+#define DIR_RESPONSE	0x0002
 
 #define ERR_NO		0x0001
 #define ERR_YES		0x0002
@@ -209,6 +221,7 @@ struct myregex {
 	ISC_LINK(struct myregex)  link;
 	regex_t			reg;
 	char *			str;
+	int			not;
 };
 typedef struct myregex *myregex_ptr;
 typedef ISC_LIST(struct myregex) myregex_list;
@@ -246,11 +259,12 @@ static const char *ProgramName = "amnesia";
 static int dumptrace = 0;
 static int flush = FALSE;
 static vlan_list vlans;
-static unsigned msg_wanted = MSG_QUERY|MSG_INITIATE|MSG_RESPONSE;
+static unsigned msg_wanted = MSG_QUERY;
+static unsigned dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 static unsigned end_hide = 0U;
 static unsigned err_wanted = ERR_NO;
-static endpoint_list initiators;
-static endpoint_list responders;
+static endpoint_list initiators, not_initiators;
+static endpoint_list responders, not_responders;
 static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
@@ -268,11 +282,10 @@ static unsigned msgcount;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
-static int promisc = FALSE;
+static int promisc = TRUE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
 static int wantfrags = FALSE;
-static int nonmatching = FALSE;
 static int dig_it = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
@@ -334,10 +347,11 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?ad1g6fv] [-i <if>]+ [-o <file>] [-l <vlan>]+\n"
-		"\t[-p <port>] [-q <host>]+ [-r <host>]+\n"
-		"\t[-m [quir]] [-e [yn]] [-h [ir]] [-x <pat>]+\n"
-		"\t[-b <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n",
+		"\t[-?pd1g6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-u <port>] [-m [qun]] [-s [ir]] [-e [yn]] [-h [ir]]\n"
+		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
+		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
+		"\t[-x <pat>]+ [-X <pat>]+\n",
 		ProgramName);
 }
 
@@ -347,27 +361,30 @@ help_2(void) {
 	fprintf(stderr,
 		"\noptions:\n"
 		"\t-? or -\?  print these instructions and exit\n"
-		"\t-a         collect packets promiscuously\n"
+		"\t-p         do not put interface in promiscuous mode\n"
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
-		"\t-v         select only nonmatching messages (see -x)\n"
-		"\t-i <if>    pcap interface(s)\n"
-		"\t-o <file>  pcap offline file\n"
-		"\t-l <vlan>  pcap vlan(s)\n"
-		"\t-p <port>  dns port (default: 53)\n"
-		"\t-m [quir]  select query, update, initiate, response\n"
+		"\t-i <if>    select this live interface(s)\n"
+		"\t-r <file>  read this pcap file\n"
+		"\t-l <vlan>  select only these vlan(s)\n"
+		"\t-u <port>  dns port (default: 53)\n"
+		"\t-m [qun]   select messages: query, update, notify\n"
+		"\t-s [ir]    select sides: initiations, responses\n"
 		"\t-h [ir]    hide initiators and/or responders\n"
 		"\t-e [ny]    select noerror, yeserror in responses\n"
-		"\t-q <host>  initiator(s)\n"
-		"\t-r <host>  responder(s)\n"
-		"\t-b <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"\t-a <host>  initiator(s)\n"
+		"\t-z <host>  responder(s)\n"
+		"\t-A <host>  initiator(s)\n"
+		"\t-Z <host>  responder(s)\n"
+		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
-		"\t-x <pat>   select messages matching regex <pat>\n");
+		"\t-x <pat>   select messages matching regex <pat>\n"
+		"\t-X <pat>   select messages not matching regex <pat>\n");
 }
 
 static void
@@ -390,14 +407,16 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(mypcaps);
 	ISC_LIST_INIT(initiators);
 	ISC_LIST_INIT(responders);
+	ISC_LIST_INIT(not_initiators);
+	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "ad1gfv?i:o:l:p:m:h:e:q:r:b:k:t:c:x:")
+			    "pd1gf?i:r:l:u:m:s:h:e:q:r:w:k:t:c:x:")
 		) != EOF)
 	{
 		switch (ch) {
-		case 'a':
-			promisc = TRUE;
+		case 'p':
+			promisc = FALSE;
 			break;
 		case 'd':
 			dumptrace++;
@@ -414,13 +433,6 @@ parse_args(int argc, char *argv[]) {
 		case 'f':
 			wantfrags = TRUE;
 			break;
-		case 'v':
-#if HAVE_BINDLIB
-			nonmatching = TRUE;
-#else
-			usage("-v option is disabled due to lack of libbind");
-#endif
-			break;
 		case '?':
 			help_2();
 			exit(0);
@@ -436,7 +448,7 @@ parse_args(int argc, char *argv[]) {
 			mypcap->fdes = -1;
 			ISC_LIST_APPEND(mypcaps, mypcap, link);
 			break;
-		case 'o':
+		case 'r':
 			if (!ISC_LIST_EMPTY(mypcaps))
 				usage("-o makes no sense after -i");
 			pcap_offline = malloc(sizeof *pcap_offline);
@@ -457,7 +469,7 @@ parse_args(int argc, char *argv[]) {
 			vlan->vlan = (unsigned) ul;
 			ISC_LIST_APPEND(vlans, vlan, link);
 			break;
-		case 'p':
+		case 'u':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul < 1U || ul > 65535U)
 				usage("port must be an integer 1..65535");
@@ -469,9 +481,18 @@ parse_args(int argc, char *argv[]) {
 				switch (*p) {
 				case 'q': u |= MSG_QUERY; break;
 				case 'u': u |= MSG_UPDATE; break;
-				case 'i': u |= MSG_INITIATE; break;
-				case 'r': u |= MSG_RESPONSE; break;
-				default: usage("-m takes only [quir]");
+				case 'n': u |= MSG_NOTIFY; break;
+				default: usage("-m takes only [qun]");
+				}
+			msg_wanted = u;
+			break;
+		case 's':
+			u = 0;
+			for (p = optarg; *p; p++)
+				switch (*p) {
+				case 'i': u |= DIR_INITIATE; break;
+				case 'r': u |= DIR_RESPONSE; break;
+				default: usage("-s takes only [ir]");
 				}
 			msg_wanted = u;
 			break;
@@ -495,13 +516,19 @@ parse_args(int argc, char *argv[]) {
 				}
 			err_wanted = u;
 			break;
-		case 'q':
+		case 'a':
 			endpoint_arg(&initiators, optarg);
 			break;
-		case 'r':
+		case 'z':
 			endpoint_arg(&responders, optarg);
 			break;
-		case 'b':
+		case 'A':
+			endpoint_arg(&not_initiators, optarg);
+			break;
+		case 'Z':
+			endpoint_arg(&not_responders, optarg);
+			break;
+		case 'w':
 			dump_base = optarg;
 			if (strcmp(optarg, "-") == 0)
 				dump_type = to_stdout;
@@ -527,6 +554,8 @@ parse_args(int argc, char *argv[]) {
 			limit_packets = (unsigned) ul;
 			break;
 		case 'x':
+			/* FALLTHROUGH */
+		case 'X':
 #if HAVE_BINDLIB
 			myregex = malloc(sizeof *myregex);
 			assert(myregex != NULL);
@@ -538,6 +567,7 @@ parse_args(int argc, char *argv[]) {
 					 errbuf, sizeof errbuf);
 				usage(errbuf);
 			}
+			myregex->not = (ch == 'X');
 			ISC_LIST_APPEND(myregexes, myregex, link);
 			break;
 #else
@@ -551,8 +581,6 @@ parse_args(int argc, char *argv[]) {
 	assert(err_wanted != 0U);
 	if (dump_type == nowhere && !dig_it)
 		usage("without -b or -g, there would be no output");
-	if (nonmatching && ISC_LIST_EMPTY(myregexes))
-		usage("without at least one -x, it makes no sense to say -v");
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
 	if (dumptrace >= 1) {
@@ -562,12 +590,13 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version);
 		fprintf(stderr,
-			"%s: msg %c%c%c%c, hide %c%c, err %c%c, t %u, c %u\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c, t %u, c %u\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
-			(msg_wanted & MSG_INITIATE) != 0 ? 'I' : '.',
-			(msg_wanted & MSG_RESPONSE) != 0 ? 'R' : '.',
+			(msg_wanted & MSG_NOTIFY) != 0 ? 'N' : '.',
+			(dir_wanted & DIR_INITIATE) != 0 ? 'I' : '.',
+			(dir_wanted & DIR_RESPONSE) != 0 ? 'R' : '.',
 			(end_hide & END_INITIATOR) != 0 ? 'I' : '.',
 			(end_hide & END_RESPONDER) != 0 ? 'R' : '.',
 			(err_wanted & ERR_NO) != 0 ? 'N' : '.',
@@ -593,13 +622,33 @@ parse_args(int argc, char *argv[]) {
 		}
 		if (!ISC_LIST_EMPTY(responders))
 			fprintf(stderr, "\n");
+		sep = "\t!init";
+		for (ep = ISC_LIST_HEAD(not_initiators);
+		     ep != NULL;
+		     ep = ISC_LIST_NEXT(ep, link))
+		{
+			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
+			sep = "";
+		}
+		if (!ISC_LIST_EMPTY(not_initiators))
+			fprintf(stderr, "\n");
+		sep = "\t!resp";
+		for (ep = ISC_LIST_HEAD(not_responders);
+		     ep != NULL;
+		     ep = ISC_LIST_NEXT(ep, link))
+		{
+			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
+			sep = "";
+		}
+		if (!ISC_LIST_EMPTY(not_responders))
+			fprintf(stderr, "\n");
 		if (!ISC_LIST_EMPTY(myregexes)) {
-			fprintf(stderr, "%s: pat (%smatching):",
-				ProgramName, nonmatching ? "non" : "");
+			fprintf(stderr, "%s: pat:", ProgramName);
 			for (mr = ISC_LIST_HEAD(myregexes);
 			     mr != NULL;
 			     mr = ISC_LIST_NEXT(mr, link))
-				fprintf(stderr, " /%s/", mr->str);
+				fprintf(stderr, " %s/%s/",
+					mr->not ? "!" : "", mr->str);
 			fprintf(stderr, "\n");
 		}
 	}
@@ -685,15 +734,18 @@ prepare_bpft(void) {
 
 	/* Prepare the must-be-set and must-be-clear tests. */
 	udp10_mbs = udp10_mbc = udp11_mbs = udp11_mbc = 0U;
-	if ((msg_wanted & MSG_INITIATE) != 0) {
-		if ((msg_wanted & MSG_RESPONSE) == 0)
+	if ((dir_wanted & DIR_INITIATE) != 0) {
+		if ((dir_wanted & DIR_RESPONSE) == 0)
 			udp10_mbc |= UDP10_QR_MASK;
-	} else if ((msg_wanted & MSG_RESPONSE) != 0) {
+	} else if ((dir_wanted & DIR_RESPONSE) != 0) {
 		udp10_mbs |= UDP10_QR_MASK;
 	}
 	if ((msg_wanted & MSG_UPDATE) != 0) {
-		if ((msg_wanted & MSG_QUERY) == 0)
+		if ((msg_wanted & (MSG_QUERY|MSG_NOTIFY)) == 0)
 			udp10_mbs |= (ns_o_update << UDP10_OP_SHIFT);
+	} else if ((msg_wanted & MSG_NOTIFY) != 0) {
+		if ((msg_wanted & (MSG_QUERY|MSG_UPDATE)) == 0)
+			udp10_mbs |= (ns_o_notify << UDP10_OP_SHIFT);
 	} else if ((msg_wanted & MSG_QUERY) != 0) {
 		udp10_mbc |= UDP10_OP_MASK;
 	}
@@ -729,7 +781,9 @@ prepare_bpft(void) {
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
 					udp11_mbs, udp11_mbs);
 	}
-	if (!ISC_LIST_EMPTY(initiators) && !ISC_LIST_EMPTY(responders)) {
+	if (!ISC_LIST_EMPTY(initiators) ||
+	    !ISC_LIST_EMPTY(responders))
+	{
 		const char *or = "or", *lp = "(", *sep;
 		endpoint_ptr ep;
 
@@ -743,6 +797,30 @@ prepare_bpft(void) {
 			sep = or;
 		}
 		for (ep = ISC_LIST_HEAD(responders);
+		     ep != NULL;
+		     ep = ISC_LIST_NEXT(ep, link))
+		{
+			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
+			sep = or;
+		}
+		len += text_add(&bpfl, " )");
+	}
+	if (!ISC_LIST_EMPTY(not_initiators) ||
+	    !ISC_LIST_EMPTY(not_responders))
+	{
+		const char *or = "or", *lp = "(", *sep;
+		endpoint_ptr ep;
+
+		len += text_add(&bpfl, " and not host");
+		sep = lp;
+		for (ep = ISC_LIST_HEAD(not_initiators);
+		     ep != NULL;
+		     ep = ISC_LIST_NEXT(ep, link))
+		{
+			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
+			sep = or;
+		}
+		for (ep = ISC_LIST_HEAD(not_responders);
 		     ep != NULL;
 		     ep = ISC_LIST_NEXT(ep, link))
 		{
@@ -973,7 +1051,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 
 		if (len < NS_INT32SZ)
 			return;
-		NS_GET32(x, pkt);
+		MY_GET32(x, pkt);
 		len -= NS_INT32SZ;
 		if (x == PF_INET)
 			etype = ETHERTYPE_IP;
@@ -1223,13 +1301,13 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 	/* Policy filtering. */
 	if (dns.qr == 0 && dport == dns_port) {
-		if ((msg_wanted & MSG_INITIATE) == 0)
+		if ((dir_wanted & DIR_INITIATE) == 0)
 			return;
 		initiator = from;
 		responder = to;
 		response = FALSE;
 	} else if (dns.qr != 0 && sport == dns_port) {
-		if ((msg_wanted & MSG_RESPONSE) == 0)
+		if ((dir_wanted & DIR_RESPONSE) == 0)
 			return;
 		initiator = to;
 		responder = from;
@@ -1237,13 +1315,19 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	} else {
 		return;
 	}
-	if (!((ISC_LIST_EMPTY(initiators) ||
-	       ep_present(&initiators, initiator)) &&
-	      (ISC_LIST_EMPTY(responders) ||
-	       ep_present(&responders, responder))))
+	if ((!ISC_LIST_EMPTY(initiators) &&
+	     !ep_present(&initiators, initiator)) ||
+	    (!ISC_LIST_EMPTY(responders) &&
+	     !ep_present(&responders, responder)))
+		return;
+	if ((!ISC_LIST_EMPTY(not_initiators) &&
+	     ep_present(&not_initiators, initiator)) ||
+	    (!ISC_LIST_EMPTY(not_responders) &&
+	     ep_present(&not_responders, responder)))
 		return;
 	if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) ||
-	      ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update)))
+	      ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) ||
+	      ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify)))
 		return;
 	if (response) {
 		int error = (dns.tc != 0 || dns.rcode != ns_r_noerror);
@@ -1254,11 +1338,12 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	}
 #if HAVE_BINDLIB
 	if (!ISC_LIST_EMPTY(myregexes)) {
+		int match, negmatch;
 		ns_msg msg;
 		ns_sect s;
-		int match;
 
-		match = FALSE;
+		match = ISC_LIST_EMPTY(myregexes);
+		negmatch = FALSE;
 		if (ns_initparse(pkt, len, &msg) < 0)
 			return;
 		for (s = ns_s_qd; s < ns_s_max && !match; s++) {
@@ -1268,7 +1353,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			ns_rr rr;
 
 			count = ns_msg_count(msg, s);
-			for (n = 0; n < count && !match; n++) {
+			for (n = 0; n < count && !negmatch; n++) {
 				myregex_ptr myregex;
 
 				if (ns_parserr(&msg, s, n, &rr) < 0)
@@ -1282,12 +1367,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 					look = pres;
 				}
 				for (myregex = ISC_LIST_HEAD(myregexes);
-				     myregex != NULL && !match;
+				     myregex != NULL && !negmatch;
 				     myregex = ISC_LIST_NEXT(myregex, link))
-					if (regexec(&myregex->reg, look,
+					if ((!match || myregex->not) &&
+					    regexec(&myregex->reg, look,
 						    0, NULL, 0) == 0)
 					{
-						match = TRUE;
+						if (myregex->not) {
+							negmatch = TRUE;
+							match = FALSE;
+						} else
+							match = TRUE;
 						if (dumptrace >= 2)
 							fprintf(stderr,
 							   "; \"%s\" ~ /%s/\n",
@@ -1295,7 +1385,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 					}
 			}
 		}
-		if (match == nonmatching)
+		if (!match)
 			return;
 	}
 #endif

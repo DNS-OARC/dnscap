@@ -6,15 +6,20 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ad1g?6fv
+.Op Fl pd1g?6f
 .Op Fl i Ar if ...
-.Op Fl o Ar file
+.Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
-.Op Fl p Ar port
+.Op Fl u Ar port
 .Op Fl x Ar pat ...
+.Op Fl X Ar pat ...
 .Oo
 .Fl m
-.Op quir
+.Op qun
+.Oc
+.Oo
+.Fl s
+.Op ir
 .Oc
 .Oo
 .Fl h
@@ -24,10 +29,12 @@
 .Fl e
 .Op ny
 .Oc
-.Op Fl q Ar host ...
-.Op Fl r Ar host ...
+.Op Fl a Ar host ...
+.Op Fl z Ar host ...
+.Op Fl A Ar host ...
+.Op Fl Z Ar host ...
 .Oo
-.Fl b
+.Fl w
 .Ar base
 .Op Fl k Ar cmd
 .Oc
@@ -40,7 +47,7 @@ normally produces binary data in
 .Xr pcap 3
 format, either on standard output or in successive dump files
 (based on the
-.Fl b
+.Fl w
 command line option.)  This utility is similar to
 .Xr tcpdump 1 ,
 but has finer grained packet recognition tailored to DNS transactions and
@@ -50,9 +57,10 @@ is expected to be used for gathering continuous research or audit traces.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
-.It Fl a
-Puts the interface into promiscuous mode.  Note that even without this option,
-the interface could be in promiscuous mode for some other reason.
+.It Fl p
+Asks that the interface not be put into promiscuous mode.  Note that even
+without this option, the interface could be in promiscuous mode for some other
+reason.
 .It Fl d
 Tells a verbose story of options and patterns chosen, files opened, and so on.
 (Multiple
@@ -69,7 +77,7 @@ Produce
 .Xr dig 1 -like
 output on diagnostic output, showing the presentation form of DNS messages
 which passed through all of the filters.  If
-.Fl b
+.Fl w
 is also used, then every message will be dumped in both binary and
 presentation form.
 .It Fl ?
@@ -86,10 +94,6 @@ contain port numbers), and includes fragments in the binary output.  Necessary
 if you intend to do IP Reassembly.  Note that all fragments will be collected,
 not just those using the DNS port number, since fragments don't have port
 numbers.  Beware this option if you also handle a lot of NFS traffic.
-.It Fl v
-Invert the sense of
-.Fl x ,
-such that only nonmatching messages are selected.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
@@ -98,7 +102,7 @@ which will cause output to be interleaved from all selected interfaces.  If
 multiple interfaces are selected having disparite datalink types (framing),
 then the output datalink will be demoted to DLT_LOOP (protocol family only,
 no link layer source/destination addresses or other framing information.)
-.It Fl o Ar file
+.It Fl r Ar file
 Select an offline
 .Xr pcap 3
 file produced by this utility or by
@@ -109,9 +113,10 @@ Captures only 802.1Q encapsulated packets, and selects specific vlans to be
 monitored.  Can be specified more than once to select multiple vlans.
 .Fl l Ar 0
 means "all vlans".
-.It Fl p Ar port
+.It Fl u Ar port
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
-port is 53.
+port is 53.  Note that there is no way to select multiple UDP ports, as would
+be necessary to capture both DNS (port 53) and mDNS (port 5353) traffic.
 .It Fl x Ar pat
 If one or more
 .Fl x
@@ -124,11 +129,19 @@ patterns.  See
 and
 .Xr re_format 7
 for more information about extended regular expression syntax.
-.It Fl m Op quir
-Capture only packets containing designated message types (query, update,
-initiation, and response).  Default is query initiation and responses
-(as in "-m qir").  Be careful to choose both opcodes ("q" and/or "u") and
-a directionality ("i" and/or "r") here.
+.It Fl X Ar pat
+If one or more
+.Fl X
+options are provided, then DNS messages matching these patterns will not
+be selected.  See the description of
+.Fl x
+above.
+.It Fl m Op qun
+Capture only messages of designated types (query, update, and notify).
+Default is query (as in "-m q").
+.It Fl s Op ir
+Select messages which are initiations and/or responses.  Default is both
+(as in "-s ir").
 .It Fl h Op ir
 Hide initiator or responder of each captured transaction.  Hiding an initiator
 means wiping out the address and port number.  Hiding a responder means to wipe
@@ -145,15 +158,19 @@ and
 .Ar y
 options here.
 An "error" means a non-zero RCODE or a truncation (TC) flag.
-.It Fl q Ar host
+.It Fl a Ar host
 Capture only transactions having these initiators.  Can be specified more than
 once to select multiple initiators.  If a host name is used, then all of that
 host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
-.It Fl r Ar host
+.It Fl z Ar host
 Capture only transactions having these responders.  Can be specified more than
 once to select multiple responders.  If a host name is used, then all of that
 host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
-.It Fl b Ar base
+.It Fl A Ar host
+Capture only transactions NOT having these initiators.
+.It Fl Z Ar host
+Capture only transactions NOT having these responders.
+.It Fl w Ar base
 Dump the captured packets to successive binary files in
 .Xr pcap 3
 format.  Each file will have a name like "%s.%u.%06u" where %s is
@@ -168,7 +185,7 @@ options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
 .It Fl k Ar cmd
 After each dump file specified by
-.Fl b
+.Fl w
 is closed, this command will be executed in a nonblocking subprocess with the
 file name as its one argument.  It's expected that this command will be a shell
 script that submits the finished file to a batch processing analytics system.
@@ -199,7 +216,7 @@ exits.  This option is inclusive with
 If started with no options,
 .Nm
 will exit with a complaint that without either the
-.Fl b
+.Fl w
 or
 .Fl g
 options, it's pointless to run the program at all.  In its simplest form,
