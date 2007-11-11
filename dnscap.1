@@ -145,10 +145,9 @@ be selected.  See the description of
 above.
 .It Fl m Op qun
 Capture only messages of designated types (query, update, and notify).
-Default is query (as in "-m q").
+Default is query.
 .It Fl s Op ir
-Select messages which are initiations and/or responses.  Default is both
-(as in "-s ir").
+Select messages which are initiations and/or responses.  Default is both.
 .It Fl h Op ir
 Hide initiator or responder of each captured transaction.  Hiding an initiator
 means wiping out the address and port number.  Hiding a responder means to wipe
@@ -183,8 +182,8 @@ Dump the captured packets to successive binary files in
 format.  Each file will have a name like "%s.%u.%06u" where %s is
 .Ar base ,
 %u is the time in seconds, and %06u is the time in microseconds.  The argument
-"-" may be given (so, "-b -") to send the binary output to standard output.
-In that case, the
+"-" may be given to send the binary output to standard output.  In that case,
+the
 .Fl c
 and
 .Fl t
@@ -237,13 +236,13 @@ the output can be piped to
 .Xr tcpdump 1
 as in:
 .Bd -literal -offset indent
-dnscap -b - | tcpdump -r -
+dnscap -w - | tcpdump -r -
 .Ed
 .Pp
 You can safely add the
-.Fl v
+.Fl d
 option since the output resulting from
-.Fl v
+.Fl d
 goes to diagnostic output rather than standard output.  And since everybody
 who's anybody always uses the
 .Fl n
@@ -251,7 +250,7 @@ option to
 .Xr tcpdump 1 ,
 the minimum useful incantation is probably:
 .Bd -literal -offset indent
-dnscap -v -b - | tcpdump -r - -n
+dnscap -w - | tcpdump -r - -n
 .Ed
 .Pp
 The more interesting use for
@@ -274,8 +273,8 @@ A bizarre but actual example which combines almost all features of
 .Nm
 is:
 .Bd -literal -offset indent
-dnscap -d -b - -1 -i em0 -l 0 -x ^7 | \\
-       dnscap -d -o - -x spamhaus -g -l 0 -v
+dnscap -d -w - -1 -i em0 -l 0 -x ^7 | \\
+       dnscap -d -r - -X spamhaus -g -l 0
 .Ed
 .Pp
 Here, we're looking for all messages having a QNAME or RR beginning with the
@@ -303,13 +302,14 @@ options.  To diagnose your way out of "no output" hell, use the
 and
 .Fl g
 options to find out what BPF program is being internally generated, and
-then cut/paste this program onto a
+then cut/paste this BPF program onto a
 .Xr tcpdump 1
 command line to see if it likewise produces no output.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
+.Xr ncaptool 1 ,
 .Xr pcap 3 ,
 .Xr bpf 4
 .Sh HISTORY
