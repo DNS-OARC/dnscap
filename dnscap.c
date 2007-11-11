@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.42 2007-11-11 05:25:24 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.43 2007-11-11 05:26:59 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -349,7 +349,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-?pd1gb6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-s [ir]] [-e [yn]] [-h [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
@@ -363,11 +363,11 @@ help_2(void) {
 	fprintf(stderr,
 		"\noptions:\n"
 		"\t-? or -\?  print these instructions and exit\n"
-		"\t-b         print messages in brief, non-dig-like, format\n"
 		"\t-p         do not put interface in promiscuous mode\n"
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
+		"\t-b         output from -g will be brief, non-dig-style\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
 		"\t-i <if>    select this live interface(s)\n"
