@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.44 2007-11-11 05:38:42 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.45 2007-11-11 06:16:23 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -283,12 +283,11 @@ static unsigned msgcount;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
-static int brief = FALSE;
 static int promisc = TRUE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
 static int wantfrags = FALSE;
-static int dig_it = FALSE;
+static int preso = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
 
@@ -349,7 +348,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?pd1gb6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-?pd1g6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-s [ir]] [-e [yn]] [-h [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
@@ -367,7 +366,6 @@ help_2(void) {
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
-		"\t-b         output from -g will be brief, non-dig-style\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
 		"\t-i <if>    select this live interface(s)\n"
@@ -414,13 +412,10 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			    "bpd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
+			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
 		) != EOF)
 	{
 		switch (ch) {
-		case 'b':
-			brief = TRUE;
-			break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -431,7 +426,7 @@ parse_args(int argc, char *argv[]) {
 			flush = TRUE;
 			break;
 		case 'g':
-			dig_it = TRUE;
+			preso = TRUE;
 			break;
 		case '6':
 			v6bug = TRUE;
@@ -585,9 +580,7 @@ parse_args(int argc, char *argv[]) {
 	}
 	assert(msg_wanted != 0U);
 	assert(err_wanted != 0U);
-	if (brief && !dig_it)
-		usage("without -g, -b makes no sense");
-	if (dump_type == nowhere && !dig_it)
+	if (dump_type == nowhere && !preso)
 		usage("without -w or -g, there would be no output");
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
@@ -1129,7 +1122,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		return;
 	}
 
-	if (dig_it) {
+	if (preso) {
 		char when[100], via[100];
 		const struct tm *tm;
 		time_t t;
@@ -1142,15 +1135,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 				: mypcap->name);
 		if (vlan != 0)
 			sprintf(via + strlen(via), " (vlan %u)", vlan);
-		if (brief)
-			sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u] \\\n",
-				(u_long)len, when, (u_long)hdr->ts.tv_usec,
-				(long)msgcount, via, vlan);
-		else
-			sprintf(descr,
-				";@ %s.%06lu - %lu octets via %s (msg #%ld)\n",
-				when, (u_long)hdr->ts.tv_usec, (u_long)len,
-				via, (long)msgcount);
+		sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u] \\\n",
+			(u_long)len, when, (u_long)hdr->ts.tv_usec,
+			(long)msgcount, via, vlan);
 	} else {
 		descr[0] = '\0';
 	}
@@ -1465,30 +1452,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 	/* Output stage. */
  output:
-	if (dig_it) {
+	if (preso) {
 		fputs(descr, stderr);
 		if (isfrag) {
 			fprintf(stderr, ";: [%s] ", ia_str(from));
 			fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
-		} else if (brief) {
+		} else {
 			fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
 			fprintf(stderr, "[%s].%u ", ia_str(to), sport);
-		} else {
-			fprintf(stderr, ";: [%s]:%u ", ia_str(from), sport);
-			fprintf(stderr, "-> [%s]:%u\n", ia_str(to), dport);
 		}
-		if (brief) {
-			dump_dns(pkt, len, stderr, "\\\n\t");
-			putc('\n', stderr);
-		} else {
-#if HAVE_BINDLIB
-			fp_nquery(pkt, len, stderr);
-			fputs("--\n", stderr);
-#else
-			fprintf(stderr,
-				";! fp_nquery() not present (BINDLIB)\n");
-#endif
-		}
+		dump_dns(pkt, len, stderr, "\\\n\t");
+		putc('\n', stderr);
 	}
 	if (dump_type != nowhere) {
 		struct pcap_pkthdr h;
