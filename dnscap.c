@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.43 2007-11-11 05:26:59 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.44 2007-11-11 05:38:42 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -378,10 +378,10 @@ help_2(void) {
 		"\t-s [ir]    select sides: initiations, responses\n"
 		"\t-h [ir]    hide initiators and/or responders\n"
 		"\t-e [ny]    select noerror, yeserror in responses\n"
-		"\t-a <host>  initiator(s)\n"
-		"\t-z <host>  responder(s)\n"
-		"\t-A <host>  initiator(s)\n"
-		"\t-Z <host>  responder(s)\n"
+		"\t-a <host>  want messages from these initiator(s)\n"
+		"\t-z <host>  want messages from these responder(s)\n"
+		"\t-A <host>  want messages not from these initiator(s)\n"
+		"\t-Z <host>  want messages not from these responder(s)\n"
 		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
@@ -1599,6 +1599,8 @@ dumper_close(void) {
 			system(cmd);
 			free(cmd);
 		}
+		if (kick_cmd == NULL)
+			ret = TRUE;
 	}
 	return (ret);
 }

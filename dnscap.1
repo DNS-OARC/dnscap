@@ -196,6 +196,12 @@ After each dump file specified by
 is closed, this command will be executed in a nonblocking subprocess with the
 file name as its one argument.  It's expected that this command will be a shell
 script that submits the finished file to a batch processing analytics system.
+Note that without
+.Fl k ,
+the program will exit at the first output closure due to
+.Fl c
+or
+.Fl t .
 .It Fl t Ar lim
 By default,
 .Nm
