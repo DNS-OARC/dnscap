@@ -10,7 +10,6 @@
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
-.Op Fl u Ar port
 .Op Fl x Ar pat ...
 .Op Fl X Ar pat ...
 .Oo
@@ -27,12 +26,13 @@
 .Oc
 .Oo
 .Fl e
-.Op ny
+.Op nytfsxir
 .Oc
 .Op Fl a Ar host ...
 .Op Fl z Ar host ...
 .Op Fl A Ar host ...
 .Op Fl Z Ar host ...
+.Op Fl u Ar port
 .Oo
 .Fl w
 .Ar base
@@ -145,16 +145,35 @@ means wiping out the address and port number.  Hiding a responder means to wipe
 out the address only.  This wiping occurs on the copy of the packet sent to the
 .Xr pcap 3
 dump output, and both the IP and UDP checksums will be recomputed in that case.
-.It Fl e Op ny
+.It Fl e Op nytfsxir
 Among responses, consider nonzero DNS TC or DNS RCODE to indicate an error,
-and select only responses which do not have, or which have, this condition.
-The default is to only select nonerrors among responses.  If both nonerror
-and error responses are to be selected, specify both the
+and select only responses which do not have (n), or which have (y), these
+conditions.  The default is to only select nonerrors among responses.  If
+both nonerror and error responses are to be selected, specify both the
 .Ar n
 and
 .Ar y
 options here.
-An "error" means a non-zero RCODE or a truncation (TC) flag.
+To be more specific, use one or more condition-specific options, as follows:
+.sp
+.Bl -tag -width indent -offset indent -compact
+.It Va n
+no error
+.It Va y
+some error
+.It Va t
+truncated response (TC bit)
+.It Va f
+format error (rcode 1)
+.It Va s
+server failure (rcode 2)
+.It Va x
+no such name (rcode 3)
+.It Va i
+not implemented (rcode 4)
+.It Va r
+refusal (rcode 5)
+.El
 .It Fl a Ar host
 Capture only transactions having these initiators.  Can be specified more than
 once to select multiple initiators.  If a host name is used, then all of that
@@ -305,11 +324,16 @@ command line to see if it likewise produces no output.
 .Xr bpf 4
 .Sh HISTORY
 .Nm
-was written by Paul Vixie (ISC) and Duane Wessels (Measurement Factory).
+was written by Paul Vixie (ISC) with help from Duane Wessels,
+Kevin Brintnall, and others too numerous to mention.
 .Sh BUGS
 Ought to handle fragmented UDP.
 .Pp
 Ought to handle TCP.
+.Pp
+Ought to be re-implented as a
+.Xr ncap
+client.
 .Pp
 Too many design botches within
 .Xr bpf 4

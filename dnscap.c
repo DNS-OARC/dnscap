@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.45 2007-11-11 06:16:23 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.46 2007-12-02 20:55:02 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -145,8 +145,15 @@ static const char version[] = "V1.0-RC6 (October 2007)";
 #define DIR_INITIATE	0x0001
 #define DIR_RESPONSE	0x0002
 
-#define ERR_NO		0x0001
-#define ERR_YES		0x0002
+#define ERR_TRUNC	0x0001
+#define ERR_RCODE_BASE	0x0002
+#define ERR_NO		(ERR_RCODE_BASE << ns_r_noerror)
+#define ERR_FORMERR	(ERR_RCODE_BASE << ns_r_formerr)
+#define ERR_SERVFAIL	(ERR_RCODE_BASE << ns_r_servfail)
+#define ERR_NXDOMAIN	(ERR_RCODE_BASE << ns_r_nxdomain)
+#define ERR_NOTIMPL	(ERR_RCODE_BASE << ns_r_notimpl)
+#define ERR_REFUSED	(ERR_RCODE_BASE << ns_r_refused)
+#define ERR_YES		(0xffffffff & ~ERR_NO)
 
 #define END_INITIATOR	0x0001
 #define END_RESPONDER	0x0002
@@ -349,7 +356,8 @@ help_1(void) {
 	fprintf(stderr,
 		"usage: %s\n"
 		"\t[-?pd1g6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
-		"\t[-u <port>] [-m [qun]] [-s [ir]] [-e [yn]] [-h [ir]]\n"
+		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
+		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n",
@@ -375,7 +383,15 @@ help_2(void) {
 		"\t-m [qun]   select messages: query, update, notify\n"
 		"\t-s [ir]    select sides: initiations, responses\n"
 		"\t-h [ir]    hide initiators and/or responders\n"
-		"\t-e [ny]    select noerror, yeserror in responses\n"
+		"\t-e [nytfsxir] select error/response code\n"
+		"\t               n = no error\n"
+		"\t               y = any error\n"
+		"\t               t = truncated response\n"
+		"\t               f = format error (rcode 1)\n"
+		"\t               s = server failure (rcode 2)\n"
+		"\t               x = nxdomain (rcode 3)\n"
+		"\t               i = not implemented (rcode 4)\n"
+		"\t               r = refused (rcode 5)\n"
 		"\t-a <host>  want messages from these initiator(s)\n"
 		"\t-z <host>  want messages from these responder(s)\n"
 		"\t-A <host>  want messages not from these initiator(s)\n"
@@ -513,7 +529,13 @@ parse_args(int argc, char *argv[]) {
 				switch (*p) {
 				case 'n': u |= ERR_NO; break;
 				case 'y': u |= ERR_YES; break;
-				default: usage("-e takes only [ny]");
+				case 't': u |= ERR_TRUNC; break;
+				case 'f': u |= ERR_FORMERR; break;
+				case 's': u |= ERR_SERVFAIL; break;
+				case 'x': u |= ERR_NXDOMAIN; break;
+				case 'i': u |= ERR_NOTIMPL; break;
+				case 'r': u |= ERR_REFUSED; break;
+				default: usage("-e takes only [nytfsxir]");
 				}
 			err_wanted = u;
 			break;
@@ -591,7 +613,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version);
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c, t %u, c %u\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -601,7 +623,13 @@ parse_args(int argc, char *argv[]) {
 			(end_hide & END_INITIATOR) != 0 ? 'I' : '.',
 			(end_hide & END_RESPONDER) != 0 ? 'R' : '.',
 			(err_wanted & ERR_NO) != 0 ? 'N' : '.',
-			(err_wanted & ERR_YES) != 0 ? 'Y' : '.',
+			(err_wanted & ERR_YES) == ERR_YES ? 'Y' : '.',
+			(err_wanted & ERR_TRUNC) != 0 ? 't' : '.',
+			(err_wanted & ERR_FORMERR) != 0 ? 'f' : '.',
+			(err_wanted & ERR_SERVFAIL) != 0 ? 's' : '.',
+			(err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
+			(err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
+			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
 			limit_seconds, limit_packets);
 		sep = "\tinit";
 		for (ep = ISC_LIST_HEAD(initiators);
@@ -753,9 +781,6 @@ prepare_bpft(void) {
 	if (err_wanted == ERR_NO) {
 		udp10_mbc |= UDP10_TC_MASK;
 		udp11_mbc |= UDP11_RC_MASK;
-	} else if (err_wanted == ERR_YES) {
-		udp10_mbs |= UDP10_TC_MASK;
-		udp11_mbs |= UDP11_RC_MASK;
 	}
 
 	/* Make a BPF program to do early course kernel-level filtering. */
@@ -781,6 +806,18 @@ prepare_bpft(void) {
 		if (udp11_mbs != 0)
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
 					udp11_mbs, udp11_mbs);
+
+		if (err_wanted != ERR_NO) {
+			len += text_add(&bpfl, " and (");
+			if ((err_wanted & ERR_TRUNC) != 0) {
+				len += text_add(&bpfl,
+						"udp[10] & 0x%x = 0x%x or ",
+						UDP10_TC_MASK, UDP10_TC_MASK);
+			}
+			len += text_add(&bpfl,
+					"0x%x << (udp[11] & 0xf) & 0x%x != 0)",
+					ERR_RCODE_BASE, err_wanted);
+		}
 	}
 	if (!ISC_LIST_EMPTY(initiators) ||
 	    !ISC_LIST_EMPTY(responders))
@@ -1330,10 +1367,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	      ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify)))
 		return;
 	if (response) {
-		int error = (dns.tc != 0 || dns.rcode != ns_r_noerror);
+		int match_tc = (dns.tc != 0 && err_wanted & ERR_TRUNC);
+		int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
 
-		if (((err_wanted == ERR_YES) && !error) ||
-		    ((err_wanted == ERR_NO) && error))
+		if (!match_tc && !match_rcode)
 			return;
 	}
 #if HAVE_BINDLIB
