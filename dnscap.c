@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.46 2007-12-02 20:55:02 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.47 2007-12-06 02:06:21 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -1496,7 +1496,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
 		} else {
 			fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
-			fprintf(stderr, "[%s].%u ", ia_str(to), sport);
+			fprintf(stderr, "[%s].%u ", ia_str(to), dport);
 		}
 		dump_dns(pkt, len, stderr, "\\\n\t");
 		putc('\n', stderr);
