@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 2007-10-25 21:03:57 vixie Exp $
+# $Id: Makefile,v 1.14 2007-12-06 02:05:38 vixie Exp $
 
 #
 # Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -65,6 +65,14 @@ LDFLAGS= ${BINDLDFLAGS} ${PORTLDFLAGS}
 LDLIBS= -lpcap ${BINDLIB} ${PORTLIBS}
 
 all: ${ALL}
+
+install: all
+	mkdir -p /usr/local/bin /usr/local/man/cat1
+	if [ -f /usr/local/bin/dnscap ]; then \
+		mv -f /usr/local/bin/dnscap \
+			/usr/local/bin/dnscap.old; fi
+	cp dnscap /usr/local/bin
+	cp dnscap.cat1 /usr/local/man/cat1/dnscap.1
 
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
