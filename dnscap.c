@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.48 2008-01-10 18:46:55 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.49 2008-01-10 20:49:45 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -280,6 +280,7 @@ static const char *dump_base = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static const char *kick_cmd = NULL;
 static unsigned limit_seconds = 0U;
+static time_t next_interval = 0;
 static unsigned limit_packets = 0U;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
@@ -1505,6 +1506,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		struct pcap_pkthdr h;
 		u_char *tmp;
 
+#if !CLOSE_BY_ALARM
+		if (next_interval != 0 && ts.tv_sec >= next_interval)
+			dumper_close();
+#endif
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
 		tmp = pkt_copy;
@@ -1540,6 +1545,10 @@ dumper_open(my_bpftimeval ts) {
 			ts.tv_sec++;
 			ts.tv_usec -= MILLION;
 		}
+		if (limit_seconds != 0U)
+			next_interval = ts.tv_sec
+				- (ts.tv_sec % limit_seconds)
+				+ limit_seconds;
 		if (asprintf(&dumpname, "%s.%lu.%06lu",
 			     dump_base, (u_long) ts.tv_sec,
 			     (u_long) ts.tv_usec) < 0 ||
@@ -1571,8 +1580,10 @@ dumper_open(my_bpftimeval ts) {
 			 / limit_seconds) + 1) * limit_seconds;
 		assert(targ > now.tv_sec);
 		seconds = targ - now.tv_sec;
+#if CLOSE_BY_ALARM
 		alarm(seconds);
 		alarm_set = TRUE;
+#endif
 	}
 	return (FALSE);
 }
