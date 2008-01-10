@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.47 2007-12-06 02:06:21 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.48 2008-01-10 18:46:55 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -511,7 +511,7 @@ parse_args(int argc, char *argv[]) {
 				case 'r': u |= DIR_RESPONSE; break;
 				default: usage("-s takes only [ir]");
 				}
-			msg_wanted = u;
+			dir_wanted = u;
 			break;
 		case 'h':
 			u = 0;
