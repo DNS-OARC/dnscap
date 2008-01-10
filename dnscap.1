@@ -217,7 +217,13 @@ By default,
 will close its packet dump file only when interrupted.  A time limit can be
 specified with the
 .Fl t
-option.  If the packet dump file is standard output, then after closing this
+option.  
+When writing to a file, the packet dump file will be closed when time() %
+.Ar lim
+is zero and the first file will usually be shorter than
+.Ar lim
+seconds.
+If the packet dump file is standard output, then after closing this
 file,
 .Nm
 exits.  This option is inclusive with

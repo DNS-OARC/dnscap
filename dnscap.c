@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.49 2008-01-10 20:49:45 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.50 2008-01-10 21:24:26 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -1506,10 +1506,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		struct pcap_pkthdr h;
 		u_char *tmp;
 
-#if !CLOSE_BY_ALARM
 		if (next_interval != 0 && ts.tv_sec >= next_interval)
 			dumper_close();
-#endif
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
 		tmp = pkt_copy;
@@ -1580,10 +1578,10 @@ dumper_open(my_bpftimeval ts) {
 			 / limit_seconds) + 1) * limit_seconds;
 		assert(targ > now.tv_sec);
 		seconds = targ - now.tv_sec;
-#if CLOSE_BY_ALARM
-		alarm(seconds);
-		alarm_set = TRUE;
-#endif
+		if (next_interval == 0) {
+			alarm(seconds);
+			alarm_set = TRUE;
+		}
 	}
 	return (FALSE);
 }
