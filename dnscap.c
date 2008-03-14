@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.51 2008-03-14 20:23:53 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.52 2008-03-14 21:01:57 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -315,8 +315,8 @@ main(int argc, char *argv[]) {
 			char when[100];
 			struct tm *tm = gmtime(&start_time);
 			strftime(when, sizeof when, "%F %T", tm);
-			fprintf(stderr, "Sleeping for %ld seconds until %s UTC\n",
-				(start_time - now), when);
+			fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
+				(int) (start_time - now), when);
 			sleep(start_time - now);
 			fprintf(stderr, "Awake.\n");
 		}
@@ -741,9 +741,10 @@ parse_args(int argc, char *argv[]) {
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
-	if (start_time && stop_time && start_time > stop_time) {
+	if (start_time && stop_time && start_time > stop_time)
 		usage("start time must be before stop time");
-	}
+	if ((start_time || stop_time) && NULL == dump_base)
+		usage("--start and --stop require -w");
 }
 
 static void
