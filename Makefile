@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 2008-03-14 21:33:28 wessels Exp $
+# $Id: Makefile,v 1.16 2008-03-14 21:56:33 vixie Exp $
 
 #
 # Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -31,6 +31,8 @@ CWARN= ${GCCWARN}
 PORTCFLAGS=
 PORTLDFLAGS=
 PORTLIBS=
+PORTDEPS=
+PORTOBJ=
 
 # uncomment these if you don't have bind9's libbind and its fp_nquery function
 #HAVE_BINDLIB= 0
@@ -55,6 +57,8 @@ PORTLIBS=
 # uncomment these if you're building on CentOS or many other versions of Linux
 #CWARN=
 #PORTLIBS= /usr/lib/libresolv.a
+
+ALL= dnscap dnscap.cat1 
 
 # uncomment if you're building for Solaris 
 #PORTOBJ=snprintf.o
@@ -82,12 +86,20 @@ install: all
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
 
-DNSCAP_OBJ= dnscap.o dump_dns.o  ${PORTOBJ}
+DNSCAP_OBJ= dnscap.o dump_dns.o ${PORTOBJ}
 dnscap: ${DNSCAP_OBJ} Makefile ${PORTDEPS}
 	@echo \(link $@ w/ ${LDLIBS}\) && \
 		${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
 
 ${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h
+
+snprintf:
+	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
+	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
+	md5sum -c --status snprintf_2.2.tar.gz.md5
+	tar xvfz snprintf_2.2.tar.gz
+	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
+	cp snprintf_2.2/snprintf.[ho] .
 
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1
