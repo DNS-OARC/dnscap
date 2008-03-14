@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dump_dns.c,v 1.1 2007-10-25 21:03:58 vixie Exp $";
+static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif
 
 /*
@@ -35,6 +35,11 @@ dump_dns(const u_char *payload, size_t paylen,
 #ifdef __linux__
 # define _GNU_SOURCE
 # define __USE_POSIX199309
+#endif
+
+#ifdef __SVR4
+# define u_int32_t uint32_t
+# define u_int16_t uint16_t
 #endif
 
 #include <sys/types.h>

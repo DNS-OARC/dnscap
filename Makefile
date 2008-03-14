@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 2007-12-06 02:05:38 vixie Exp $
+# $Id: Makefile,v 1.15 2008-03-14 21:33:28 wessels Exp $
 
 #
 # Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -56,6 +56,11 @@ PORTLIBS=
 #CWARN=
 #PORTLIBS= /usr/lib/libresolv.a
 
+# uncomment if you're building for Solaris 
+#PORTOBJ=snprintf.o
+#PORTDEPS=snprintf
+#PORTLIBS=-lrt
+
 ALL= dnscap dnscap.cat1
 
 CDEBUG= -g -O
@@ -77,8 +82,8 @@ install: all
 .c.o:
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
 
-DNSCAP_OBJ= dnscap.o dump_dns.o
-dnscap: ${DNSCAP_OBJ} Makefile
+DNSCAP_OBJ= dnscap.o dump_dns.o  ${PORTOBJ}
+dnscap: ${DNSCAP_OBJ} Makefile ${PORTDEPS}
 	@echo \(link $@ w/ ${LDLIBS}\) && \
 		${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
 
@@ -86,5 +91,13 @@ ${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h
 
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1
+
+snprintf:
+	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
+	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
+	md5sum -c --status snprintf_2.2.tar.gz.md5
+	tar xvfz snprintf_2.2.tar.gz
+	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
+	cp snprintf_2.2/snprintf.[ho] .
 
 clean:; rm -f ${ALL} *.o *.core *.orig all
