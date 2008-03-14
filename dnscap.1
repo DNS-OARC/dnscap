@@ -239,6 +239,32 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
+.It Fl -start Ar datetime
+When using
+.Fl w ,
+the
+.Fl -start
+option tells
+.Nm
+to start collecting at a specific time.
+.Ar datetime
+should be specified as YYYY-MM-DD HH:MM:SS.  The program will
+.Xr sleep 3
+until the start time, and then begin capturing packets.
+.It Fl -stop Ar datetime
+When using
+.Fl w
+and
+.Fl t ,
+the
+.Fl -start
+option tells
+.Nm
+to stop collecting at a specific time.
+.Ar datetime
+should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
+at the end of the interval following
+.Ar datetime .
 .El
 .Pp
 If started with no options,
