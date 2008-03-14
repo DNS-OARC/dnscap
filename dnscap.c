@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.50 2008-01-10 21:24:26 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.51 2008-03-14 20:23:53 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -99,6 +99,7 @@ static const char version[] = "V1.0-RC6 (October 2007)";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -298,6 +299,8 @@ static int wantfrags = FALSE;
 static int preso = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
+static time_t start_time = 0;
+static time_t stop_time = 0;
 
 /* Public. */
 
@@ -305,6 +308,19 @@ int
 main(int argc, char *argv[]) {
 	res_init();
 	parse_args(argc, argv);
+	if (start_time) {
+		time_t now;
+		time(&now);
+		if (now < start_time) {
+			char when[100];
+			struct tm *tm = gmtime(&start_time);
+			strftime(when, sizeof when, "%F %T", tm);
+			fprintf(stderr, "Sleeping for %ld seconds until %s UTC\n",
+				(start_time - now), when);
+			sleep(start_time - now);
+			fprintf(stderr, "Awake.\n");
+		}
+	}
 	prepare_bpft();
 	open_pcaps();
 	setsig(SIGHUP, TRUE);
@@ -416,6 +432,11 @@ parse_args(int argc, char *argv[]) {
 	unsigned u;
 	int i, ch;
 	char *p;
+	struct option longopts[] = {
+		{ "start",	required_argument,	NULL,		1001 },
+		{ "stop",	required_argument,	NULL,		1002 },
+		{ NULL,         0,                      NULL,           0 }
+	};
 
 	if ((p = strrchr(argv[0], '/')) == NULL)
 		ProgramName = argv[0];
@@ -428,8 +449,9 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_initiators);
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
-	while ((ch = getopt(argc, argv,
-			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
+	while ((ch = getopt_long(argc, argv,
+			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:",
+				longopts, NULL)
 		) != EOF)
 	{
 		switch (ch) {
@@ -457,7 +479,7 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'i':
 			if (pcap_offline != NULL)
-				usage("-i makes no sense after -o");
+				usage("-i makes no sense after -r");
 			mypcap = malloc(sizeof *mypcap);
 			assert(mypcap != NULL);
 			ISC_LINK_INIT(mypcap, link);
@@ -468,7 +490,7 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'r':
 			if (!ISC_LIST_EMPTY(mypcaps))
-				usage("-o makes no sense after -i");
+				usage("-r makes no sense after -i");
 			pcap_offline = malloc(sizeof *pcap_offline);
 			assert(pcap_offline != NULL);
 			ISC_LINK_INIT(pcap_offline, link);
@@ -597,6 +619,24 @@ parse_args(int argc, char *argv[]) {
 #else
 			usage("-x option is disabled due to lack of libbind");
 #endif
+		case 1001:	/* --start */
+			{
+				struct tm tm;
+				memset(&tm, '\0', sizeof(tm));
+				if (NULL == strptime(optarg, "%F %T", &tm))
+					usage("--start arg must have format YYYY-MM-DD HH:MM:SS");
+				start_time = timegm(&tm);
+			}
+			break;
+		case 1002:	/* --stop */
+			{
+				struct tm tm;
+				memset(&tm, '\0', sizeof(tm));
+				if (NULL == strptime(optarg, "%F %T", &tm))
+					usage("--stop arg must have format YYYY-MM-DD HH:MM:SS");
+				stop_time = timegm(&tm);
+			}
+			break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -700,6 +740,9 @@ parse_args(int argc, char *argv[]) {
 		mypcap->name = strdup(name);
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
+	}
+	if (start_time && stop_time && start_time > stop_time) {
+		usage("start time must be before stop time");
 	}
 }
 
@@ -1506,8 +1549,11 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		struct pcap_pkthdr h;
 		u_char *tmp;
 
-		if (next_interval != 0 && ts.tv_sec >= next_interval)
+		if (next_interval != 0 && ts.tv_sec >= next_interval) {
 			dumper_close();
+			if (stop_time && time(NULL) >= stop_time)
+				goto breakloop;
+		}
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
 		tmp = pkt_copy;
