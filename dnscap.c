@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.53 2008-03-14 21:33:28 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.54 2008-04-21 16:09:50 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -112,7 +112,10 @@ static const char version[] = "V1.0-RC6 (October 2007)";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <getopt.h>
+
+#ifdef __linux__
+extern char *strptime(const char *, const char *, struct tm *);
+#endif
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -312,8 +315,6 @@ static int wantfrags = FALSE;
 static int preso = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
-static time_t start_time = 0;
-static time_t stop_time = 0;
 
 /* Public. */
 
@@ -321,19 +322,6 @@ int
 main(int argc, char *argv[]) {
 	res_init();
 	parse_args(argc, argv);
-	if (start_time) {
-		time_t now;
-		time(&now);
-		if (now < start_time) {
-			char when[100];
-			struct tm *tm = gmtime(&start_time);
-			strftime(when, sizeof when, "%F %T", tm);
-			fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
-				(int) (start_time - now), when);
-			sleep(start_time - now);
-			fprintf(stderr, "Awake.\n");
-		}
-	}
 	prepare_bpft();
 	open_pcaps();
 	setsig(SIGHUP, TRUE);
@@ -390,7 +378,8 @@ help_1(void) {
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
-		"\t[-x <pat>]+ [-X <pat>]+\n",
+		"\t[-x <pat>]+ [-X <pat>]+\n"
+		"\t[-B <datetime>]+ [-E <datetime>]+\n",
 		ProgramName);
 }
 
@@ -431,7 +420,9 @@ help_2(void) {
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
-		"\t-X <pat>   select messages not matching regex <pat>\n");
+		"\t-X <pat>   select messages not matching regex <pat>\n"
+		"\t-B <datetime> begin collecting at this date and time\n"
+		"\t-X <datetime> end collecting at this date and time\n");
 }
 
 static void
@@ -445,11 +436,6 @@ parse_args(int argc, char *argv[]) {
 	unsigned u;
 	int i, ch;
 	char *p;
-	struct option longopts[] = {
-		{ "start",	required_argument,	NULL,		1001 },
-		{ "stop",	required_argument,	NULL,		1002 },
-		{ NULL,         0,                      NULL,           0 }
-	};
 
 	if ((p = strrchr(argv[0], '/')) == NULL)
 		ProgramName = argv[0];
@@ -462,9 +448,8 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_initiators);
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
-	while ((ch = getopt_long(argc, argv,
-			    "pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:",
-				longopts, NULL)
+	while ((ch = getopt(argc, argv,
+			"pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -632,24 +617,6 @@ parse_args(int argc, char *argv[]) {
 #else
 			usage("-x option is disabled due to lack of libbind");
 #endif
-		case 1001:	/* --start */
-			{
-				struct tm tm;
-				memset(&tm, '\0', sizeof(tm));
-				if (NULL == strptime(optarg, "%F %T", &tm))
-					usage("--start arg must have format YYYY-MM-DD HH:MM:SS");
-				start_time = timegm(&tm);
-			}
-			break;
-		case 1002:	/* --stop */
-			{
-				struct tm tm;
-				memset(&tm, '\0', sizeof(tm));
-				if (NULL == strptime(optarg, "%F %T", &tm))
-					usage("--stop arg must have format YYYY-MM-DD HH:MM:SS");
-				stop_time = timegm(&tm);
-			}
-			break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -754,10 +721,6 @@ parse_args(int argc, char *argv[]) {
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
-	if (start_time && stop_time && start_time > stop_time)
-		usage("start time must be before stop time");
-	if ((start_time || stop_time) && NULL == dump_base)
-		usage("--start and --stop require -w");
 }
 
 static void
@@ -1563,11 +1526,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		struct pcap_pkthdr h;
 		u_char *tmp;
 
-		if (next_interval != 0 && ts.tv_sec >= next_interval) {
+		if (next_interval != 0 && ts.tv_sec >= next_interval)
 			dumper_close();
-			if (stop_time && time(NULL) >= stop_time)
-				goto breakloop;
-		}
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
 		tmp = pkt_copy;
