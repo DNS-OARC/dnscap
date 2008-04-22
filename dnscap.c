@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.54 2008-04-21 16:09:50 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.55 2008-04-22 01:20:44 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -1187,7 +1187,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 
 		t = (time_t) hdr->ts.tv_sec;
 		tm = gmtime(&t);
-		strftime(when, sizeof when, "%F %T", tm);
+		strftime(when, sizeof when, "%Y-%m-%d %T", tm);
 		strcpy(via, (mypcap->name == NULL)
 				? "\"some interface\""
 				: mypcap->name);
