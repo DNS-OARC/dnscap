@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.16 2008-03-14 21:56:33 vixie Exp $
+# $Id: Makefile,v 1.17 2008-04-22 00:37:44 vixie Exp $
 
 #
 # Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -63,7 +63,7 @@ ALL= dnscap dnscap.cat1
 # uncomment if you're building for Solaris 
 #PORTOBJ=snprintf.o
 #PORTDEPS=snprintf
-#PORTLIBS=-lrt
+#PORTLIBS=-lrt -lmd5 -lsocket -lnsl -lresolv
 
 ALL= dnscap dnscap.cat1
 
@@ -97,19 +97,11 @@ snprintf:
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
 	md5sum -c --status snprintf_2.2.tar.gz.md5
-	tar xvfz snprintf_2.2.tar.gz
+	gunzip -c snprintf_2.2.tar.gz | tar -xf -
 	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
 	cp snprintf_2.2/snprintf.[ho] .
 
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1
-
-snprintf:
-	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
-	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
-	md5sum -c --status snprintf_2.2.tar.gz.md5
-	tar xvfz snprintf_2.2.tar.gz
-	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
-	cp snprintf_2.2/snprintf.[ho] .
 
 clean:; rm -f ${ALL} *.o *.core *.orig all
