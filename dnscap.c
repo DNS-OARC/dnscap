@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.55 2008-04-22 01:20:44 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.56 2008-05-01 22:27:06 vixie Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -717,7 +717,7 @@ parse_args(int argc, char *argv[]) {
 		mypcap = malloc(sizeof *mypcap);
 		assert(mypcap != NULL);
 		ISC_LINK_INIT(mypcap, link);
-		mypcap->name = strdup(name);
+		mypcap->name = (name == NULL) ? NULL : strdup(name);
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
@@ -991,7 +991,7 @@ open_pcaps(void) {
 			exit(1);
 		}
 		if (errbuf[0] != '\0')
-			fprintf(stderr, "%s: pcap warning: %s",
+			fprintf(stderr, "%s: pcap warning: %s\n",
 				ProgramName, errbuf);
 		mypcap->dlt = pcap_datalink(mypcap->pcap);
 		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
