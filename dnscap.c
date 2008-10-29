@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.56 2008-05-01 22:27:06 vixie Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.57 2008-10-29 22:11:12 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -421,8 +421,6 @@ help_2(void) {
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
-		"\t-B <datetime> begin collecting at this date and time\n"
-		"\t-X <datetime> end collecting at this date and time\n");
 }
 
 static void
