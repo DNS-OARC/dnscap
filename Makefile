@@ -58,8 +58,6 @@ PORTOBJ=
 #CWARN=
 #PORTLIBS= /usr/lib/libresolv.a
 
-ALL= dnscap dnscap.cat1 
-
 # uncomment if you're building for Solaris 
 #PORTOBJ=snprintf.o
 #PORTDEPS=snprintf
