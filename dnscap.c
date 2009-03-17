@@ -1094,7 +1094,7 @@ open_pcaps(void) {
 		}
 		pcap_freecode(&bpfp);
 	}
-	pcap_dead = pcap_open_dead(DLT_LOOP, SNAPLEN);
+	pcap_dead = pcap_open_dead(DLT_RAW, SNAPLEN);
 }
 
 static void
@@ -1269,6 +1269,21 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 			return;
 		break;
 	    }
+	case DLT_RAW: {
+		if (len < 1)
+			return;
+		switch (*(const uint8_t *)pkt >> 4) {
+		case 4:
+			etype = ETHERTYPE_IP;
+			break;
+		case 6:
+			etype = ETHERTYPE_IPV6;
+			break;
+		default:
+			return;
+		}
+		break;
+	    }
 	case DLT_EN10MB: {
 		const struct ether_header *ether;
 
@@ -1370,7 +1385,7 @@ static void
 network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	    const u_char *opkt, size_t olen)
 {
-	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy;
+	u_char pkt_copy[SNAPLEN], *pkt = pkt_copy;
 	const u_char *dnspkt;
 	unsigned proto, sport, dport;
 	iaddr from, to, initiator, responder;
@@ -1383,7 +1398,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	size_t len, dnslen;
 	HEADER dns;
 
-	NS_PUT32(pf, pkt);
 	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len = olen);
 
@@ -1911,7 +1925,7 @@ output(const char *descr, iaddr from, iaddr to, int isfrag,
 			goto breakloop;
 		memset(&h, 0, sizeof h);
 		h.ts = ts;
-		h.len = h.caplen = NS_INT32SZ + olen;
+		h.len = h.caplen = olen;
 		pcap_dump((u_char *)dumper, &h, pkt_copy);
 		if (flush)
 			pcap_dump_flush(dumper);
