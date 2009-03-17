@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: dnscap.c,v 1.58 2008-10-31 00:23:37 wessels Exp $";
+static const char rcsid[] = "$Id: dnscap.c,v 1.58 2008/10/31 00:23:37 wessels Exp $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version[] = "V1.0-RC6 (October 2007)";
@@ -96,6 +96,7 @@ static const char version[] = "V1.0-RC6 (October 2007)";
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
+#include <netinet/tcp.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
@@ -178,7 +179,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define HIDE_INET	0x7f7f7f7f
 #define HIDE_INET6	"\177\177\177\177\177\177\177\177" \
 			"\177\177\177\177\177\177\177\177"
-#define HIDE_UDP	54321
+#define HIDE_PORT	54321
 
 #ifndef ETHERTYPE_VLAN
 # define ETHERTYPE_VLAN	0x8100
@@ -196,6 +197,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define TRUE		1
 #define FALSE		0
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
+#define MAX_TCP_WINDOW	(0xFFFF << 14)
 
 /* Data structures. */
 
@@ -251,6 +253,20 @@ struct myregex {
 typedef struct myregex *myregex_ptr;
 typedef ISC_LIST(struct myregex) myregex_list;
 
+struct tcpstate {
+	ISC_LINK(struct tcpstate)  link;
+	iaddr			saddr;
+	iaddr			daddr;
+	uint16_t		sport;
+	uint16_t		dport;
+	uint32_t		start;		/* seq# of tcp payload start */
+	uint32_t		maxdiff;	/* maximum (seq# - start) */
+	uint16_t		dnslen;
+	time_t			last_use;
+};
+typedef struct tcpstate *tcpstate_ptr;
+typedef ISC_LIST(struct tcpstate) tcpstate_list;
+
 /* Forward. */
 
 static void setsig(int, int);
@@ -272,6 +288,10 @@ static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
+static void output(const char *descr, iaddr from, iaddr to, int isfrag,
+    unsigned sport, unsigned dport, my_bpftimeval ts,
+    const u_char *pkt_copy, unsigned olen,
+    const u_char *dnspkt, unsigned dnslen);
 static int dumper_open(my_bpftimeval);
 static int dumper_close(void);
 static void sigclose(int);
@@ -287,7 +307,9 @@ static vlan_list vlans;
 static unsigned msg_wanted = MSG_QUERY;
 static unsigned dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 static unsigned end_hide = 0U;
-static unsigned err_wanted = ERR_NO;
+static unsigned err_wanted = ERR_NO | ERR_YES; /* accept all by default */
+static tcpstate_list tcpstates;
+static int tcpstate_count = 0;
 static endpoint_list initiators, not_initiators;
 static endpoint_list responders, not_responders;
 static myregex_list myregexes;
@@ -312,6 +334,7 @@ static int promisc = TRUE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
 static int wantfrags = FALSE;
+static int wanttcp = FALSE;
 static int preso = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
@@ -324,6 +347,7 @@ main(int argc, char *argv[]) {
 	parse_args(argc, argv);
 	prepare_bpft();
 	open_pcaps();
+	ISC_LIST_INIT(tcpstates);
 	setsig(SIGHUP, TRUE);
 	setsig(SIGINT, TRUE);
 	setsig(SIGALRM, FALSE);
@@ -373,7 +397,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?pd1g6f] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-?pd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -388,13 +412,16 @@ help_2(void) {
 	help_1();
 	fprintf(stderr,
 		"\noptions:\n"
-		"\t-? or -\?  print these instructions and exit\n"
+		"\t-? or -\\?  print these instructions and exit\n"
 		"\t-p         do not put interface in promiscuous mode\n"
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
+		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
+		"\t           first DNS header, and the result will apply to all messages\n"
+		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
 		"\t-i <if>    select this live interface(s)\n"
 		"\t-r <file>  read this pcap file\n"
 		"\t-l <vlan>  select only these vlan(s)\n"
@@ -448,7 +475,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			"pd1g6f?i:r:l:u:m:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
+			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -505,6 +532,9 @@ parse_args(int argc, char *argv[]) {
 			ISC_LINK_INIT(vlan, link);
 			vlan->vlan = (unsigned) ul;
 			ISC_LIST_APPEND(vlans, vlan, link);
+			break;
+		case 'T':
+			wanttcp = TRUE;
 			break;
 		case 'u':
 			ul = strtoul(optarg, &p, 0);
@@ -812,6 +842,11 @@ prepare_bpft(void) {
 		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
 		/* XXX what about IPv6 fragments? */
 	}
+	if (wanttcp) {
+		len += text_add(&bpfl, "( tcp port %d or ( ", dns_port);
+		/* tcp packets can be filtered by initiators/responders, but
+		 * not mbs/mbc. */
+	}
 	len += text_add(&bpfl, "udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
@@ -838,6 +873,9 @@ prepare_bpft(void) {
 					"0x%x << (udp[11] & 0xf) & 0x%x != 0)",
 					ERR_RCODE_BASE, err_wanted);
 		}
+	}
+	if (wanttcp) {
+		len += text_add(&bpfl, " )"); /* close udp & mbs & mbc clause */
 	}
 	if (!ISC_LIST_EMPTY(initiators) ||
 	    !ISC_LIST_EMPTY(responders))
@@ -889,6 +927,8 @@ prepare_bpft(void) {
 	}
 	if (!ISC_LIST_EMPTY(vlans))
 		len += text_add(&bpfl, " )");
+	if (wanttcp)
+		len += text_add(&bpfl, " )");
 	if (wantfrags)
 		len += text_add(&bpfl, " )");
 	bpft = malloc(len + 1);
@@ -912,26 +952,27 @@ ia_str(iaddr ia) {
 }
 
 static int
+ia_equal(iaddr x, iaddr y) {
+	if (x.af != y.af)
+		return FALSE;
+	switch (x.af) {
+	case AF_INET:
+		return (x.u.a4.s_addr == y.u.a4.s_addr);
+	case AF_INET6:
+		return (memcmp(&x.u.a6, &y.u.a6, sizeof x.u.a6) == 0);
+	}
+	return FALSE;
+}
+
+static int
 ep_present(const endpoint_list *list, iaddr ia) {
 	endpoint_ptr ep;
 
 	for (ep = ISC_LIST_HEAD(*list);
 	     ep != NULL;
 	     ep = ISC_LIST_NEXT(ep, link))
-		if (ia.af == ep->ia.af)
-			switch (ia.af) {
-			case AF_INET:
-				if (ia.u.a4.s_addr == ep->ia.u.a4.s_addr)
-					return (TRUE);
-				break;
-			case AF_INET6:
-				if (memcmp(&ia.u.a6, &ep->ia.u.a6,
-					   sizeof ia.u.a6) == 0)
-					return (TRUE);
-				break;
-			default:
-				break;
-			}
+		if (ia_equal(ia, ep->ia))
+			return TRUE;
 	return (FALSE);
 }
 
@@ -1071,6 +1112,71 @@ close_pcaps(void) {
 	pcap_close(pcap_dead);
 }
 
+#define MAX_TCP_IDLE_TIME	600
+#define MAX_TCP_IDLE_COUNT	4096
+#define TCP_GC_TIME		60
+
+static tcpstate_ptr
+tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t) {
+	static time_t next_gc = 0;
+	tcpstate_ptr tcpstate;
+
+	for (tcpstate = ISC_LIST_HEAD(tcpstates);
+	     tcpstate != NULL;
+	     tcpstate = ISC_LIST_NEXT(tcpstate, link))
+	{
+		if (ia_equal(tcpstate->saddr, from) &&
+		    ia_equal(tcpstate->daddr, to) &&
+		    tcpstate->sport == sport &&
+		    tcpstate->dport == dport)
+			break;
+	}
+	if (tcpstate != NULL) {
+		tcpstate->last_use = t;
+		if (tcpstate != ISC_LIST_HEAD(tcpstates)) {
+			/* move to beginning of list */
+			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+			ISC_LIST_PREPEND(tcpstates, tcpstate, link);
+		}
+	}
+
+	if (t >= next_gc || tcpstate_count > MAX_TCP_IDLE_COUNT) {
+		/* garbage collect stale states */
+		time_t min_last_use = t - MAX_TCP_IDLE_TIME;
+		while ((tcpstate = ISC_LIST_TAIL(tcpstates)) &&
+		    tcpstate->last_use < min_last_use)
+		{
+			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+			tcpstate_count--;
+		}
+		next_gc = t + TCP_GC_TIME;
+	}
+
+	return tcpstate;
+}
+
+static tcpstate_ptr
+tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
+
+	tcpstate_ptr tcpstate = malloc(sizeof *tcpstate);
+	if (tcpstate == NULL) {
+	    /* Out of memory; recycle the least recently used */
+	    fprintf(stderr, "warning: out of memory, "
+		"discarding some TCP state early\n");
+	    tcpstate = ISC_LIST_TAIL(tcpstates);
+	    assert(tcpstate != NULL);
+	} else {
+	    tcpstate_count++;
+	}
+	tcpstate->saddr = from;
+	tcpstate->daddr = to;
+	tcpstate->sport = sport;
+	tcpstate->dport = dport;
+	ISC_LINK_INIT(tcpstate, link);
+	ISC_LIST_PREPEND(tcpstates, tcpstate, link);
+	return tcpstate;
+}
+
 static void
 dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	mypcap_ptr mypcap = (mypcap_ptr) user;
@@ -1201,20 +1307,39 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	network_pkt(descr, hdr->ts, pf, pkt, len);
 }
 
+/* Discard this packet.  If it's part of TCP stream, all subsequent pkts on
+ * the same tcp stream will also be discarded. */
+static void
+discard(tcpstate_ptr tcpstate, const char *msg)
+{
+	if (dumptrace >= 3 && msg)
+		fprintf(stderr, "%s\n", msg);
+	if (tcpstate) {
+		ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+		free(tcpstate);
+		tcpstate_count--;
+		return;
+	}
+}
+
 static void
 network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	    const u_char *opkt, size_t olen)
 {
-	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy+NS_INT32SZ;
+	u_char pkt_copy[NS_INT32SZ+SNAPLEN], *pkt = pkt_copy;
+	const u_char *dnspkt;
 	unsigned proto, sport, dport;
 	iaddr from, to, initiator, responder;
 	struct ip6_hdr *ipv6;
 	int response, isfrag;
-	struct udphdr *udp;
+	struct udphdr *udp = NULL;
+	struct tcphdr *tcp = NULL;
+	tcpstate_ptr tcpstate = NULL;
 	struct ip *ip;
-	size_t len;
+	size_t len, dnslen;
 	HEADER dns;
 
+	NS_PUT32(pf, pkt);
 	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len = olen);
 
@@ -1250,7 +1375,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		{
 			if (wantfrags) {
 				isfrag = TRUE;
-				goto output;
+				output(descr, from, to, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+				return;
 			}
 			return;
 		}
@@ -1299,7 +1425,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if (nexthdr == IPPROTO_FRAGMENT) {
 				if (wantfrags) {
 					isfrag = TRUE;
-					goto output;
+					output(descr, from, to, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+					return;
 				}
 				return;
 			}
@@ -1345,6 +1472,180 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 		pkt += sizeof *udp;
 		len -= sizeof *udp;
+		dnspkt = pkt;
+		dnslen = len;
+		break;
+	}
+	case IPPROTO_TCP: {
+		/* TCP processing.
+		 * We need to capture enough to allow a later analysis to
+		 * reassemble the TCP stream, but we don't want to keep all
+		 * the state required to do reassembly here.
+		 * When we get a SYN, we don't yet know if the DNS message
+		 * will pass the filters, so we always output it, and also
+		 * generate a tcpstate to keep track of the stream.  (An
+		 * alternative would be to store the SYN packet on the
+		 * tcpstate and not output it until a later packet passes the
+		 * filter, but that would require more memory and would
+		 * reorder packets in the pcap output.)
+		 * When we get the _first_ DNS header on the stream, then we
+		 * can apply the DNS header filters; if the packet passes, we
+		 * output the packet and keep the tcpstate; if it fails, we
+		 * discard the packet and the tcpstate.
+		 * When we get any other packet with DNS payload, we output it
+		 * only if there is a corresponding tcpstate indicating that
+		 * the header passed the filters.
+		 * Packets with no TCP payload (e.g., packets containing only
+		 * an ACK) are discarded, since they carry no DNS information
+		 * and are not needed for stream reassembly.
+		 * FIN packets are always output to match the SYN, even if the
+		 * DNS header failed the filter, to be friendly to later
+		 * analysis programs that allocate state for each SYN.
+		 * -- kkeys@caida.org
+		 */
+		unsigned offset;
+		uint32_t seq;
+		if (!wanttcp)
+		    return;
+		if (len < sizeof *tcp)
+			return;
+		tcp = (void *) pkt;
+		switch (from.af) {
+		case AF_INET:
+		case AF_INET6:
+			sport = ntohs(tcp->th_sport);
+			dport = ntohs(tcp->th_dport);
+			seq = ntohl(tcp->th_seq);
+			break;
+		default:
+			abort();
+		}
+		offset = tcp->th_off * 4;
+		pkt += offset;
+		len -= offset;
+#if 1
+		tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
+		if (dumptrace >= 3) {
+			fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] ", ProgramName,
+			    (u_long)ts.tv_sec, (u_long)ts.tv_usec, (u_long)len);
+			fprintf(stderr, "%15s -> ", ia_str(from));
+			fprintf(stderr, "%15s; ", ia_str(to));
+			if (tcpstate)
+			    fprintf(stderr, "want=%08x; ", tcpstate->start);
+			else
+			    fprintf(stderr, "no state; ");
+			fprintf(stderr, "seq=%08x; ", seq);
+		}
+		if (tcp->th_flags & (TH_FIN | TH_RST)) {
+		    /* Always output FIN and RST segments. */
+		    if (dumptrace >= 3)
+			fprintf(stderr, "FIN|RST\n");
+		    output(descr, from, to, isfrag, sport, dport, ts,
+			pkt_copy, olen, NULL, 0);
+		    /* End of stream; deallocate the tcpstate. */
+		    if (tcpstate) {
+			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+			free(tcpstate);
+			tcpstate_count--;
+		    }
+		    return;
+		}
+		if (tcp->th_flags & TH_SYN) {
+		    if (dumptrace >= 3)
+			fprintf(stderr, "SYN\n");
+		    /* Always output SYN segments. */
+		    output(descr, from, to, isfrag, sport, dport, ts,
+			pkt_copy, olen, NULL, 0);
+		    if (tcpstate) {
+			if (tcpstate->start == seq + 1) {
+			    /* repeated SYN */
+			} else {
+			    /* Assume existing state is stale and recycle it. */
+			    if (ts.tv_sec - tcpstate->last_use < MAX_TCP_IDLE_TIME)
+				fprintf(stderr, "warning: recycling tcpstate "
+				    "after only %ld seconds idle\n",
+				    (u_long)(ts.tv_sec - tcpstate->last_use));
+			}
+		    } else {
+			/* create new tcpstate */
+			tcpstate = tcpstate_new(from, to, sport, dport);
+		    }
+		    tcpstate->last_use = ts.tv_sec;
+		    tcpstate->start = seq + 1; /* add 1 for the SYN */
+		    tcpstate->maxdiff = 1;
+		    tcpstate->dnslen = 0;
+		    return;
+		}
+		if (tcpstate) {
+		    uint32_t seqdiff = seq - tcpstate->start;
+		    if (dumptrace >= 3)
+			fprintf(stderr, "diff=%08x; ", seqdiff);
+		    if (seqdiff == 0 && len > 2) {
+			/* This is the first segment of the stream, and
+			 * contains the dnslen and dns header, so we can
+			 * filter on it. */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "len+hdr\n");
+			dnslen = tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
+			dnspkt = pkt + 2;
+			if (dnslen > len - 2)
+			    dnslen = len - 2;
+			tcpstate->maxdiff = (uint32_t)len;
+		    } else if (seqdiff == 0 && len == 2) {
+			/* This is the first segment of the stream, but only
+			 * contains the dnslen. */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "len\n");
+			tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
+			tcpstate->maxdiff = (uint32_t)len;
+			output(descr, from, to, isfrag, sport, dport, ts,
+			    pkt_copy, olen, NULL, 0);
+			return;
+		    } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
+			/* shouldn't happen */
+			discard(tcpstate, NULL);
+			return;
+		    } else if (seqdiff == 2) {
+			/* This is not the first segment, but it does contain
+			 * the first dns header, so we can filter on it. */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "hdr\n");
+			tcpstate->maxdiff = seqdiff + (uint32_t)len;
+			dnslen = tcpstate->dnslen;
+			dnspkt = pkt;
+			if (dnslen == 0) /* we never received it */
+			    dnslen = len;
+			if (dnslen > len)
+			    dnslen = len;
+		    } else if (seqdiff > tcpstate->maxdiff + MAX_TCP_WINDOW) {
+			/* This segment is outside the window. */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "out of window\n");
+			return;
+		    } else if (len == 0) {
+			/* No payload (e.g., an ACK) */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "empty\n");
+			return;
+		    } else {
+			/* non-first */
+			if (dumptrace >= 3)
+			    fprintf(stderr, "keep\n");
+			if (tcpstate->maxdiff < seqdiff + (uint32_t)len)
+			    tcpstate->maxdiff = seqdiff + (uint32_t)len;
+			output(descr, from, to, isfrag, sport, dport, ts,
+			    pkt_copy, olen, NULL, 0);
+			return;
+		    }
+		} else {
+		    if (dumptrace >= 3)
+			fprintf(stderr, "no state\n");
+		    /* There is no state for this stream.  Either we never saw
+		     * a SYN for this stream, or we have already decided to
+		     * discard this stream. */
+		    return;
+		}
+#endif
 		break;
 	}
 	default:
@@ -1352,46 +1653,64 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	}
 
 	/* Application. */
-	if (len < sizeof dns)
+	if (dnslen < sizeof dns) {
+		discard(tcpstate, "too small");
 		return;
-	memcpy(&dns, pkt, sizeof dns);
+	}
+	memcpy(&dns, dnspkt, sizeof dns);
 
 	/* Policy filtering. */
 	if (dns.qr == 0 && dport == dns_port) {
-		if ((dir_wanted & DIR_INITIATE) == 0)
+		if ((dir_wanted & DIR_INITIATE) == 0) {
+			discard(tcpstate, "unwanted dir=i");
 			return;
+		}
 		initiator = from;
 		responder = to;
 		response = FALSE;
 	} else if (dns.qr != 0 && sport == dns_port) {
-		if ((dir_wanted & DIR_RESPONSE) == 0)
+		if ((dir_wanted & DIR_RESPONSE) == 0) {
+			discard(tcpstate, "unwanted dir=r");
 			return;
+		}
 		initiator = to;
 		responder = from;
 		response = TRUE;
 	} else {
+		discard(tcpstate, "unwanted direction/port");
 		return;
 	}
 	if ((!ISC_LIST_EMPTY(initiators) &&
 	     !ep_present(&initiators, initiator)) ||
 	    (!ISC_LIST_EMPTY(responders) &&
 	     !ep_present(&responders, responder)))
+	{
+		discard(tcpstate, "unwanted host");
 		return;
+	}
 	if ((!ISC_LIST_EMPTY(not_initiators) &&
 	     ep_present(&not_initiators, initiator)) ||
 	    (!ISC_LIST_EMPTY(not_responders) &&
 	     ep_present(&not_responders, responder)))
+	{
+		discard(tcpstate, "missing required host");
 		return;
+	}
 	if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) ||
 	      ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) ||
 	      ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify)))
+	{
+		discard(tcpstate, "unwanted opcode");
 		return;
+	}
 	if (response) {
 		int match_tc = (dns.tc != 0 && err_wanted & ERR_TRUNC);
 		int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
 
-		if (!match_tc && !match_rcode)
+		if (!match_tc && !match_rcode) {
+			discard(tcpstate, "unwanted error code");
 			return;
+		}
 	}
 #if HAVE_BINDLIB
 	if (!ISC_LIST_EMPTY(myregexes)) {
@@ -1401,8 +1720,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 		match = FALSE;
 		negmatch = FALSE;
-		if (ns_initparse(pkt, len, &msg) < 0)
+		if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
+			discard(tcpstate, "failed parse");
 			return;
+		}
 		for (s = ns_s_qd; s < ns_s_max && !match; s++) {
 			char pres[SNAPLEN*4];
 			const char *look;
@@ -1413,14 +1734,19 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			for (n = 0; n < count && !negmatch; n++) {
 				myregex_ptr myregex;
 
-				if (ns_parserr(&msg, s, n, &rr) < 0)
+				if (ns_parserr(&msg, s, n, &rr) < 0) {
+					discard(tcpstate, "failed parse");
 					return;
+				}
 				if (s == ns_s_qd) {
 					look = ns_rr_name(rr);
 				} else {
 					if (ns_sprintrr(&msg, &rr, NULL, ".",
 							pres, sizeof pres) < 0)
+					{
+						discard(tcpstate, "failed parse");
 						return;
+					}
 					look = pres;
 				}
 				for (myregex = ISC_LIST_HEAD(myregexes);
@@ -1446,8 +1772,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 				}
 			}
 		}
-		if (!match)
+		if (!match) {
+			discard(tcpstate, "failed regex match");
 			return;
+		}
 	}
 #endif
 
@@ -1459,17 +1787,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			uint16_t *init_port;
 
 			if (dns.qr == 0) {
-				init_addr = &ip->ip_src;
-				resp_addr = &ip->ip_dst;
-				init_port = &udp->uh_sport;
+			    init_addr = &ip->ip_src;
+			    resp_addr = &ip->ip_dst;
+			    init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
 			} else {
-				init_addr = &ip->ip_dst;
-				resp_addr = &ip->ip_src;
-				init_port = &udp->uh_dport;
+			    init_addr = &ip->ip_dst;
+			    resp_addr = &ip->ip_src;
+			    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
 			}
 			if ((end_hide & END_INITIATOR) != 0) {
 				init_addr->s_addr = HIDE_INET;
-				*init_port = htons(HIDE_UDP);
+				*init_port = htons(HIDE_PORT);
 			}
 			if ((end_hide & END_RESPONDER) != 0)
 				resp_addr->s_addr = HIDE_INET;
@@ -1482,18 +1810,18 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			uint16_t *init_port;
 
 			if (dns.qr == 0) {
-				init_addr = &ipv6->ip6_src;
-				resp_addr = &ipv6->ip6_dst;
-				init_port = &udp->uh_sport;
+			    init_addr = &ipv6->ip6_src;
+			    resp_addr = &ipv6->ip6_dst;
+			    init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
 			} else {
-				init_addr = &ipv6->ip6_dst;
-				resp_addr = &ipv6->ip6_src;
-				init_port = &udp->uh_dport;
+			    init_addr = &ipv6->ip6_dst;
+			    resp_addr = &ipv6->ip6_src;
+			    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
 			}
 			if ((end_hide & END_INITIATOR) != 0) {
                     		memcpy(init_addr, HIDE_INET6,
 				       sizeof HIDE_INET6);
-				*init_port = htons(HIDE_UDP);
+				*init_port = htons(HIDE_PORT);
 			}
 			if ((end_hide & END_RESPONDER) != 0)
 				memcpy(resp_addr, HIDE_INET6,
@@ -1506,9 +1834,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 	msgcount++;
+	output(descr, from, to, isfrag, sport, dport, ts,
+	    pkt_copy, olen, dnspkt, dnslen);
+}
 
+static void
+output(const char *descr, iaddr from, iaddr to, int isfrag,
+    unsigned sport, unsigned dport, my_bpftimeval ts,
+    const u_char *pkt_copy, unsigned olen,
+    const u_char *dnspkt, unsigned dnslen)
+{
 	/* Output stage. */
- output:
 	if (preso) {
 		fputs(descr, stderr);
 		if (isfrag) {
@@ -1517,20 +1853,18 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		} else {
 			fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
 			fprintf(stderr, "[%s].%u ", ia_str(to), dport);
+			if (dnspkt)
+			    dump_dns(dnspkt, dnslen, stderr, "\\\n\t");
 		}
-		dump_dns(pkt, len, stderr, "\\\n\t");
 		putc('\n', stderr);
 	}
 	if (dump_type != nowhere) {
 		struct pcap_pkthdr h;
-		u_char *tmp;
 
 		if (next_interval != 0 && ts.tv_sec >= next_interval)
 			dumper_close();
 		if (dumper == NULL && dumper_open(ts))
 			goto breakloop;
-		tmp = pkt_copy;
-		NS_PUT32(pf, tmp);
 		memset(&h, 0, sizeof h);
 		h.ts = ts;
 		h.len = h.caplen = NS_INT32SZ + olen;
