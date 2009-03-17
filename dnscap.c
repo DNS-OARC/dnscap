@@ -338,6 +338,8 @@ static int wanttcp = FALSE;
 static int preso = FALSE;
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
+static time_t start_time = 0;
+static time_t stop_time = 0;
 
 /* Public. */
 
@@ -345,6 +347,19 @@ int
 main(int argc, char *argv[]) {
 	res_init();
 	parse_args(argc, argv);
+	if (start_time) {
+		time_t now;
+		time(&now);
+		if (now < start_time) {
+			char when[100];
+			struct tm *tm = gmtime(&start_time);
+			strftime(when, sizeof when, "%F %T", tm);
+			fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
+				(int) (start_time - now), when);
+			sleep(start_time - now);
+			fprintf(stderr, "Awake.\n");
+		}
+	}
 	prepare_bpft();
 	open_pcaps();
 	ISC_LIST_INIT(tcpstates);
@@ -448,6 +463,8 @@ help_2(void) {
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
+                "\t-B <datetime> begin collecting at this date and time\n"
+                "\t-E <datetime> end collecting at this date and time\n"
 		);
 }
 
@@ -475,7 +492,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:")
+			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -646,6 +663,24 @@ parse_args(int argc, char *argv[]) {
 #else
 			usage("-x option is disabled due to lack of libbind");
 #endif
+		case 'B':
+			{
+				struct tm tm;
+				memset(&tm, '\0', sizeof(tm));
+				if (NULL == strptime(optarg, "%F %T", &tm))
+					usage("--B arg must have format YYYY-MM-DD HH:MM:SS");
+				start_time = timegm(&tm);
+			}
+			break;
+		case 'E':
+			{
+				struct tm tm;
+				memset(&tm, '\0', sizeof(tm));
+				if (NULL == strptime(optarg, "%F %T", &tm))
+					usage("--E arg must have format YYYY-MM-DD HH:MM:SS");
+				stop_time = timegm(&tm);
+			}
+			break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -750,6 +785,10 @@ parse_args(int argc, char *argv[]) {
 		mypcap->fdes = -1;
 		ISC_LIST_APPEND(mypcaps, mypcap, link);
 	}
+	if (start_time && stop_time && start_time >= stop_time)
+		usage("start time must be before stop time");
+	if ((start_time || stop_time) && NULL == dump_base)
+		usage("--B and --E require -w");
 }
 
 static void
@@ -1183,6 +1222,11 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	size_t len = hdr->caplen;
 	unsigned etype, vlan, pf;
 	char descr[200];
+
+	if (stop_time != 0 && hdr->ts.tv_sec >= stop_time) {
+		breakloop_pcaps();
+		main_exit = TRUE;
+	}
 
 	if (main_exit)
 		return;
