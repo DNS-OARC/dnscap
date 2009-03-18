@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl pd1g?6f
+.Op Fl pd1g?6fT
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
@@ -48,7 +48,7 @@ normally produces binary data in
 format, either on standard output or in successive dump files
 (based on the
 .Fl w
-command line option.)  This utility is similar to
+command line option).  This utility is similar to
 .Xr tcpdump 1 ,
 but has finer grained packet recognition tailored to DNS transactions and
 protocol options.
@@ -92,14 +92,27 @@ contain port numbers), and includes fragments in the binary output.  Necessary
 if you intend to do IP Reassembly.  Note that all fragments will be collected,
 not just those using the DNS port number, since fragments don't have port
 numbers.  Beware this option if you also handle a lot of NFS traffic.
+.It Fl T
+Selects TCP packets.
+SYN, FIN, and RST packets are collected if they pass the layer 2, port, and
+host filters (although hosts need not be in the correct direction); they are
+not tested against filter options that require a DNS header such as
+.Fl m ,
+.Fl s ,
+and
+.Fl e .
+The first DNS header in the stream is captured if it passes all filter
+options.
+All subsequent non-empty packets in the stream, regardless of DNS message
+boundaries, will be captured if and only if the first DNS header passed all
+filter options.
+TCP packets will usually not be printable with
+.Fl g .
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
 default is to monitor all interfaces.  More than one interface may be selected
-which will cause output to be interleaved from all selected interfaces.  If
-multiple interfaces are selected having disparite datalink types (framing),
-then the output datalink will be demoted to DLT_LOOP (protocol family only,
-no link layer source/destination addresses or other framing information.)
+which will cause output to be interleaved from all selected interfaces.
 .It Fl r Ar file
 Select an offline
 .Xr pcap 3
@@ -189,7 +202,8 @@ Capture only transactions NOT having these responders.
 .It Fl w Ar base
 Dump the captured packets to successive binary files in
 .Xr pcap 3
-format.  Each file will have a name like "%s.%u.%06u" where %s is
+format with DLT_RAW datalink type.
+Each file will have a name like "%s.%u.%06u" where %s is
 .Ar base ,
 %u is the time in seconds, and %06u is the time in microseconds.  The argument
 "-" may be given to send the binary output to standard output.  In that case,
@@ -239,11 +253,11 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
-.It Fl -start Ar datetime
+.It Fl B Ar datetime
 When using
 .Fl w ,
 the
-.Fl -start
+.Fl B
 option tells
 .Nm
 to start collecting at a specific time.
@@ -251,19 +265,19 @@ to start collecting at a specific time.
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will
 .Xr sleep 3
 until the start time, and then begin capturing packets.
-.It Fl -stop Ar datetime
+.It Fl E Ar datetime
 When using
 .Fl w
 and
 .Fl t ,
 the
-.Fl -start
+.Fl B
 option tells
 .Nm
 to stop collecting at a specific time.
 .Ar datetime
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
-at the end of the interval following
+when it sees a packet with timestamp greater than
 .Ar datetime .
 .El
 .Pp
@@ -361,8 +375,6 @@ was written by Paul Vixie (ISC) with help from Duane Wessels,
 Kevin Brintnall, and others too numerous to mention.
 .Sh BUGS
 Ought to handle fragmented UDP.
-.Pp
-Ought to handle TCP.
 .Pp
 Ought to be re-implented as a
 .Xr ncap
