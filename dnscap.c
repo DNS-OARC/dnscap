@@ -1615,15 +1615,20 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    output(descr, from, to, isfrag, sport, dport, ts,
 			pkt_copy, olen, NULL, 0);
 		    if (tcpstate) {
+#if 0
+			/* Disabled because warning may scare user, and
+			 * there's nothing else we can do anyway. */
 			if (tcpstate->start == seq + 1) {
 			    /* repeated SYN */
 			} else {
 			    /* Assume existing state is stale and recycle it. */
 			    if (ts.tv_sec - tcpstate->last_use < MAX_TCP_IDLE_TIME)
-				fprintf(stderr, "warning: recycling tcpstate "
-				    "after only %ld seconds idle\n",
+				fprintf(stderr, "warning: recycling state for "
+				    "duplicate tcp stream after only %ld "
+				    "seconds idle\n",
 				    (u_long)(ts.tv_sec - tcpstate->last_use));
 			}
+#endif
 		    } else {
 			/* create new tcpstate */
 			tcpstate = tcpstate_new(from, to, sport, dport);
