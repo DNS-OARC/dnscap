@@ -1955,6 +1955,7 @@ dumper_open(my_bpftimeval ts) {
 	if (dump_type == to_stdout) {
 		t = "-";
 	} else {
+		char sbuf[64];
 		while (ts.tv_usec >= MILLION) {
 			ts.tv_sec++;
 			ts.tv_usec -= MILLION;
@@ -1963,8 +1964,9 @@ dumper_open(my_bpftimeval ts) {
 			next_interval = ts.tv_sec
 				- (ts.tv_sec % limit_seconds)
 				+ limit_seconds;
-		if (asprintf(&dumpname, "%s.%lu.%06lu",
-			     dump_base, (u_long) ts.tv_sec,
+		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
+		if (asprintf(&dumpname, "%s.%s.%06lu",
+			     dump_base, sbuf,
 			     (u_long) ts.tv_usec) < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
