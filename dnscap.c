@@ -7,7 +7,7 @@
 static const char rcsid[] = "$Id$";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-static const char version[] = "V1.0-RC6 (October 2007)";
+static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #endif
 
 /*
@@ -379,6 +379,31 @@ main(int argc, char *argv[]) {
 
 /* Private. */
 
+static const char *
+version(void)
+{
+	int revnum;
+	char scandate[32];
+	static char vbuf[128];
+	const char *sep = " \t";
+	char *copy = strdup(rcsid);
+	char *t;
+	if (NULL == (t = strtok(copy, sep)))
+		return version_fmt;
+	if (NULL == (t = strtok(NULL, sep)))
+		return version_fmt;
+	if (NULL == (t = strtok(NULL, sep)))
+		return version_fmt;
+	revnum = atoi(t);
+	if (NULL == (t = strtok(NULL, sep)))
+		return version_fmt;
+	strncpy(scandate, t, 32);
+	snprintf(vbuf, 128, version_fmt, revnum, scandate);
+	free(copy);
+	return vbuf;
+	
+}
+
 static void
 setsig(int sig, int oneshot) {
 	struct sigaction sa;
@@ -409,7 +434,7 @@ usage(const char *msg) {
 
 static void
 help_1(void) {
-	fprintf(stderr, "%s: version %s\n\n", ProgramName, version);
+	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
 		"\t[-?pd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
@@ -696,7 +721,7 @@ parse_args(int argc, char *argv[]) {
 		const char *sep;
 		myregex_ptr mr;
 
-		fprintf(stderr, "%s: version %s\n", ProgramName, version);
+		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
 		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u\n",
 			ProgramName,
