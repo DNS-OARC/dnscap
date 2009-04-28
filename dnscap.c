@@ -192,7 +192,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define MILLION		(THOUSAND*THOUSAND)
 #define MAX_VLAN	4095
 #define DNS_PORT	53
-#define TO_MS		50
+#define TO_MS		1
 #define SNAPLEN		65536
 #define TRUE		1
 #define FALSE		0
