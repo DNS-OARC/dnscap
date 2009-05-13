@@ -224,6 +224,7 @@ struct mypcap {
 	int			fdes;
 	pcap_t *		pcap;
 	int			dlt;
+	struct pcap_stat	ps0, ps1;
 };
 typedef struct mypcap *mypcap_ptr;
 typedef ISC_LIST(struct mypcap) mypcap_list;
@@ -340,6 +341,7 @@ static int main_exit = FALSE;
 static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
+static int print_pcap_stats = FALSE;
 
 /* Public. */
 
@@ -517,7 +519,7 @@ parse_args(int argc, char *argv[]) {
 	ISC_LIST_INIT(not_responders);
 	ISC_LIST_INIT(myregexes);
 	while ((ch = getopt(argc, argv,
-			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:")
+			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:S")
 		) != EOF)
 	{
 		switch (ch) {
@@ -552,6 +554,8 @@ parse_args(int argc, char *argv[]) {
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
 			mypcap->fdes = -1;
+			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));
+			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));
 			ISC_LIST_APPEND(mypcaps, mypcap, link);
 			break;
 		case 'r':
@@ -706,6 +710,8 @@ parse_args(int argc, char *argv[]) {
 				stop_time = timegm(&tm);
 			}
 			break;
+		case 'S':
+			print_pcap_stats = TRUE;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -2029,9 +2035,29 @@ dumper_open(my_bpftimeval ts) {
 	return (FALSE);
 }
 
+static void
+do_pcap_stats()
+{
+	mypcap_ptr mypcap;
+	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	     mypcap != NULL;
+	     mypcap = ISC_LIST_NEXT(mypcap, link)) {
+		mypcap->ps0 = mypcap->ps1;
+		pcap_stats(mypcap->pcap, &mypcap->ps1);
+		fprintf(stderr, "%4s: %7u recv %7u drop %7u total\n",
+			mypcap->name,
+			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
+			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
+			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
+	}
+}
+
 static int
 dumper_close(void) {
 	int ret = FALSE;
+
+	if (print_pcap_stats)
+		do_pcap_stats();
 
 	if (alarm_set) {
 		alarm(0);

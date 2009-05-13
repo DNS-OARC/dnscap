@@ -271,7 +271,7 @@ When using
 and
 .Fl t ,
 the
-.Fl B
+.Fl E
 option tells
 .Nm
 to stop collecting at a specific time.
@@ -279,6 +279,14 @@ to stop collecting at a specific time.
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
 when it sees a packet with timestamp greater than
 .Ar datetime .
+.It Fl S
+Causes
+.Nm
+to print pcap_stats() counters on stderr when
+.Fl t
+or
+.Fl c
+limits are reached.
 .El
 .Pp
 If started with no options,
