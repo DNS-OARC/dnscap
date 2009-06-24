@@ -212,14 +212,14 @@ typedef struct {
 } iaddr;
 
 struct endpoint {
-	ISC_LINK(struct endpoint)  link;
+	LINK(struct endpoint)  link;
 	iaddr			ia;
 };
 typedef struct endpoint *endpoint_ptr;
-typedef ISC_LIST(struct endpoint) endpoint_list;
+typedef LIST(struct endpoint) endpoint_list;
 
 struct mypcap {
-	ISC_LINK(struct mypcap)	link;
+	LINK(struct mypcap)	link;
 	const char *		name;
 	int			fdes;
 	pcap_t *		pcap;
@@ -227,35 +227,35 @@ struct mypcap {
 	struct pcap_stat	ps0, ps1;
 };
 typedef struct mypcap *mypcap_ptr;
-typedef ISC_LIST(struct mypcap) mypcap_list;
+typedef LIST(struct mypcap) mypcap_list;
 
 struct vlan {
-	ISC_LINK(struct vlan)	link;
+	LINK(struct vlan)	link;
 	unsigned		vlan;
 };
 typedef struct vlan *vlan_ptr;
-typedef ISC_LIST(struct vlan) vlan_list;
+typedef LIST(struct vlan) vlan_list;
 
 struct text {
-	ISC_LINK(struct text)	link;
+	LINK(struct text)	link;
 	size_t			len;
 	char *			text;
 };
 typedef struct text *text_ptr;
-typedef ISC_LIST(struct text) text_list;
+typedef LIST(struct text) text_list;
 #define text_size(len) (sizeof(struct text) + len)
 
 struct myregex {
-	ISC_LINK(struct myregex)  link;
+	LINK(struct myregex)  link;
 	regex_t			reg;
 	char *			str;
 	int			not;
 };
 typedef struct myregex *myregex_ptr;
-typedef ISC_LIST(struct myregex) myregex_list;
+typedef LIST(struct myregex) myregex_list;
 
 struct tcpstate {
-	ISC_LINK(struct tcpstate)  link;
+	LINK(struct tcpstate)  link;
 	iaddr			saddr;
 	iaddr			daddr;
 	uint16_t		sport;
@@ -266,7 +266,7 @@ struct tcpstate {
 	time_t			last_use;
 };
 typedef struct tcpstate *tcpstate_ptr;
-typedef ISC_LIST(struct tcpstate) tcpstate_list;
+typedef LIST(struct tcpstate) tcpstate_list;
 
 /* Forward. */
 
@@ -364,7 +364,7 @@ main(int argc, char *argv[]) {
 	}
 	prepare_bpft();
 	open_pcaps();
-	ISC_LIST_INIT(tcpstates);
+	INIT_LIST(tcpstates);
 	setsig(SIGHUP, TRUE);
 	setsig(SIGINT, TRUE);
 	setsig(SIGALRM, FALSE);
@@ -511,13 +511,13 @@ parse_args(int argc, char *argv[]) {
 		ProgramName = argv[0];
 	else
 		ProgramName = p+1;
-	ISC_LIST_INIT(vlans);
-	ISC_LIST_INIT(mypcaps);
-	ISC_LIST_INIT(initiators);
-	ISC_LIST_INIT(responders);
-	ISC_LIST_INIT(not_initiators);
-	ISC_LIST_INIT(not_responders);
-	ISC_LIST_INIT(myregexes);
+	INIT_LIST(vlans);
+	INIT_LIST(mypcaps);
+	INIT_LIST(initiators);
+	INIT_LIST(responders);
+	INIT_LIST(not_initiators);
+	INIT_LIST(not_responders);
+	INIT_LIST(myregexes);
 	while ((ch = getopt(argc, argv,
 			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:S")
 		) != EOF)
@@ -550,24 +550,24 @@ parse_args(int argc, char *argv[]) {
 				usage("-i makes no sense after -r");
 			mypcap = malloc(sizeof *mypcap);
 			assert(mypcap != NULL);
-			ISC_LINK_INIT(mypcap, link);
+			INIT_LINK(mypcap, link);
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
 			mypcap->fdes = -1;
 			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));
 			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));
-			ISC_LIST_APPEND(mypcaps, mypcap, link);
+			APPEND(mypcaps, mypcap, link);
 			break;
 		case 'r':
-			if (!ISC_LIST_EMPTY(mypcaps))
+			if (!EMPTY(mypcaps))
 				usage("-r makes no sense after -i");
 			pcap_offline = malloc(sizeof *pcap_offline);
 			assert(pcap_offline != NULL);
-			ISC_LINK_INIT(pcap_offline, link);
+			INIT_LINK(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
 			assert(pcap_offline->name != NULL);
 			pcap_offline->fdes = -1;
-			ISC_LIST_APPEND(mypcaps, pcap_offline, link);
+			APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
 			ul = strtoul(optarg, &p, 0);
@@ -575,9 +575,9 @@ parse_args(int argc, char *argv[]) {
 				usage("vlan must be 0 or an integer 1..4095");
 			vlan = malloc(sizeof *vlan);
 			assert(vlan != NULL);
-			ISC_LINK_INIT(vlan, link);
+			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
-			ISC_LIST_APPEND(vlans, vlan, link);
+			APPEND(vlans, vlan, link);
 			break;
 		case 'T':
 			wanttcp = TRUE;
@@ -678,7 +678,7 @@ parse_args(int argc, char *argv[]) {
 #if HAVE_BINDLIB
 			myregex = malloc(sizeof *myregex);
 			assert(myregex != NULL);
-			ISC_LINK_INIT(myregex, link);
+			INIT_LINK(myregex, link);
 			myregex->str = strdup(optarg);
 			i = regcomp(&myregex->reg, myregex->str, REGEX_CFLAGS);
 			if (i != 0) {
@@ -687,7 +687,7 @@ parse_args(int argc, char *argv[]) {
 				usage(errbuf);
 			}
 			myregex->not = (ch == 'X');
-			ISC_LIST_APPEND(myregexes, myregex, link);
+			APPEND(myregexes, myregex, link);
 			break;
 #else
 			usage("-x option is disabled due to lack of libbind");
@@ -748,56 +748,56 @@ parse_args(int argc, char *argv[]) {
 			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
 			limit_seconds, limit_packets);
 		sep = "\tinit";
-		for (ep = ISC_LIST_HEAD(initiators);
+		for (ep = HEAD(initiators);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
 			sep = "";
 		}
-		if (!ISC_LIST_EMPTY(initiators))
+		if (!EMPTY(initiators))
 			fprintf(stderr, "\n");
 		sep = "\tresp";
-		for (ep = ISC_LIST_HEAD(responders);
+		for (ep = HEAD(responders);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
 			sep = "";
 		}
-		if (!ISC_LIST_EMPTY(responders))
+		if (!EMPTY(responders))
 			fprintf(stderr, "\n");
 		sep = "\t!init";
-		for (ep = ISC_LIST_HEAD(not_initiators);
+		for (ep = HEAD(not_initiators);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
 			sep = "";
 		}
-		if (!ISC_LIST_EMPTY(not_initiators))
+		if (!EMPTY(not_initiators))
 			fprintf(stderr, "\n");
 		sep = "\t!resp";
-		for (ep = ISC_LIST_HEAD(not_responders);
+		for (ep = HEAD(not_responders);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
 			sep = "";
 		}
-		if (!ISC_LIST_EMPTY(not_responders))
+		if (!EMPTY(not_responders))
 			fprintf(stderr, "\n");
-		if (!ISC_LIST_EMPTY(myregexes)) {
+		if (!EMPTY(myregexes)) {
 			fprintf(stderr, "%s: pat:", ProgramName);
-			for (mr = ISC_LIST_HEAD(myregexes);
+			for (mr = HEAD(myregexes);
 			     mr != NULL;
-			     mr = ISC_LIST_NEXT(mr, link))
+			     mr = NEXT(mr, link))
 				fprintf(stderr, " %s/%s/",
 					mr->not ? "!" : "", mr->str);
 			fprintf(stderr, "\n");
 		}
 	}
-	if (ISC_LIST_EMPTY(mypcaps)) {
+	if (EMPTY(mypcaps)) {
 		const char *name;
 #ifdef __linux__
 		name = NULL;	/* "all interfaces" */
@@ -811,10 +811,10 @@ parse_args(int argc, char *argv[]) {
 #endif
 		mypcap = malloc(sizeof *mypcap);
 		assert(mypcap != NULL);
-		ISC_LINK_INIT(mypcap, link);
+		INIT_LINK(mypcap, link);
 		mypcap->name = (name == NULL) ? NULL : strdup(name);
 		mypcap->fdes = -1;
-		ISC_LIST_APPEND(mypcaps, mypcap, link);
+		APPEND(mypcaps, mypcap, link);
 	}
 	if (start_time && stop_time && start_time >= stop_time)
 		usage("start time must be before stop time");
@@ -869,9 +869,9 @@ endpoint_add(endpoint_list *list, iaddr ia) {
 
 	ep = malloc(sizeof *ep);
 	assert(ep != NULL);
-	ISC_LINK_INIT(ep, link);
+	INIT_LINK(ep, link);
 	ep->ia = ia;
-	ISC_LIST_APPEND(*list, ep, link);
+	APPEND(*list, ep, link);
 }
 
 static void
@@ -904,9 +904,9 @@ prepare_bpft(void) {
 	}
 
 	/* Make a BPF program to do early course kernel-level filtering. */
-	ISC_LIST_INIT(bpfl);
+	INIT_LIST(bpfl);
 	len = 0;
-	if (!ISC_LIST_EMPTY(vlans))
+	if (!EMPTY(vlans))
 		len += text_add(&bpfl, "vlan and ( ");
 	if (wantfrags) {
 		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
@@ -947,55 +947,55 @@ prepare_bpft(void) {
 	if (wanttcp) {
 		len += text_add(&bpfl, " )"); /* close udp & mbs & mbc clause */
 	}
-	if (!ISC_LIST_EMPTY(initiators) ||
-	    !ISC_LIST_EMPTY(responders))
+	if (!EMPTY(initiators) ||
+	    !EMPTY(responders))
 	{
 		const char *or = "or", *lp = "(", *sep;
 		endpoint_ptr ep;
 
 		len += text_add(&bpfl, " and host");
 		sep = lp;
-		for (ep = ISC_LIST_HEAD(initiators);
+		for (ep = HEAD(initiators);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
 			sep = or;
 		}
-		for (ep = ISC_LIST_HEAD(responders);
+		for (ep = HEAD(responders);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
 			sep = or;
 		}
 		len += text_add(&bpfl, " )");
 	}
-	if (!ISC_LIST_EMPTY(not_initiators) ||
-	    !ISC_LIST_EMPTY(not_responders))
+	if (!EMPTY(not_initiators) ||
+	    !EMPTY(not_responders))
 	{
 		const char *or = "or", *lp = "(", *sep;
 		endpoint_ptr ep;
 
 		len += text_add(&bpfl, " and not host");
 		sep = lp;
-		for (ep = ISC_LIST_HEAD(not_initiators);
+		for (ep = HEAD(not_initiators);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
 			sep = or;
 		}
-		for (ep = ISC_LIST_HEAD(not_responders);
+		for (ep = HEAD(not_responders);
 		     ep != NULL;
-		     ep = ISC_LIST_NEXT(ep, link))
+		     ep = NEXT(ep, link))
 		{
 			len += text_add(&bpfl, " %s %s", sep, ia_str(ep->ia));
 			sep = or;
 		}
 		len += text_add(&bpfl, " )");
 	}
-	if (!ISC_LIST_EMPTY(vlans))
+	if (!EMPTY(vlans))
 		len += text_add(&bpfl, " )");
 	if (wanttcp)
 		len += text_add(&bpfl, " )");
@@ -1004,9 +1004,9 @@ prepare_bpft(void) {
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
-	for (text = ISC_LIST_HEAD(bpfl);
+	for (text = HEAD(bpfl);
 	     text != NULL;
-	     text = ISC_LIST_NEXT(text, link))
+	     text = NEXT(text, link))
 		strcat(bpft, text->text);
 	text_free(&bpfl);
 	if (dumptrace >= 1)
@@ -1038,9 +1038,9 @@ static int
 ep_present(const endpoint_list *list, iaddr ia) {
 	endpoint_ptr ep;
 
-	for (ep = ISC_LIST_HEAD(*list);
+	for (ep = HEAD(*list);
 	     ep != NULL;
-	     ep = ISC_LIST_NEXT(ep, link))
+	     ep = NEXT(ep, link))
 		if (ia_equal(ia, ep->ia))
 			return TRUE;
 	return (FALSE);
@@ -1054,12 +1054,12 @@ text_add(text_list *list, const char *fmt, ...) {
 
 	text = malloc(sizeof *text);
 	assert(text != NULL);
-	ISC_LINK_INIT(text, link);
+	INIT_LINK(text, link);
 	va_start(ap, fmt);
 	len = vasprintf(&text->text, fmt, ap);
 	assert(len >= 0);
 	va_end(ap);
-	ISC_LIST_APPEND(*list, text, link);
+	APPEND(*list, text, link);
 	return (len);
 }
 
@@ -1067,8 +1067,8 @@ static void
 text_free(text_list *list) {
 	text_ptr text;
 
-	while ((text = ISC_LIST_HEAD(*list)) != NULL) {
-		ISC_LIST_UNLINK(*list, text, link);
+	while ((text = HEAD(*list)) != NULL) {
+		UNLINK(*list, text, link);
 		free(text);
 	}
 }
@@ -1077,12 +1077,12 @@ static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
 
-	assert(!ISC_LIST_EMPTY(mypcaps));
+	assert(!EMPTY(mypcaps));
 	FD_ZERO(&mypcap_fdset);
 	pcap_maxfd = 0;
-	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
-	     mypcap = ISC_LIST_NEXT(mypcap, link))
+	     mypcap = NEXT(mypcap, link))
 	{
 		struct bpf_program bpfp;
 #ifdef __APPLE__
@@ -1145,9 +1145,9 @@ poll_pcaps(void) {
 		return;
 	}
 	/* Poll them all. */
-	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
-	     mypcap = ISC_LIST_NEXT(mypcap, link))
+	     mypcap = NEXT(mypcap, link))
 	{
 		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
 				  (u_char *)mypcap);
@@ -1165,9 +1165,9 @@ static void
 breakloop_pcaps(void) {
 	mypcap_ptr mypcap;
 
-	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
-	     mypcap = ISC_LIST_NEXT(mypcap, link))
+	     mypcap = NEXT(mypcap, link))
 		pcap_breakloop(mypcap->pcap);
 }
 
@@ -1175,9 +1175,9 @@ static void
 close_pcaps(void) {
 	mypcap_ptr mypcap;
 
-	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
-	     mypcap = ISC_LIST_NEXT(mypcap, link))
+	     mypcap = NEXT(mypcap, link))
 		pcap_close(mypcap->pcap);
 	pcap_close(pcap_dead);
 }
@@ -1191,9 +1191,9 @@ tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t) {
 	static time_t next_gc = 0;
 	tcpstate_ptr tcpstate;
 
-	for (tcpstate = ISC_LIST_HEAD(tcpstates);
+	for (tcpstate = HEAD(tcpstates);
 	     tcpstate != NULL;
-	     tcpstate = ISC_LIST_NEXT(tcpstate, link))
+	     tcpstate = NEXT(tcpstate, link))
 	{
 		if (ia_equal(tcpstate->saddr, from) &&
 		    ia_equal(tcpstate->daddr, to) &&
@@ -1203,20 +1203,20 @@ tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t) {
 	}
 	if (tcpstate != NULL) {
 		tcpstate->last_use = t;
-		if (tcpstate != ISC_LIST_HEAD(tcpstates)) {
+		if (tcpstate != HEAD(tcpstates)) {
 			/* move to beginning of list */
-			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
-			ISC_LIST_PREPEND(tcpstates, tcpstate, link);
+			UNLINK(tcpstates, tcpstate, link);
+			PREPEND(tcpstates, tcpstate, link);
 		}
 	}
 
 	if (t >= next_gc || tcpstate_count > MAX_TCP_IDLE_COUNT) {
 		/* garbage collect stale states */
 		time_t min_last_use = t - MAX_TCP_IDLE_TIME;
-		while ((tcpstate = ISC_LIST_TAIL(tcpstates)) &&
+		while ((tcpstate = TAIL(tcpstates)) &&
 		    tcpstate->last_use < min_last_use)
 		{
-			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+			UNLINK(tcpstates, tcpstate, link);
 			tcpstate_count--;
 		}
 		next_gc = t + TCP_GC_TIME;
@@ -1233,7 +1233,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 	    /* Out of memory; recycle the least recently used */
 	    fprintf(stderr, "warning: out of memory, "
 		"discarding some TCP state early\n");
-	    tcpstate = ISC_LIST_TAIL(tcpstates);
+	    tcpstate = TAIL(tcpstates);
 	    assert(tcpstate != NULL);
 	} else {
 	    tcpstate_count++;
@@ -1242,8 +1242,8 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 	tcpstate->daddr = to;
 	tcpstate->sport = sport;
 	tcpstate->dport = dport;
-	ISC_LINK_INIT(tcpstate, link);
-	ISC_LIST_PREPEND(tcpstates, tcpstate, link);
+	INIT_LINK(tcpstate, link);
+	PREPEND(tcpstates, tcpstate, link);
 	return tcpstate;
 }
 
@@ -1352,12 +1352,12 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		return;
 	}
 
-	if (!ISC_LIST_EMPTY(vlans)) {
+	if (!EMPTY(vlans)) {
 		vlan_ptr vl;
 
-		for (vl = ISC_LIST_HEAD(vlans);
+		for (vl = HEAD(vlans);
 		     vl != NULL;
-		     vl = ISC_LIST_NEXT(vl, link))
+		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == 0)
 				break;
 		if (vl == NULL)
@@ -1405,7 +1405,7 @@ discard(tcpstate_ptr tcpstate, const char *msg)
 	if (dumptrace >= 3 && msg)
 		fprintf(stderr, "%s\n", msg);
 	if (tcpstate) {
-		ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+		UNLINK(tcpstates, tcpstate, link);
 		free(tcpstate);
 		tcpstate_count--;
 		return;
@@ -1633,7 +1633,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			pkt_copy, olen, NULL, 0);
 		    /* End of stream; deallocate the tcpstate. */
 		    if (tcpstate) {
-			ISC_LIST_UNLINK(tcpstates, tcpstate, link);
+			UNLINK(tcpstates, tcpstate, link);
 			free(tcpstate);
 			tcpstate_count--;
 		    }
@@ -1774,17 +1774,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		discard(tcpstate, "unwanted direction/port");
 		return;
 	}
-	if ((!ISC_LIST_EMPTY(initiators) &&
+	if ((!EMPTY(initiators) &&
 	     !ep_present(&initiators, initiator)) ||
-	    (!ISC_LIST_EMPTY(responders) &&
+	    (!EMPTY(responders) &&
 	     !ep_present(&responders, responder)))
 	{
 		discard(tcpstate, "unwanted host");
 		return;
 	}
-	if ((!ISC_LIST_EMPTY(not_initiators) &&
+	if ((!EMPTY(not_initiators) &&
 	     ep_present(&not_initiators, initiator)) ||
-	    (!ISC_LIST_EMPTY(not_responders) &&
+	    (!EMPTY(not_responders) &&
 	     ep_present(&not_responders, responder)))
 	{
 		discard(tcpstate, "missing required host");
@@ -1807,7 +1807,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 #if HAVE_BINDLIB
-	if (!ISC_LIST_EMPTY(myregexes)) {
+	if (!EMPTY(myregexes)) {
 		int match, negmatch;
 		ns_msg msg;
 		ns_sect s;
@@ -1843,9 +1843,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 					}
 					look = pres;
 				}
-				for (myregex = ISC_LIST_HEAD(myregexes);
+				for (myregex = HEAD(myregexes);
 				     myregex != NULL && !negmatch;
-				     myregex = ISC_LIST_NEXT(myregex, link)) {
+				     myregex = NEXT(myregex, link)) {
 					if (((!match) || myregex->not) &&
 					    regexec(&myregex->reg, look,
 						    0, NULL, 0) == 0)
@@ -2039,9 +2039,9 @@ static void
 do_pcap_stats()
 {
 	mypcap_ptr mypcap;
-	for (mypcap = ISC_LIST_HEAD(mypcaps);
+	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
-	     mypcap = ISC_LIST_NEXT(mypcap, link)) {
+	     mypcap = NEXT(mypcap, link)) {
 		mypcap->ps0 = mypcap->ps1;
 		pcap_stats(mypcap->pcap, &mypcap->ps1);
 		fprintf(stderr, "%4s: %7u recv %7u drop %7u total\n",

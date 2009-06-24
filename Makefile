@@ -57,6 +57,8 @@ PORTOBJ=
 # uncomment these if you're building on CentOS or many other versions of Linux
 #CWARN=
 #PORTLIBS= /usr/lib/libresolv.a
+#BINDCFLAGS=-I/usr/local/include/bind
+#BINDLDFLAGS=
 
 # uncomment if you're building for Solaris 
 #PORTOBJ=snprintf.o
