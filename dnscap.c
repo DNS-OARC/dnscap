@@ -1454,6 +1454,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		to.af = AF_INET;
 		memcpy(&to.u.a4, &ip->ip_dst, sizeof(struct in_addr));
 		offset = ip->ip_hl << 2;
+		if (len > ip->ip_len)	/* small IP packets have L2 padding */
+			len = ip->ip_len;
 		if (len <= offset)
 			return;
 		pkt += offset;
