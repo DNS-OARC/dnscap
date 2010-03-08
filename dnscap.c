@@ -130,7 +130,8 @@ extern char *strptime(const char *, const char *, struct tm *);
 
 #define ISC_CHECK_NONE 1
 
-#include <isc/list.h>
+#include "isc/list.h"
+#include "isc/assertions.h"
 #include "dump_dns.h"
 
 /* Constants. */
