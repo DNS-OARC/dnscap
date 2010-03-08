@@ -425,6 +425,17 @@ setsig(int sig, int oneshot) {
 	}
 }
 
+static time_t
+xtimegm(struct tm *tmp)
+{
+#if defined (__SVR4) && defined (__sun)
+	putenv("TZ=");
+	return mktime(tmp);
+#else
+	return timegm(tmp);
+#endif
+}
+
 static void
 usage(const char *msg) {
 	fprintf(stderr, "%s: usage error: %s\n", ProgramName, msg);
@@ -699,7 +710,7 @@ parse_args(int argc, char *argv[]) {
 				memset(&tm, '\0', sizeof(tm));
 				if (NULL == strptime(optarg, "%F %T", &tm))
 					usage("--B arg must have format YYYY-MM-DD HH:MM:SS");
-				start_time = timegm(&tm);
+				start_time = xtimegm(&tm);
 			}
 			break;
 		case 'E':
@@ -708,7 +719,7 @@ parse_args(int argc, char *argv[]) {
 				memset(&tm, '\0', sizeof(tm));
 				if (NULL == strptime(optarg, "%F %T", &tm))
 					usage("--E arg must have format YYYY-MM-DD HH:MM:SS");
-				stop_time = timegm(&tm);
+				stop_time = xtimegm(&tm);
 			}
 			break;
 		case 'S':
