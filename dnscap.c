@@ -1468,7 +1468,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		offset = ip->ip_hl << 2;
 		if (len > ip->ip_len)	/* small IP packets have L2 padding */
 			len = ip->ip_len;
-		if (len <= offset)
+		if (len <= (size_t) offset)
 			return;
 		pkt += offset;
 		len -= offset;
