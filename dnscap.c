@@ -510,9 +510,7 @@ help_2(void) {
 
 static void
 parse_args(int argc, char *argv[]) {
-#if HAVE_BINDLIB
 	myregex_ptr myregex;
-#endif
 	mypcap_ptr mypcap;
 	unsigned long ul;
 	vlan_ptr vlan;
@@ -688,7 +686,6 @@ parse_args(int argc, char *argv[]) {
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
-#if HAVE_BINDLIB
 			myregex = malloc(sizeof *myregex);
 			assert(myregex != NULL);
 			INIT_LINK(myregex, link);
@@ -702,9 +699,6 @@ parse_args(int argc, char *argv[]) {
 			myregex->not = (ch == 'X');
 			APPEND(myregexes, myregex, link);
 			break;
-#else
-			usage("-x option is disabled due to lack of libbind");
-#endif
 		case 'B':
 			{
 				struct tm tm;
@@ -1821,7 +1815,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#if HAVE_BINDLIB
 	if (!EMPTY(myregexes)) {
 		int match, negmatch;
 		ns_msg msg;
@@ -1886,7 +1879,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#endif
 
 	/* Policy hiding. */
 	if (end_hide != 0) {
