@@ -31,7 +31,7 @@ CWARN= ${GCCWARN}
 PORTCFLAGS=
 PORTLDFLAGS=
 PORTLIBS=
-PORTDEPS=
+PORTINCS=
 PORTOBJ=
 
 # uncomment these if you don't have bind9's libbind and its fp_nquery function
@@ -62,7 +62,7 @@ PORTOBJ=
 
 # uncomment if you're building for Solaris 
 #PORTOBJ=snprintf.o
-#PORTDEPS=snprintf
+#PORTINCS=snprintf.h
 #PORTLIBS=-lrt -lmd5 -lsocket -lnsl -lresolv
 
 ALL= dnscap dnscap.cat1
@@ -87,16 +87,16 @@ install: all
 	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
 
 DNSCAP_OBJ= dnscap.o dump_dns.o ${PORTOBJ}
-dnscap: ${DNSCAP_OBJ} Makefile ${PORTDEPS}
+dnscap: ${DNSCAP_OBJ} Makefile
 	@echo \(link $@ w/ ${LDLIBS}\) && \
 		${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
 
-${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h
+${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h ${PORTINCS}
 
-snprintf:
+snprintf.h:
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
-	md5sum -c --status snprintf_2.2.tar.gz.md5
+	md5sum -c --status snprintf_2.2.tar.gz.md5 || true
 	gunzip -c snprintf_2.2.tar.gz | tar -xf -
 	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
 	cp snprintf_2.2/snprintf.[ho] .
@@ -104,4 +104,4 @@ snprintf:
 dnscap.cat1: dnscap.1
 	nroff -mandoc dnscap.1 > dnscap.cat1
 
-clean:; rm -f ${ALL} *.o *.core *.orig all
+clean:; rm -f ${ALL} snprintf* *.o *.core *.orig all
