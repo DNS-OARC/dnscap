@@ -429,7 +429,8 @@ static time_t
 xtimegm(struct tm *tmp)
 {
 #if defined (__SVR4) && defined (__sun)
-	putenv("TZ=");
+	char tz[3]="TZ=";
+	putenv((char *)tz);
 	return mktime(tmp);
 #else
 	return timegm(tmp);
