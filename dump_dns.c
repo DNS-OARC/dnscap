@@ -3,6 +3,21 @@
  * By: Paul Vixie, ISC, October 2007
  */
 
+#include <sys/types.h>
+#include <stdio.h>
+#include "dump_dns.h"
+
+#if !HAVE_BINDLIB
+void
+dump_dns(const u_char *payload, size_t paylen,
+          FILE *trace, const char *endline)
+{
+	(void) payload;
+	(void) paylen;
+        fprintf(trace, " %sNO BINDLIB", endline);
+}
+#else
+
 #ifndef lint
 static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif
@@ -23,15 +38,6 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef HAVE_BINDLIB
-static void
-dump_dns(const u_char *payload, size_t paylen,
-	  FILE *trace, const char *endline)
-{
-	fprintf(trace, " %sNO BINDLIB", endline);
-}
-#else
-
 #ifdef __linux__
 # define _GNU_SOURCE
 # define __USE_POSIX199309
@@ -42,7 +48,6 @@ dump_dns(const u_char *payload, size_t paylen,
 # define u_int16_t uint16_t
 #endif
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -54,7 +59,6 @@ dump_dns(const u_char *payload, size_t paylen,
 #include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
