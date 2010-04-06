@@ -299,6 +299,9 @@ static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
+#if 0
+static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
+#endif
 
 /* Private data. */
 
@@ -344,6 +347,19 @@ static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 
+#if !HAVE_LIBBIND
+static void my_assertion_failed(const char *f, int l, assertion_type t, const char * m, int x) __attribute__((noreturn));
+static void
+my_assertion_failed(const char *f, int l, assertion_type t, const char * m, int x)
+{
+	t = t;
+	x = x;
+	fprintf(stderr, "%s(%d): %s\n", f, l, m);
+	abort();
+}
+assertion_failure_callback __assertion_failed = my_assertion_failed;
+#endif
+
 /* Public. */
 
 int
@@ -381,6 +397,19 @@ main(int argc, char *argv[]) {
 }
 
 /* Private. */
+
+#if 0
+static void
+my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something)
+{
+	(void) type;
+	(void) something;
+	fprintf(stderr, "assertion failed: %s(%d): %s\n", file, line, msg);
+	abort();
+}
+
+assertion_failure_callback __assertion_failed = my_assertion_failed;
+#endif
 
 static const char *
 version(void)
@@ -511,11 +540,12 @@ help_2(void) {
 static void
 parse_args(int argc, char *argv[]) {
 	myregex_ptr myregex;
+	int i;
 	mypcap_ptr mypcap;
 	unsigned long ul;
 	vlan_ptr vlan;
 	unsigned u;
-	int i, ch;
+	int ch;
 	char *p;
 
 	if ((p = strrchr(argv[0], '/')) == NULL)
