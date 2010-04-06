@@ -539,8 +539,6 @@ help_2(void) {
 
 static void
 parse_args(int argc, char *argv[]) {
-	myregex_ptr myregex;
-	int i;
 	mypcap_ptr mypcap;
 	unsigned long ul;
 	vlan_ptr vlan;
@@ -716,7 +714,19 @@ parse_args(int argc, char *argv[]) {
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
-			myregex = malloc(sizeof *myregex);
+#if !HAVE_LIBBIND
+			/*
+			 * -x and -X options require libbind because
+			 * the code calls ns_initparse(), ns_parserr(),
+			 * and ns_sprintrr()
+ 			 */
+			fprintf(stderr, "%s must be compiled with libbind to use the -x or -X option.\n",
+				ProgramName);
+			exit(1);
+#else
+			do {
+			int i;
+			myregex_ptr myregex = malloc(sizeof *myregex);
 			assert(myregex != NULL);
 			INIT_LINK(myregex, link);
 			myregex->str = strdup(optarg);
@@ -728,6 +738,8 @@ parse_args(int argc, char *argv[]) {
 			}
 			myregex->not = (ch == 'X');
 			APPEND(myregexes, myregex, link);
+			}
+#endif
 			break;
 		case 'B':
 			{
@@ -1845,6 +1857,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
+#if HAVE_LIBBIND
 	if (!EMPTY(myregexes)) {
 		int match, negmatch;
 		ns_msg msg;
@@ -1909,6 +1922,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
+#endif /* HAVE_LIBBIND */
 
 	/* Policy hiding. */
 	if (end_hide != 0) {
