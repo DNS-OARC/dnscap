@@ -2092,7 +2092,9 @@ dumper_close(void) {
 		free(dumpnamepart); dumpnamepart = NULL;
 		free(dumpname); dumpname = NULL;
 		if (cmd != NULL) {
-			system(cmd);
+			/* goofyness with x = to silence gcc warnings */
+			int x = system(cmd);
+			x = x;
 			free(cmd);
 		}
 		if (kick_cmd == NULL)
