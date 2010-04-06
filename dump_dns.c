@@ -59,6 +59,7 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 #include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
