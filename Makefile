@@ -84,12 +84,11 @@ install: all
 	cp dnscap.cat1 /usr/local/man/cat1/dnscap.1
 
 .c.o:
-	@echo \(compile $< w/ ${CDEBUG}\) && ${CC} ${CFLAGS} -c $<
+	${CC} ${CFLAGS} -c $<
 
 DNSCAP_OBJ= dnscap.o dump_dns.o ${PORTOBJ}
 dnscap: ${DNSCAP_OBJ} Makefile
-	@echo \(link $@ w/ ${LDLIBS}\) && \
-		${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
+	${CC} -o dnscap ${LDFLAGS} ${DNSCAP_OBJ} ${LDLIBS}
 
 ${DNSCAP_OBJ}: Makefile dnscap.c dump_dns.c dump_dns.h ${PORTINCS}
 
