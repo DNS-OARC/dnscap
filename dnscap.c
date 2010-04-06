@@ -299,7 +299,7 @@ static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
-#if 0
+#if !HAVE_LIBBIND
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
 
@@ -347,19 +347,6 @@ static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 
-#if !HAVE_LIBBIND
-static void my_assertion_failed(const char *f, int l, assertion_type t, const char * m, int x) __attribute__((noreturn));
-static void
-my_assertion_failed(const char *f, int l, assertion_type t, const char * m, int x)
-{
-	t = t;
-	x = x;
-	fprintf(stderr, "%s(%d): %s\n", f, l, m);
-	abort();
-}
-assertion_failure_callback __assertion_failed = my_assertion_failed;
-#endif
-
 /* Public. */
 
 int
@@ -398,7 +385,7 @@ main(int argc, char *argv[]) {
 
 /* Private. */
 
-#if 0
+#if !HAVE_LIBBIND
 static void
 my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something)
 {
