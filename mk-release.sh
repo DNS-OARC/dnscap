@@ -1,4 +1,5 @@
-
+#!/bin/sh
+set -e
 
 URL=`svn info | awk '$1 == "URL:" {print $2}'`
 REV=`svn info | awk '$1 == "Revision:" {print $2}'`
@@ -11,6 +12,7 @@ TD=`mktemp -d /tmp/XXXXXXXXXXXXX`
 ( cd $TD 
   svn export $URL
   mv wessels dnscap-$REV
+  rm dnscap-$REV/mk-release.sh
   tar czvf /tmp/dnscap-$REV.tar.gz dnscap-$REV
 )
 
