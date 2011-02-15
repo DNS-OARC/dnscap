@@ -17,5 +17,5 @@ TD=`mktemp -d /tmp/XXXXXXXXXXXXX`
 )
 
 rm -rfv $TD
-echo "install -m 644 -o $USER /tmp/dnscap-$REV.tar.gz /usr/local/www/drupal5/files/dnscap"
+echo "install -m 644 -o $USER /tmp/dnscap-$REV.tar.gz /usr/local/www/dnscap"
 install -m 644 -o $USER /tmp/dnscap-$REV.tar.gz /usr/local/www/dnscap
