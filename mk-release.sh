@@ -1,11 +1,9 @@
 #!/bin/sh
 set -e
 
+svn update
 URL=`svn info | awk '$1 == "URL:" {print $2}'`
 REV=`svn info | awk '$1 == "Revision:" {print $2}'`
-
-echo $URL
-echo $REV
 
 TD=`mktemp -d /tmp/XXXXXXXXXXXXX`
 
