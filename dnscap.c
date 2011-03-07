@@ -299,7 +299,7 @@ static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
-#if !HAVE_LIBBIND
+#if !HAVE_BINDLIB
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
 
@@ -385,7 +385,7 @@ main(int argc, char *argv[]) {
 
 /* Private. */
 
-#if !HAVE_LIBBIND
+#if !HAVE_BINDLIB
 static void
 my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something)
 {
@@ -701,7 +701,7 @@ parse_args(int argc, char *argv[]) {
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
-#if !HAVE_LIBBIND
+#if !HAVE_BINDLIB
 			/*
 			 * -x and -X options require libbind because
 			 * the code calls ns_initparse(), ns_parserr(),
@@ -711,20 +711,20 @@ parse_args(int argc, char *argv[]) {
 				ProgramName);
 			exit(1);
 #else
-			do {
-			int i;
-			myregex_ptr myregex = malloc(sizeof *myregex);
-			assert(myregex != NULL);
-			INIT_LINK(myregex, link);
-			myregex->str = strdup(optarg);
-			i = regcomp(&myregex->reg, myregex->str, REGEX_CFLAGS);
-			if (i != 0) {
-				regerror(i, &myregex->reg,
-					 errbuf, sizeof errbuf);
-				usage(errbuf);
-			}
-			myregex->not = (ch == 'X');
-			APPEND(myregexes, myregex, link);
+			{
+				int i;
+				myregex_ptr myregex = malloc(sizeof *myregex);
+				assert(myregex != NULL);
+				INIT_LINK(myregex, link);
+				myregex->str = strdup(optarg);
+				i = regcomp(&myregex->reg, myregex->str, REGEX_CFLAGS);
+				if (i != 0) {
+					regerror(i, &myregex->reg,
+					 	errbuf, sizeof errbuf);
+					usage(errbuf);
+				}
+				myregex->not = (ch == 'X');
+				APPEND(myregexes, myregex, link);
 			}
 #endif
 			break;
@@ -1844,7 +1844,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#if HAVE_LIBBIND
+#if HAVE_BINDLIB
 	if (!EMPTY(myregexes)) {
 		int match, negmatch;
 		ns_msg msg;
@@ -1909,7 +1909,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#endif /* HAVE_LIBBIND */
+#endif /* HAVE_BINDLIB */
 
 	/* Policy hiding. */
 	if (end_hide != 0) {
