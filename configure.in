@@ -18,7 +18,13 @@ AC_CANONICAL_HOST
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
 AC_CHECK_LIB([resolv], [ns_initparse])
-AC_CHECK_LIB([pcap], [pcap_open_live])
+AC_CHECK_LIB([pcap], [pcap_open_live], [],
+	[
+	echo "dnscap requires libpcap.  Install package libpcap-dev on most Linux"
+	echo "systems.  You can also get the source from www.tcpdump.org."
+	exit 1
+	])
+
 
 # HPUX
 case "$host_os" in
