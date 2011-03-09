@@ -1,55 +1,41 @@
-Date: Thu, 10 May 2007 13:56:46 -0400 (EDT)
-From: "Marcus N. Morgan" <marcus@ufl.edu>
+dnscap README                                                      2011-03-09
 
-Readme for Linux installations.
+Linking with libbind
 
-Building and installing DNSCAP requires that bind 9 and pcap be
-installed.  For bind 9.4.1 I specified
+    If you plan to use dnscap's -x/-X features, then you might need
+    to have libbind installed.   These features use functions such
+    as ns_parserr().  On some systems these functions will be found
+    in libresolv.  If not, then you might need to install libbind.
+    I suggest first building dnscap on your system as-is, then run
 
-./configure  --with-libtool \
-              --disable-threads \
-              --disable-openssl-version-check \
-              --enable-libbind \
-              --prefix=/usr/local/bind \
-              --sysconfdir=/etc \
-              --localstatedir=/var
+	$ ./dnscap -x foo
 
-enable-libbind is necessary so that the bind libraries will be
-built and installed.  disable-openssl-version-check is probably
-necessary because the vendor supplied updates to openssl will
-have strange numbers that won't pass the checks in configure.
+    If you see an error, install libbind either from your
+    OS package system or by downloading the source from
+    http://www.isc.org/downloads/current
 
-pcap will probably already be installed.  if not you can add it
-using via rpm.
+64-bit libraries
 
-You'll probably need to edit /etc/ld.so.conf.d/
-and add a file so that ld processing will be able to find
-the bind libraries.  I added added a file called local.conf
-with contents
+    If you need to link against 64-bit libraries found in non-standard
+    locations, provide the location by setting LDFLAGS before running
+    configure:
 
-/usr/local/lib
-/usr/local/bind/lib
+	$ env LDFLAGS=-L/usr/lib64 ./configure
 
-then run ldconfig as root after you've built and installed
-bind.
 
-Building DNSCAP is now something like:
+FreeBSD (and other BSDs?)
 
-  mkdir dnscap
-  cd dnscap
-  tar -zxf /path-to-dnscap.tar.gz
-  cd dnscap
-  make
-  cp dnscap.1 /usr/local/man/man1
-  cp dnscap /usr/local/sbin
+    If you've installed libbind for -x/-X then it probably went into
+    /usr/local and you'll need to tell configure how to find it:
 
----
+	$ env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./configure
 
-comment on fedora core 6
-this is a redhat varient.   the bind libraries will be present if
-dns server is selected.  isc-config.sh will not be.  an alias will
-be needed from /usr/bin/isc-config.sh to wherever it is installed.
+    Also note that we have observed significant memory leaks on FreeBSD
+    (7.2) when using -x/-X.  To rectify:
 
-it may be necessary to install the pcap development libraries
-even if the base pcap is installed to get pcap.h for compile.
+	1. cd /usr/ports/dns/libbind
+	2. make config
+	3. de-select "Compile with thread support"
+	4. reinstall the libbind port
+	5. recompile and install dnscap
 
