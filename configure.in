@@ -2,7 +2,11 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.64])
-AC_INIT([dnscap], [VERSION], [wessels@dns-oarc.net])
+AC_INIT([dnscap],
+	m4_esyscmd([svn info | awk '/^Revision:/ {print "r" $2}' | tr -d '\n']),
+	[wessels@dns-oarc.net],
+	[],
+	[http://dnscap.dns-oarc.net/])
 AC_CONFIG_SRCDIR([dnscap.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR(cfgaux)
