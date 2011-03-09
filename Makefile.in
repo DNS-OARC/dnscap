@@ -23,6 +23,7 @@ LANG= en_US
 CC=@CC@
 CFLAGS=@CWARN@ @CFLAGS@ @OPTFLAGS@
 LIBS=@LIBS@
+LDFLAGS=@LDFLAGS@
 
 prog=dnscap
 prefix=@prefix@
