@@ -1,0 +1,55 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.64])
+AC_INIT([dnscap], [VERSION], [wessels@dns-oarc.net])
+AC_CONFIG_SRCDIR([dnscap.c])
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR(cfgaux)
+
+# Checks for programs.
+AC_PROG_CC
+#AC_PROG_INSTALL
+AC_CANONICAL_HOST
+
+# Checks for libraries.
+AC_CHECK_LIB([resolv], [ns_initparse])
+AC_CHECK_LIB([bind], [ns_initparse])
+AC_CHECK_LIB([pcap], [pcap_open_live])
+
+# HPUX
+case "$host_os" in
+hpux*)
+	AC_CHECK_LIB([hplx], [main])
+	;;
+esac
+
+# Solaris
+case "$host_os" in
+solaris*)
+	AC_CHECK_LIB([rt], [main])
+	AC_CHECK_LIB([md5], [main])
+	AC_CHECK_LIB([socket], [main])
+	AC_CHECK_LIB([nsl], [main])
+	;;
+esac
+
+# Checks for header files.
+AC_HEADER_RESOLV
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
+
+# Checks for library functions.
+AC_CHECK_FUNCS([snprintf])
+AC_CHECK_FUNCS([ns_initparse ns_parserr ns_sprintrr])
+AC_CHECK_FUNCS([__assertion_failed])
+
+OPTFLAGS=''
+
+if test "$GCC" = "yes"; then
+	CWARN="-Wall"
+fi
+
+AC_SUBST(OPTFLAGS, ["$OPTFLAGS"])
+AC_SUBST(CWARN, ["$CWARN"])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

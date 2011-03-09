@@ -28,6 +28,8 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 
 /* Import. */
 
+#include "config.h"
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -299,7 +301,7 @@ static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
-#if !HAVE_BINDLIB
+#if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
 
@@ -385,7 +387,7 @@ main(int argc, char *argv[]) {
 
 /* Private. */
 
-#if !HAVE_BINDLIB
+#if !HAVE___ASSERTION_FAILED
 static void
 my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something)
 {
@@ -701,16 +703,7 @@ parse_args(int argc, char *argv[]) {
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
-#if !HAVE_BINDLIB
-			/*
-			 * -x and -X options require libbind because
-			 * the code calls ns_initparse(), ns_parserr(),
-			 * and ns_sprintrr()
- 			 */
-			fprintf(stderr, "%s must be compiled with libbind to use the -x or -X option.\n",
-				ProgramName);
-			exit(1);
-#else
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 			{
 				int i;
 				myregex_ptr myregex = malloc(sizeof *myregex);
@@ -726,6 +719,15 @@ parse_args(int argc, char *argv[]) {
 				myregex->not = (ch == 'X');
 				APPEND(myregexes, myregex, link);
 			}
+#else
+			/*
+			 * -x and -X options require libbind because
+			 * the code calls ns_initparse(), ns_parserr(),
+			 * and ns_sprintrr()
+ 			 */
+			fprintf(stderr, "%s must be compiled with libbind to use the -x or -X option.\n",
+				ProgramName);
+			exit(1);
 #endif
 			break;
 		case 'B':
@@ -1844,7 +1846,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#if HAVE_BINDLIB
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 	if (!EMPTY(myregexes)) {
 		int match, negmatch;
 		ns_msg msg;
@@ -1909,7 +1911,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			return;
 		}
 	}
-#endif /* HAVE_BINDLIB */
+#endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 
 	/* Policy hiding. */
 	if (end_hide != 0) {
