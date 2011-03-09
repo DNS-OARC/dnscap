@@ -13,8 +13,8 @@ AC_PROG_CC
 AC_CANONICAL_HOST
 
 # Checks for libraries.
-AC_CHECK_LIB([resolv], [ns_initparse])
 AC_CHECK_LIB([bind], [ns_initparse])
+AC_CHECK_LIB([resolv], [ns_initparse])
 AC_CHECK_LIB([pcap], [pcap_open_live])
 
 # HPUX
