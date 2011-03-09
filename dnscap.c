@@ -947,8 +947,7 @@ prepare_bpft(void) {
 	if (!EMPTY(vlans))
 		len += text_add(&bpfl, "vlan and ( ");
 	if (wantfrags) {
-		len += text_add(&bpfl, "ip[6:2] & 0x1fff != 0 or ( ");
-		/* XXX what about IPv6 fragments? */
+		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ( ");
 	}
 	if (wanttcp) {
 		len += text_add(&bpfl, "( tcp port %d or ( ", dns_port);
