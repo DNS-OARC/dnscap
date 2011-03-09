@@ -17,3 +17,5 @@ TD=`mktemp -d /tmp/XXXXXXXXXXXXX`
 rm -rfv $TD
 echo "install -m 644 -o $USER /tmp/dnscap-$REV.tar.gz /usr/local/www/dnscap"
 install -m 644 -o $USER /tmp/dnscap-$REV.tar.gz /usr/local/www/dnscap
+(cd /usr/local/www/dnscap/; md5 *.tar.gz > MD5s.txt)
+
