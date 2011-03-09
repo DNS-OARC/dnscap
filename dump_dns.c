@@ -40,7 +40,9 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 
 #ifdef __linux__
 # define _GNU_SOURCE
+#ifndef __USE_POSIX199309
 # define __USE_POSIX199309
+#endif
 #endif
 
 #ifdef __SVR4
