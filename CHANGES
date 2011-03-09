@@ -1,0 +1,6 @@
+2011-03-09
+
+	Gave dnscap a ./configure script.  This should be more flexible
+	with respect to whether or not libbind is installed.
+
+	The bpf program omitted necessary terms to capture IPv6 frags
