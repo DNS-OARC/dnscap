@@ -49,12 +49,24 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
-AC_CHECK_FUNC([ns_initparse], [], AC_CHECK_FUNC(__ns_initparse,
-	[AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])]))
-AC_CHECK_FUNC([ns_parserr], [], AC_CHECK_FUNC(__ns_parserr,
-	[AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])]))
-AC_CHECK_FUNC([ns_sprintrr], [], AC_CHECK_FUNC(__ns_sprintrr,
-	[AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]))
+AC_CHECK_FUNC([ns_initparse],
+	[AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
+	AC_CHECK_FUNC(__ns_initparse,
+		[AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])]
+	)
+)
+AC_CHECK_FUNC([ns_parserr],
+	[AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])]
+	AC_CHECK_FUNC(__ns_parserr,
+		[AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])]
+	)
+)
+AC_CHECK_FUNC([ns_sprintrr],
+	[AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]
+	AC_CHECK_FUNC(__ns_sprintrr,
+		[AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]
+	)
+)
 AC_CHECK_FUNCS([__assertion_failed])
 
 if test "$GCC" = "yes" ; then

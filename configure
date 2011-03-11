@@ -3865,39 +3865,49 @@ done
 ac_fn_c_check_func "$LINENO" "ns_initparse" "ac_cv_func_ns_initparse"
 if test "x$ac_cv_func_ns_initparse" = x""yes; then :
 
+$as_echo "#define HAVE_NS_INITPARSE 1" >>confdefs.h
+
 else
   ac_fn_c_check_func "$LINENO" "__ns_initparse" "ac_cv_func___ns_initparse"
 if test "x$ac_cv_func___ns_initparse" = x""yes; then :
 
 $as_echo "#define HAVE_NS_INITPARSE 1" >>confdefs.h
 
+
 fi
+
 
 fi
 
 ac_fn_c_check_func "$LINENO" "ns_parserr" "ac_cv_func_ns_parserr"
 if test "x$ac_cv_func_ns_parserr" = x""yes; then :
 
-else
-  ac_fn_c_check_func "$LINENO" "__ns_parserr" "ac_cv_func___ns_parserr"
+$as_echo "#define HAVE_NS_PARSERR 1" >>confdefs.h
+
+	ac_fn_c_check_func "$LINENO" "__ns_parserr" "ac_cv_func___ns_parserr"
 if test "x$ac_cv_func___ns_parserr" = x""yes; then :
 
 $as_echo "#define HAVE_NS_PARSERR 1" >>confdefs.h
 
+
 fi
+
 
 fi
 
 ac_fn_c_check_func "$LINENO" "ns_sprintrr" "ac_cv_func_ns_sprintrr"
 if test "x$ac_cv_func_ns_sprintrr" = x""yes; then :
 
-else
-  ac_fn_c_check_func "$LINENO" "__ns_sprintrr" "ac_cv_func___ns_sprintrr"
+$as_echo "#define HAVE_NS_SPRINTRR 1" >>confdefs.h
+
+	ac_fn_c_check_func "$LINENO" "__ns_sprintrr" "ac_cv_func___ns_sprintrr"
 if test "x$ac_cv_func___ns_sprintrr" = x""yes; then :
 
 $as_echo "#define HAVE_NS_SPRINTRR 1" >>confdefs.h
 
+
 fi
+
 
 fi
 
