@@ -3,6 +3,7 @@
  * By: Paul Vixie, ISC, October 2007
  */
 
+#include "config.h"
 #include <sys/types.h>
 #include <stdio.h>
 #include "dump_dns.h"
