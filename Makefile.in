@@ -71,3 +71,10 @@ ${prog}.cat1: ${prog}.1
 	nroff -mandoc ${prog}.1 > ${prog}.cat1
 
 clean:; rm -f ${prog} ${prog}.cat1 snprintf* *.o *.core *.orig
+
+distclean:: clean
+	rm -f config.status
+	rm -f config.log
+	rm -rf autom4te.cache
+	rm -f config.h
+	rm -f Makefile
