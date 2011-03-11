@@ -7,20 +7,11 @@
 #include <stdio.h>
 #include "dump_dns.h"
 
-#if !HAVE_BINDLIB
-void
-dump_dns(const u_char *payload, size_t paylen,
-          FILE *trace, const char *endline)
-{
-	(void) payload;
-	(void) paylen;
-        fprintf(trace, " %sNO BINDLIB", endline);
-}
-#else
-
 #ifndef lint
 static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif
+
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR
 
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
@@ -225,6 +216,17 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 		putc(',', trace);
 		fputs(buf, trace);
 	}
+}
+
+#else
+
+void
+dump_dns(const u_char *payload, size_t paylen,
+          FILE *trace, const char *endline)
+{
+	(void) payload;
+	(void) paylen;
+        fprintf(trace, " %sNO BINDLIB", endline);
 }
 
 #endif
