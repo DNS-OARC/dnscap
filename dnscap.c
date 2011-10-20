@@ -34,6 +34,10 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/fcntl.h>		/* for open() */
+#include <sys/ioctl.h>		/* for TIOCNOTTY */
+#include <stdarg.h>
+#include <syslog.h>
 
 #ifdef __linux__
 # define __FAVOR_BSD
@@ -62,7 +66,6 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #endif
 
 #ifdef __APPLE__
-# include <sys/ioctl.h>
 # include <net/ethernet.h>
 # include <net/bpf.h>
 # include <arpa/nameser_compat.h>
@@ -301,6 +304,8 @@ static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
+static void daemonize(void);
+static int logerr(const char *fmt, ...);
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
@@ -338,6 +343,7 @@ static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
 static int promisc = TRUE;
+static int background = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
 static int wantfrags = FALSE;
@@ -377,6 +383,8 @@ main(int argc, char *argv[]) {
 	setsig(SIGTERM, TRUE);
 	if (dump_type == nowhere)
 		dumpstart = time(NULL);
+	if (background)
+		daemonize();
 	while (!main_exit)
 		poll_pcaps();
 	close_pcaps();
@@ -438,7 +446,7 @@ setsig(int sig, int oneshot) {
 		sa.sa_flags = SA_RESTART;
 	}
 	if (sigaction(sig, &sa, NULL) < 0) {
-		perror("sigaction");
+		logerr("sigaction: %s", strerror(errno));
 		exit(1);
 	}
 }
@@ -470,7 +478,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?pd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-?bpd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -486,6 +494,7 @@ help_2(void) {
 	fprintf(stderr,
 		"\noptions:\n"
 		"\t-? or -\\?  print these instructions and exit\n"
+		"\t-b         run in background as daemon\n"
 		"\t-p         do not put interface in promiscuous mode\n"
 		"\t-d         dump verbose trace information to stderr\n"
 		"\t-1         flush output on every packet\n"
@@ -547,10 +556,13 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(not_responders);
 	INIT_LIST(myregexes);
 	while ((ch = getopt(argc, argv,
-			"pd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:S")
+			"bpd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:S")
 		) != EOF)
 	{
 		switch (ch) {
+		case 'b':
+			background = TRUE;
+			break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -760,6 +772,8 @@ parse_args(int argc, char *argv[]) {
 		usage("without -w or -g, there would be no output");
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
+	if (background && (dumptrace || preso))
+		usage("the -b option is incompatible with -d and -g");
 	if (dumptrace >= 1) {
 		endpoint_ptr ep;
 		const char *sep;
@@ -1177,7 +1191,7 @@ poll_pcaps(void) {
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
 		if (errno != EINTR)
-			perror("select");
+			logerr("select: %s", strerror(errno));
 		main_exit = TRUE;
 		return;
 	}
@@ -1189,7 +1203,7 @@ poll_pcaps(void) {
 		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
 				  (u_char *)mypcap);
 		if (n == -1)
-			fprintf(stderr, "%s: pcap_dispatch: %s\n",
+			logerr("%s: pcap_dispatch: %s\n",
 				ProgramName, errbuf);
 		if (n < 0 || pcap_offline != NULL) {
 			main_exit = TRUE;
@@ -1268,7 +1282,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 	tcpstate_ptr tcpstate = malloc(sizeof *tcpstate);
 	if (tcpstate == NULL) {
 	    /* Out of memory; recycle the least recently used */
-	    fprintf(stderr, "warning: out of memory, "
+	    logerr("warning: out of memory, "
 		"discarding some TCP state early\n");
 	    tcpstate = TAIL(tcpstates);
 	    assert(tcpstate != NULL);
@@ -2040,14 +2054,14 @@ dumper_open(my_bpftimeval ts) {
 			     (u_long) ts.tv_usec) < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
-			perror("asprintf");
+			logerr("asprintf: %s", strerror(errno));
 			return (TRUE);
 		}
 		t = dumpnamepart;
 	}
 	dumper = pcap_dump_open(pcap_dead, t);
 	if (dumper == NULL) {
-		fprintf(stderr, "pcap dump open: %s\n",
+		logerr("pcap dump open: %s\n",
 			pcap_geterr(pcap_dead));
 		return (TRUE);
 	}
@@ -2083,7 +2097,7 @@ do_pcap_stats()
 	     mypcap = NEXT(mypcap, link)) {
 		mypcap->ps0 = mypcap->ps1;
 		pcap_stats(mypcap->pcap, &mypcap->ps1);
-		fprintf(stderr, "%4s: %7u recv %7u drop %7u total\n",
+		logerr("%4s: %7u recv %7u drop %7u total\n",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
@@ -2118,7 +2132,7 @@ dumper_close(void) {
 		rename(dumpnamepart, dumpname);
 		if (kick_cmd != NULL)
 			if (asprintf(&cmd, "%s %s &", kick_cmd, dumpname) < 0){
-				perror("asprintf");
+				logerr("asprintf: %s", strerror(errno));
 				cmd = NULL;
 			}
 		free(dumpnamepart); dumpnamepart = NULL;
@@ -2145,7 +2159,7 @@ sigclose(int signum) {
 
 static void
 sigbreak(int signum __attribute__((unused))) {
-	fprintf(stderr, "%s: signalled break\n", ProgramName);
+	logerr("%s: signalled break\n", ProgramName);
 	main_exit = TRUE;
 }
 
@@ -2170,4 +2184,49 @@ in_checksum(const u_char *ptr, size_t len) {
 
 	/* Caller should ~ this result. */
 	return ((uint16_t) sum);
+}
+
+static int
+logerr(const char *fmt, ...)
+{
+  va_list ap;
+  int x = 1;
+  va_start(ap, fmt);
+  if (background)
+    vsyslog(LOG_NOTICE, fmt, ap);
+  else
+    x = vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  return x;
+}
+
+static void
+daemonize(void)
+{
+  pid_t pid;
+  int i;
+  if ((pid = fork()) < 0) {
+    logerr("fork failed: %s", strerror(errno));
+    exit(1);
+  }
+  else if (pid > 0)
+    exit(0);
+  openlog("dnscap", 0, LOG_DAEMON);
+  if (setsid() < 0) {
+    logerr("setsid failed: %s", strerror(errno));
+    exit(1);
+  }
+#ifdef TIOCNOTTY
+  if ((i = open("/dev/tty", O_RDWR)) >= 0) {
+    ioctl(i, TIOCNOTTY, NULL);
+    close(i);
+  }
+#endif
+  i = open("/dev/null", O_RDWR);
+  dup2(i, 0);
+  dup2(i, 1);
+  dup2(i, 2);
+  for (i = 3; i < 10; i++)
+    close(i);
+  logerr("Backgrounded as pid %u", getpid());
 }
