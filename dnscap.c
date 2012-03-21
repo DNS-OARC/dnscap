@@ -1022,6 +1022,15 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
+#if 0
+	/*
+	 * 2012-03-19 Duane says its a mistake to build a BPF based
+	 * on not_initiators and not_responders because in an attack
+	 * scenario with spoofed sources the logic is somewhat
+	 * tricky.  We will want to capture responses *to* our name
+	 * server but not responses *from* our name server.  In
+	 * this case we cannot use the "not host x" logic of BPF.
+	 */
 	if (!EMPTY(not_initiators) ||
 	    !EMPTY(not_responders))
 	{
@@ -1046,6 +1055,7 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
+#endif
 	if (!EMPTY(vlans))
 		len += text_add(&bpfl, " )");
 	if (wanttcp)
