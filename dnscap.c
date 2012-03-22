@@ -315,7 +315,8 @@ static void my_assertion_failed(const char *file, int line, assertion_type type,
 static const char *ProgramName = "amnesia";
 static int dumptrace = 0;
 static int flush = FALSE;
-static vlan_list vlans;
+static vlan_list vlans_excl;
+static vlan_list vlans_incl;
 static unsigned msg_wanted = MSG_QUERY;
 static unsigned dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 static unsigned end_hide = 0U;
@@ -479,7 +480,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+\n"
+		"\t[-?bpd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -508,6 +509,7 @@ help_2(void) {
 		"\t-i <if>    select this live interface(s)\n"
 		"\t-r <file>  read this pcap file\n"
 		"\t-l <vlan>  select only these vlan(s)\n"
+		"\t-L <vlan>  select these vlan(s) and non-VLAN frames\n"
 		"\t-u <port>  dns port (default: 53)\n"
 		"\t-m [qun]   select messages: query, update, notify\n"
 		"\t-s [ir]    select sides: initiations, responses\n"
@@ -550,7 +552,8 @@ parse_args(int argc, char *argv[]) {
 		ProgramName = argv[0];
 	else
 		ProgramName = p+1;
-	INIT_LIST(vlans);
+	INIT_LIST(vlans_incl);
+	INIT_LIST(vlans_excl);
 	INIT_LIST(mypcaps);
 	INIT_LIST(initiators);
 	INIT_LIST(responders);
@@ -559,7 +562,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(drop_responders);
 	INIT_LIST(myregexes);
 	while ((ch = getopt(argc, argv,
-			"bpd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:S")
+			"bpd1g6f?i:r:l:L:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:S")
 		) != EOF)
 	{
 		switch (ch) {
@@ -620,7 +623,17 @@ parse_args(int argc, char *argv[]) {
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
-			APPEND(vlans, vlan, link);
+			APPEND(vlans_excl, vlan, link);
+			break;
+		case 'L':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0' || ul > MAX_VLAN)
+				usage("vlan must be 0 or an integer 1..4095");
+			vlan = malloc(sizeof *vlan);
+			assert(vlan != NULL);
+			INIT_LINK(vlan, link);
+			vlan->vlan = (unsigned) ul;
+			APPEND(vlans_incl, vlan, link);
 			break;
 		case 'T':
 			wanttcp = TRUE;
@@ -778,6 +791,8 @@ parse_args(int argc, char *argv[]) {
 		usage("without -w or -g, there would be no output");
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
+	if (!EMPTY(vlans_incl) && !EMPTY(vlans_excl))
+		usage("the -L and -l options are mutually exclusive");
 	if (background && (dumptrace || preso))
 		usage("the -b option is incompatible with -d and -g");
 	if (dumptrace >= 1) {
@@ -974,7 +989,7 @@ prepare_bpft(void) {
 	/* Make a BPF program to do early course kernel-level filtering. */
 	INIT_LIST(bpfl);
 	len = 0;
-	if (!EMPTY(vlans))
+	if (!EMPTY(vlans_excl))
 		len += text_add(&bpfl, "vlan and ( ");
 	if (wantfrags) {
 		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ( ");
@@ -1062,12 +1077,13 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-	if (!EMPTY(vlans))
+	if (!EMPTY(vlans_excl))
 		len += text_add(&bpfl, " )");
 	if (wanttcp)
 		len += text_add(&bpfl, " )");
 	if (wantfrags)
 		len += text_add(&bpfl, " )");
+
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
 	bpft[0] = '\0';
@@ -1076,6 +1092,17 @@ prepare_bpft(void) {
 	     text = NEXT(text, link))
 		strcat(bpft, text->text);
 	text_free(&bpfl);
+	if (!EMPTY(vlans_incl)) {
+        	static char *bpft_vlan;
+		len = 2*strlen(bpft) + strlen("() or (vlan and ())");
+        	bpft_vlan = malloc(len + 1);
+		assert(bpft_vlan != NULL);
+		sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
+		bpft = realloc(bpft, len + 1);
+		assert(bpft != NULL);
+		strcpy(bpft, bpft_vlan);
+		free(bpft_vlan);
+	}
 	if (dumptrace >= 1)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
@@ -1419,15 +1446,29 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		return;
 	}
 
-	if (!EMPTY(vlans)) {
+	if (!EMPTY(vlans_excl)) {
 		vlan_ptr vl;
 
-		for (vl = HEAD(vlans);
+		for (vl = HEAD(vlans_excl);
 		     vl != NULL;
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == 0)
 				break;
+        // If there is no VLAN matching the packet, skip it
 		if (vl == NULL)
+			return;
+	}
+	else if (!EMPTY(vlans_incl)) {
+		vlan_ptr vl;
+
+		for (vl = HEAD(vlans_incl);
+		     vl != NULL;
+		     vl = NEXT(vl, link))
+			if (vl->vlan == vlan || vl->vlan == 0)
+				break;
+        // If there is no VLAN matching the packet, and the packet is
+        // tagged, skip it
+		if (vl == NULL && vlan != 0)
 			return;
 	}
 
