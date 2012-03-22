@@ -324,6 +324,7 @@ static tcpstate_list tcpstates;
 static int tcpstate_count = 0;
 static endpoint_list initiators, not_initiators;
 static endpoint_list responders, not_responders;
+static endpoint_list drop_responders;		/* drops only responses from these hosts */
 static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
@@ -522,8 +523,9 @@ help_2(void) {
 		"\t               r = refused (rcode 5)\n"
 		"\t-a <host>  want messages from these initiator(s)\n"
 		"\t-z <host>  want messages from these responder(s)\n"
-		"\t-A <host>  want messages not from these initiator(s)\n"
-		"\t-Z <host>  want messages not from these responder(s)\n"
+		"\t-A <host>  drop queries from/responses to these initiator(s)\n"
+		"\t-Z <host>  drop queries to/responses from these responder(s)\n"
+		"\t-Y <host>  drop responses from these responder(s)\n"
 		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
@@ -554,9 +556,10 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(responders);
 	INIT_LIST(not_initiators);
 	INIT_LIST(not_responders);
+	INIT_LIST(drop_responders);
 	INIT_LIST(myregexes);
 	while ((ch = getopt(argc, argv,
-			"bpd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:w:k:t:c:x:X:B:E:S")
+			"bpd1g6f?i:r:l:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:S")
 		) != EOF)
 	{
 		switch (ch) {
@@ -686,6 +689,9 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'Z':
 			endpoint_arg(&not_responders, optarg);
+			break;
+		case 'Y':
+			endpoint_arg(&drop_responders, optarg);
 			break;
 		case 'w':
 			dump_base = optarg;
@@ -838,6 +844,16 @@ parse_args(int argc, char *argv[]) {
 			sep = "";
 		}
 		if (!EMPTY(not_responders))
+			fprintf(stderr, "\n");
+		sep = "\t!dropresp";
+		for (ep = HEAD(drop_responders);
+		     ep != NULL;
+		     ep = NEXT(ep, link))
+		{
+			fprintf(stderr, "%s %s", sep, ia_str(ep->ia));
+			sep = "";
+		}
+		if (!EMPTY(drop_responders))
 			fprintf(stderr, "\n");
 		if (!EMPTY(myregexes)) {
 			fprintf(stderr, "%s: pat:", ProgramName);
@@ -1022,15 +1038,6 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-#if 0
-	/*
-	 * 2012-03-19 Duane says its a mistake to build a BPF based
-	 * on not_initiators and not_responders because in an attack
-	 * scenario with spoofed sources the logic is somewhat
-	 * tricky.  We will want to capture responses *to* our name
-	 * server but not responses *from* our name server.  In
-	 * this case we cannot use the "not host x" logic of BPF.
-	 */
 	if (!EMPTY(not_initiators) ||
 	    !EMPTY(not_responders))
 	{
@@ -1055,7 +1062,6 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-#endif
 	if (!EMPTY(vlans))
 		len += text_add(&bpfl, " )");
 	if (wanttcp)
@@ -1866,6 +1872,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 		if (!match_tc && !match_rcode) {
 			discard(tcpstate, "unwanted error code");
+			return;
+		}
+		if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
+			discard(tcpstate, "dropped response due to -Y");
 			return;
 		}
 	}
