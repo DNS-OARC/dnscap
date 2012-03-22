@@ -32,6 +32,7 @@
 .Op Fl z Ar host ...
 .Op Fl A Ar host ...
 .Op Fl Z Ar host ...
+.Op Fl Y Ar host ...
 .Op Fl u Ar port
 .Oo
 .Fl w
@@ -199,6 +200,13 @@ host's addresses whether IPv4 or IPv6 are added to the recognition pattern.
 Capture only transactions NOT having these initiators.
 .It Fl Z Ar host
 Capture only transactions NOT having these responders.
+.It Fl Y Ar host
+Drop responses having these responders.  Similar to
+.Fl Z
+in spirit.  However,
+.Fl Y
+applies only to responses and does not cause any additions to the BPF filter
+string.
 .It Fl w Ar base
 Dump the captured packets to successive binary files in
 .Xr pcap 3
