@@ -1,0 +1,4 @@
+*.o
+config.status
+config.log
+config.h
