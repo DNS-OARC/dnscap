@@ -2,3 +2,6 @@
 config.status
 config.log
 config.h
+dnscap
+dnscap.cat1
+*.swp
