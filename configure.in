@@ -24,6 +24,7 @@ AC_CHECK_LIB([pcap], [pcap_open_live], [],
 	echo "systems.  You can also get the source from www.tcpdump.org."
 	exit 1
 	])
+AC_CHECK_LIB([dl], [dlopen])
 
 
 # HPUX

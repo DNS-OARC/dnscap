@@ -38,6 +38,7 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <sys/ioctl.h>		/* for TIOCNOTTY */
 #include <stdarg.h>
 #include <syslog.h>
+#include <dlfcn.h>
 
 #ifdef __linux__
 # define __FAVOR_BSD
@@ -62,7 +63,6 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 # include <netinet/in.h>
 # include <netinet/in_var.h>
 # include <netinet/if_ether.h>
-# define MY_BPFTIMEVAL bpf_timeval
 #endif
 
 #ifdef __APPLE__
@@ -122,6 +122,8 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
 #endif
+
+#include "dnscap_common.h"
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -207,16 +209,6 @@ extern char *strptime(const char *, const char *, struct tm *);
 
 /* Data structures. */
 
-typedef struct MY_BPFTIMEVAL my_bpftimeval;
-
-typedef struct {
-	int			af;
-	union {
-		struct in_addr		a4;
-		struct in6_addr		a6;
-	} u;
-} iaddr;
-
 struct endpoint {
 	LINK(struct endpoint)  link;
 	iaddr			ia;
@@ -274,6 +266,20 @@ struct tcpstate {
 typedef struct tcpstate *tcpstate_ptr;
 typedef LIST(struct tcpstate) tcpstate_list;
 
+struct plugin {
+	LINK(struct plugin)	link;
+	char			*name;
+	void			*handle;
+	int			(*start)(logerr_t *);
+	void			(*stop)();
+	int			(*open)(my_bpftimeval);
+	int			(*close)();
+	output_t		(*output);
+	void			(*getopt)(int *, char **[]);
+	void			(*usage)();
+};
+LIST(struct plugin) plugins;
+
 /* Forward. */
 
 static void setsig(int, int);
@@ -295,20 +301,18 @@ static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
-static void output(const char *descr, iaddr from, iaddr to, int isfrag,
-    unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen);
+static output_t output;
 static int dumper_open(my_bpftimeval);
 static int dumper_close(void);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
-static int logerr(const char *fmt, ...);
+static logerr_t logerr;
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
+
 
 /* Private data. */
 
@@ -361,6 +365,7 @@ static int print_pcap_stats = FALSE;
 
 int
 main(int argc, char *argv[]) {
+	struct plugin *p;
 	res_init();
 	parse_args(argc, argv);
 	if (start_time) {
@@ -383,6 +388,13 @@ main(int argc, char *argv[]) {
 	setsig(SIGINT, TRUE);
 	setsig(SIGALRM, FALSE);
 	setsig(SIGTERM, TRUE);
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+		if (p->start)
+			if (0 != (*p->start)(logerr)) {
+				logerr("%s_start returned non-zero", p->name);
+				exit(1);
+			}
+	}
 	if (dump_type == nowhere)
 		dumpstart = time(NULL);
 	if (background)
@@ -392,6 +404,10 @@ main(int argc, char *argv[]) {
 	close_pcaps();
 	if (dumper != NULL)
 		(void) dumper_close();
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+		if (p->stop)
+			(*p->stop)();
+	}
 	exit(0);
 }
 
@@ -467,9 +483,13 @@ xtimegm(struct tm *tmp)
 
 static void
 usage(const char *msg) {
+	struct plugin *p;
 	fprintf(stderr, "%s: usage error: %s\n", ProgramName, msg);
 	fprintf(stderr, "\n");
 	help_1();
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
+		if (p->usage)
+			(*p->usage)();
 	fprintf(stderr,
 		"\nnote: the -? or -\\? option will display full help text\n");
 	exit(1);
@@ -486,7 +506,8 @@ help_1(void) {
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
-		"\t[-B <datetime>]+ [-E <datetime>]+\n",
+		"\t[-B <datetime>]+ [-E <datetime>]+\n"
+		"\t[-P plugin.so]\n",
 		ProgramName);
 }
 
@@ -561,8 +582,9 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(not_responders);
 	INIT_LIST(drop_responders);
 	INIT_LIST(myregexes);
+	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"bpd1g6f?i:r:l:L:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:S")
+			"bpd1g6f?i:r:l:L:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:SP:")
 		) != EOF)
 	{
 		switch (ch) {
@@ -781,6 +803,47 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'S':
 			print_pcap_stats = TRUE;
+			break;
+		case 'P':
+			{
+				char *fn = strdup(optarg);
+				char *t;
+				char sn[256];
+				struct plugin *p = calloc(1, sizeof(*p));
+				assert(p != NULL);
+				INIT_LINK(p, link);
+				t = strrchr(fn, '/');
+				p->name = strdup(t ? t+1 : fn);
+				if ((t = strstr(p->name, ".so")))
+					*t = 0;
+				p->handle = dlopen(fn, RTLD_NOW);
+				if (!p->handle) {
+					logerr("%s: %s", fn, dlerror());
+					exit(1);
+				}
+				snprintf(sn, sizeof(sn), "%s_start", p->name);
+				p->start = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_stop", p->name);
+				p->stop = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_open", p->name);
+				p->open = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_close", p->name);
+				p->close = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_output", p->name);
+				p->output = dlsym(p->handle, sn);
+				if (!p->output) {
+					logerr("%s", dlerror());
+					exit(1);
+				}
+				snprintf(sn, sizeof(sn), "%s_usage", p->name);
+				p->usage = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_getopt", p->name);
+				p->getopt = dlsym(p->handle, sn);
+				if (p->getopt)
+					(*p->getopt)(&argc, &argv);
+				APPEND(plugins, p, link);
+			}
+			break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -1326,7 +1389,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 	if (tcpstate == NULL) {
 	    /* Out of memory; recycle the least recently used */
 	    logerr("warning: out of memory, "
-		"discarding some TCP state early\n");
+		"discarding some TCP state early");
 	    tcpstate = TAIL(tcpstates);
 	    assert(tcpstate != NULL);
 	} else {
@@ -1574,7 +1637,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		{
 			if (wantfrags) {
 				isfrag = TRUE;
-				output(descr, from, to, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+				output(descr, from, to, ip->ip_p, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
 				return;
 			}
 			return;
@@ -1624,7 +1687,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if (nexthdr == IPPROTO_FRAGMENT) {
 				if (wantfrags) {
 					isfrag = TRUE;
-					output(descr, from, to, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+					output(descr, from, to, IPPROTO_FRAGMENT, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
 					return;
 				}
 				return;
@@ -1739,7 +1802,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    /* Always output FIN and RST segments. */
 		    if (dumptrace >= 3)
 			fprintf(stderr, "FIN|RST\n");
-		    output(descr, from, to, isfrag, sport, dport, ts,
+		    output(descr, from, to, proto, isfrag, sport, dport, ts,
 			pkt_copy, olen, NULL, 0);
 		    /* End of stream; deallocate the tcpstate. */
 		    if (tcpstate) {
@@ -1753,7 +1816,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    if (dumptrace >= 3)
 			fprintf(stderr, "SYN\n");
 		    /* Always output SYN segments. */
-		    output(descr, from, to, isfrag, sport, dport, ts,
+		    output(descr, from, to, proto, isfrag, sport, dport, ts,
 			pkt_copy, olen, NULL, 0);
 		    if (tcpstate) {
 #if 0
@@ -1802,7 +1865,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    fprintf(stderr, "len\n");
 			tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
 			tcpstate->maxdiff = (uint32_t)len;
-			output(descr, from, to, isfrag, sport, dport, ts,
+			output(descr, from, to, proto, isfrag, sport, dport, ts,
 			    pkt_copy, olen, NULL, 0);
 			return;
 		    } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
@@ -1837,7 +1900,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    fprintf(stderr, "keep\n");
 			if (tcpstate->maxdiff < seqdiff + (uint32_t)len)
 			    tcpstate->maxdiff = seqdiff + (uint32_t)len;
-			output(descr, from, to, isfrag, sport, dport, ts,
+			output(descr, from, to, proto, isfrag, sport, dport, ts,
 			    pkt_copy, olen, NULL, 0);
 			return;
 		    }
@@ -2042,16 +2105,17 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 	msgcount++;
-	output(descr, from, to, isfrag, sport, dport, ts,
+	output(descr, from, to, proto, isfrag, sport, dport, ts,
 	    pkt_copy, olen, dnspkt, dnslen);
 }
 
 static void
-output(const char *descr, iaddr from, iaddr to, int isfrag,
+output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char *pkt_copy, unsigned olen,
     const u_char *dnspkt, unsigned dnslen)
 {
+	struct plugin *p;
 	/* Output stage. */
 	if (preso) {
 		fputs(descr, stderr);
@@ -2080,6 +2144,9 @@ output(const char *descr, iaddr from, iaddr to, int isfrag,
 		if (flush)
 			pcap_dump_flush(dumper);
 	}
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
+		if (p->output)
+			(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
 	if (limit_packets != 0U && msgcount == limit_packets) {
 		if (dump_type == nowhere)
 			goto breakloop;
@@ -2096,6 +2163,7 @@ output(const char *descr, iaddr from, iaddr to, int isfrag,
 static int
 dumper_open(my_bpftimeval ts) {
 	const char *t = NULL;
+	struct plugin *p;
 
 	if (dump_type == to_stdout) {
 		t = "-";
@@ -2146,6 +2214,15 @@ dumper_open(my_bpftimeval ts) {
 			alarm_set = TRUE;
 		}
 	}
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+		int x;
+		if (!p->open)
+			continue;
+		x = (*p->open)(ts);
+		if (0 == x)
+			continue;
+		logerr("%s_open returned %d", p->name, x);
+	}
 	return (FALSE);
 }
 
@@ -2169,6 +2246,7 @@ do_pcap_stats()
 static int
 dumper_close(void) {
 	int ret = FALSE;
+	struct plugin *p;
 
 	if (print_pcap_stats)
 		do_pcap_stats();
@@ -2206,6 +2284,14 @@ dumper_close(void) {
 		}
 		if (kick_cmd == NULL)
 			ret = TRUE;
+	}
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+		int x;
+		if (!p->close)
+			continue;
+		x = (*p->close)();
+		if (x)
+			logerr("%s_close returned %d", p->name, x);
 	}
 	return (ret);
 }

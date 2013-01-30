@@ -15,6 +15,9 @@
 /* Define to 1 if you have the `bind' library (-lbind). */
 #undef HAVE_LIBBIND
 
+/* Define to 1 if you have the `dl' library (-ldl). */
+#undef HAVE_LIBDL
+
 /* Define to 1 if you have the `hplx' library (-lhplx). */
 #undef HAVE_LIBHPLX
 

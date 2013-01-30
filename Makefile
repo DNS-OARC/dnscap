@@ -22,7 +22,7 @@ LANG= en_US
 
 CC=gcc
 CFLAGS=-Wall -g -O2 
-LIBS=-lpcap -lresolv 
+LIBS=-ldl -lpcap -lresolv 
 LDFLAGS=
 
 prog=dnscap
