@@ -1246,7 +1246,7 @@ poll_pcaps(void) {
 		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
 				  (u_char *)mypcap);
 		if (n == -1)
-			logerr("%s: pcap_dispatch: %s\n",
+			logerr("%s: pcap_dispatch: %s",
 				ProgramName, errbuf);
 		if (n < 0 || pcap_offline != NULL) {
 			main_exit = TRUE;
@@ -2122,7 +2122,7 @@ dumper_open(my_bpftimeval ts) {
 	}
 	dumper = pcap_dump_open(pcap_dead, t);
 	if (dumper == NULL) {
-		logerr("pcap dump open: %s\n",
+		logerr("pcap dump open: %s",
 			pcap_geterr(pcap_dead));
 		return (TRUE);
 	}
@@ -2158,7 +2158,7 @@ do_pcap_stats()
 	     mypcap = NEXT(mypcap, link)) {
 		mypcap->ps0 = mypcap->ps1;
 		pcap_stats(mypcap->pcap, &mypcap->ps1);
-		logerr("%4s: %7u recv %7u drop %7u total\n",
+		logerr("%4s: %7u recv %7u drop %7u total",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
@@ -2220,7 +2220,7 @@ sigclose(int signum) {
 
 static void
 sigbreak(int signum __attribute__((unused))) {
-	logerr("%s: signalled break\n", ProgramName);
+	logerr("%s: signalled break", ProgramName);
 	main_exit = TRUE;
 }
 
@@ -2255,8 +2255,10 @@ logerr(const char *fmt, ...)
   va_start(ap, fmt);
   if (background)
     vsyslog(LOG_NOTICE, fmt, ap);
-  else
+  else {
     x = vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
+  }
   va_end(ap);
   return x;
 }
