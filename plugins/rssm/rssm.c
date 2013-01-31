@@ -21,16 +21,17 @@
 
 #include "hashtbl.h"
 
-static logerr_t *my_logerr;
+static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval last_ts;
-static const char *prefix = "rssm";
+static const char *counts_prefix = "rssm";
+static const char *sources_prefix = 0;
 
 output_t rssm_output;
 
 #define MAX_SIZE_INDEX 4096
 #define MSG_SIZE_SHIFT 4
-#define MAX_TBL_ADDRS 1000000
+#define MAX_TBL_ADDRS 2000000
 
 typedef struct {
 	hashtbl *tbl;
@@ -50,13 +51,10 @@ struct {
 	uint64_t dns_tcp_responses_received_ipv6;
 	uint64_t query_size[MAX_SIZE_INDEX];
 	uint64_t response_size[MAX_SIZE_INDEX];
-	my_hashtbl ht_ipv4_full;
-	my_hashtbl ht_ipv6_full;
-	my_hashtbl ht_ipv6_aggr;
+	my_hashtbl sources;
 } counts;
 
 
-#if 0
 static char *
 iaddr_ntop(const iaddr *ia)
 {
@@ -67,7 +65,6 @@ iaddr_ntop(const iaddr *ia)
 	inet_ntop(ia->af, &ia->u, bufs[idx], 256);
 	return bufs[idx];
 }
-#endif
 
 static unsigned int
 iaddr_hash(const iaddr *ia)
@@ -104,7 +101,8 @@ rssm_usage()
 {
 	fprintf(stderr,
 		"\nrssm.so options:\n"
-		"\t-w <base>  write to <base>.<timesec>.<timeusec>\n"
+		"\t-w <name>  write basic counters to <name>.<timesec>.<timeusec>\n"
+		"\t-s <name>  write source IPs to <name>.<timesec>.<timeusec>\n"
 		);
 }
 
@@ -112,10 +110,13 @@ void
 rssm_getopt(int *argc, char **argv[])
 {
 	int c;
-	while ((c = getopt(*argc, *argv, "w:")) != EOF) {
+	while ((c = getopt(*argc, *argv, "w:s:")) != EOF) {
 		switch(c) {
 		case 'w':
-			prefix = strdup(optarg);
+			counts_prefix = strdup(optarg);
+			break;
+		case 's':
+			sources_prefix = strdup(optarg);
 			break;
 		default:
 			rssm_usage();
@@ -127,7 +128,7 @@ rssm_getopt(int *argc, char **argv[])
 int
 rssm_start(logerr_t *a_logerr)
 {
-	my_logerr = a_logerr;
+	logerr = a_logerr;
 	return 0;
 }
 
@@ -140,56 +141,24 @@ int
 rssm_open(my_bpftimeval ts)
 {
 	open_ts = ts;
-	if (counts.ht_ipv4_full.tbl)
-		hash_destroy(counts.ht_ipv4_full.tbl);
-	if (counts.ht_ipv6_full.tbl)
-		hash_destroy(counts.ht_ipv6_full.tbl);
-	if (counts.ht_ipv6_aggr.tbl)
-		hash_destroy(counts.ht_ipv6_aggr.tbl);
+	if (counts.sources.tbl)
+		hash_destroy(counts.sources.tbl);
 	memset(&counts, 0, sizeof(counts));
-	counts.ht_ipv4_full.tbl = hash_create(65536, (hashfunc*) iaddr_hash, (hashkeycmp*) iaddr_cmp, 0);
-	counts.ht_ipv6_full.tbl = hash_create(65536, (hashfunc*) iaddr_hash, (hashkeycmp*) iaddr_cmp, 0);
-	counts.ht_ipv6_aggr.tbl = hash_create(65536, (hashfunc*) iaddr_hash, (hashkeycmp*) iaddr_cmp, 0);
+	counts.sources.tbl = hash_create(65536, (hashfunc*) iaddr_hash, (hashkeycmp*) iaddr_cmp, 0);
 	return 0;
 }
 
-/*
- * Fork a separate process so that we don't block the main dnscap.  Use double-fork
- * to avoid zombies for the main dnscap process.
- */
-int
-rssm_close()
+void
+rssm_save_counts(const char *sbuf)
 {
 	FILE *fp;
-	char sbuf[265];
-	char *tbuf;
-	pid_t pid;
 	int i;
-	pid = fork();
-	if (pid < 0) {
-		my_logerr("rssm.so: fork: %s", strerror(errno));
-		return 1;
-	} else if (pid) {
-		/* parent */
-		waitpid(pid, NULL, 0);
-		return 0;
-	}
-	/* 1st gen child continues */
-	pid = fork();
-	if (pid < 0) {
-		my_logerr("rssm.so: fork: %s", strerror(errno));
-		return 1;
-	} else if (pid) {
-		/* 1st gen child exits */
-		exit(0);
-	}
-	/* grandchild (2nd gen) continues */
-	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
-	asprintf(&tbuf, "%s.%s.%06lu", prefix, sbuf, (u_long) open_ts.tv_usec);
+	char *tbuf;
+	asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
 	fp = fopen(tbuf, "w");
 	if (!fp) {
-		my_logerr("%s: %s", sbuf, strerror(errno));
-		return 1;
+		logerr("%s: %s", sbuf, strerror(errno));
+		return;
 	}
 	fprintf(fp, "first-packet-time %lu\n", open_ts.tv_sec);
 	fprintf(fp, "last-packet-time %lu\n", last_ts.tv_sec);
@@ -213,10 +182,63 @@ rssm_close()
 				i<<MSG_SIZE_SHIFT,
 				((i+1)<<MSG_SIZE_SHIFT)-1,
 				counts.response_size[i]);
-	fprintf(fp, "num-sources-ipv4 %d\n", hash_count(counts.ht_ipv4_full.tbl));
-	fprintf(fp, "num-sources-ipv6 %d\n", hash_count(counts.ht_ipv6_full.tbl));
-	fprintf(fp, "num-sources-ipv6-aggregate %d\n", hash_count(counts.ht_ipv6_aggr.tbl));
+	fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
 	fclose(fp);
+	free(tbuf);
+}
+
+void
+rssm_save_sources(const char *sbuf)
+{
+	FILE *fp;
+	char *tbuf;
+	int i;
+	asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long) open_ts.tv_usec);
+	fp = fopen(tbuf, "w");
+	if (!fp) {
+		logerr("%s: %s", tbuf, strerror(errno));
+		return;
+	}
+	for (i = 0; i < counts.sources.num_addrs; i++) {
+		fprintf(fp, "%s %"PRIu64"\n", iaddr_ntop(&counts.sources.addrs[i]), counts.sources.count[i]);
+	}
+	fclose(fp);
+	free(tbuf);
+}
+
+/*
+ * Fork a separate process so that we don't block the main dnscap.  Use double-fork
+ * to avoid zombies for the main dnscap process.
+ */
+int
+rssm_close()
+{
+	char sbuf[265];
+	pid_t pid;
+	pid = fork();
+	if (pid < 0) {
+		logerr("rssm.so: fork: %s", strerror(errno));
+		return 1;
+	} else if (pid) {
+		/* parent */
+		waitpid(pid, NULL, 0);
+		return 0;
+	}
+	/* 1st gen child continues */
+	pid = fork();
+	if (pid < 0) {
+		logerr("rssm.so: fork: %s", strerror(errno));
+		return 1;
+	} else if (pid) {
+		/* 1st gen child exits */
+		exit(0);
+	}
+	/* grandchild (2nd gen) continues */
+	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
+	if (counts_prefix)
+		rssm_save_counts(sbuf);
+	if (sources_prefix)
+		rssm_save_sources(sbuf);
 	exit(0);
 }
 
@@ -251,19 +273,14 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 	HEADER *dns = (HEADER *) dnspkt;
 	if (0 == dns->qr) {
 		counts.query_size[dnslen]++;
+		hash_find_or_add(from, &counts.sources);
 		if (AF_INET == from.af) {
-			hash_find_or_add(from, &counts.ht_ipv4_full);
 			if (IPPROTO_UDP == proto) {
 				counts.dns_udp_queries_received_ipv4++;
 			} else if (IPPROTO_TCP == proto) {
 				counts.dns_tcp_queries_received_ipv4++;
 			}
 		} else if (AF_INET6 == from.af) {
-			iaddr aggr = from;
-			void *z = &aggr.u;
-			memset(z+8, 0, 8);
-			hash_find_or_add(from, &counts.ht_ipv6_full);
-			hash_find_or_add(aggr, &counts.ht_ipv6_aggr);
 			if (IPPROTO_UDP == proto) {
 				counts.dns_udp_queries_received_ipv6++;
 			} else if (IPPROTO_TCP == proto) {
