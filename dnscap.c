@@ -2144,10 +2144,9 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		if (flush)
 			pcap_dump_flush(dumper);
 	}
-	if (dnslen && dnspkt)
-		for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
-			if (p->output)
-				(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
+	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
+		if (p->output)
+			(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
 	if (limit_packets != 0U && msgcount == limit_packets) {
 		if (dump_type == nowhere)
 			goto breakloop;
