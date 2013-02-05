@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <sys/wait.h>
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 
 #include "../../dnscap_common.h"
 
@@ -29,6 +30,7 @@ static pcap_t *pcap_dead = 0;
 static pcap_dumper_t *dumper = 0;
 static const char *kick_cmd = 0;
 static int flush = 0;
+static int dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 
 void
 pcapdump_usage()
@@ -37,13 +39,17 @@ pcapdump_usage()
 	"\npcapdump.so options:\n"
 	"\t-d         increase debugging\n"
 	"\t-d         flush output on every packet\n"
-	"\t-k <cmd>   kick off <cmd> when each dump closes\n" "\t-w <base>  dump to <base>.<timesec>.<timeusec>\n");
+	"\t-k <cmd>   kick off <cmd> when each dump closes\n" "\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
+	"\t-s [ir]    select sides: initiations, responses\n"
+	);
 }
 
 void
 pcapdump_getopt(int *argc, char **argv[])
 {
     int c;
+    int u;
+    const char *p;
     while ((c = getopt(*argc, *argv, "dfk:w:")) != EOF) {
 	switch (c) {
 	case 'd':
@@ -54,6 +60,16 @@ pcapdump_getopt(int *argc, char **argv[])
 	    break;
 	case 'k':
 	    kick_cmd = strdup(optarg);
+	    break;
+	case 's':
+	    u = 0;
+	    for (p = optarg; *p; p++)
+		switch (*p) {
+		    case 'i': u |= DIR_INITIATE; break;
+		    case 'r': u |= DIR_RESPONSE; break;
+		    default: fprintf(stderr, "-s takes only [ir]\n"); pcapdump_usage(); break;
+		}
+	    dir_wanted = u;
 	    break;
 	case 'w':
 	    if (strcmp(optarg, "-"))
@@ -169,6 +185,13 @@ pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfr
     const u_char * pkt_copy, unsigned olen, const u_char * dnspkt, unsigned dnslen)
 {
     struct pcap_pkthdr h;
+    if (dnspkt) {
+        HEADER *dns = (HEADER *) dnspkt;
+        if (0 == dns->qr && 0 == (dir_wanted|DIR_INITIATE))
+	    return;
+        if (1 == dns->qr && 0 == (dir_wanted|DIR_RESPONSE))
+	    return;
+    }
     memset(&h, 0, sizeof h);
     h.ts = ts;
     h.len = h.caplen = olen;

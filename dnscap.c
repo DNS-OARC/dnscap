@@ -168,9 +168,6 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define MSG_UPDATE	0x0002
 #define	MSG_NOTIFY	0x0004
 
-#define DIR_INITIATE	0x0001
-#define DIR_RESPONSE	0x0002
-
 #define ERR_TRUNC	0x0001
 #define ERR_RCODE_BASE	0x0002
 #define ERR_NO		(ERR_RCODE_BASE << ns_r_noerror)

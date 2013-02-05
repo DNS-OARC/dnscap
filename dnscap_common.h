@@ -43,3 +43,6 @@ typedef void output_t(const char *descr,
         unsigned olen,
         const u_char *dnspkt,
         unsigned dnslen);
+
+#define DIR_INITIATE	0x0001
+#define DIR_RESPONSE	0x0002
