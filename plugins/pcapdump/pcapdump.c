@@ -38,9 +38,10 @@ pcapdump_usage()
     fprintf(stderr,
 	"\npcapdump.so options:\n"
 	"\t-d         increase debugging\n"
-	"\t-d         flush output on every packet\n"
-	"\t-k <cmd>   kick off <cmd> when each dump closes\n" "\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
+	"\t-f         flush output on every packet\n"
+	"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 	"\t-s [ir]    select sides: initiations, responses\n"
+	"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
 	);
 }
 
@@ -50,7 +51,7 @@ pcapdump_getopt(int *argc, char **argv[])
     int c;
     int u;
     const char *p;
-    while ((c = getopt(*argc, *argv, "dfk:w:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "dfk:s:w:")) != EOF) {
 	switch (c) {
 	case 'd':
 	    dbg_lvl++;
@@ -72,7 +73,7 @@ pcapdump_getopt(int *argc, char **argv[])
 	    dir_wanted = u;
 	    break;
 	case 'w':
-	    if (strcmp(optarg, "-"))
+	    if (!strcmp(optarg, "-"))
 		to_stdout = 1;
 	    else
 		dump_base = strdup(optarg);
@@ -187,9 +188,9 @@ pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfr
     struct pcap_pkthdr h;
     if (dnspkt) {
         HEADER *dns = (HEADER *) dnspkt;
-        if (0 == dns->qr && 0 == (dir_wanted|DIR_INITIATE))
+        if (0 == dns->qr && 0 == (dir_wanted&DIR_INITIATE))
 	    return;
-        if (1 == dns->qr && 0 == (dir_wanted|DIR_RESPONSE))
+        if (1 == dns->qr && 0 == (dir_wanted&DIR_RESPONSE))
 	    return;
     }
     memset(&h, 0, sizeof h);
