@@ -46,12 +46,12 @@ all: ${prog} ${prog}.cat1
 
 install: all
 	install -d -m 755 ${bindir}
-	install -d -m 755 ${mandir}
-	install -d -m 755 ${mandir}/cat1
 	if [ -f ${bindir}/${prog} ]; then \
 		mv -f ${bindir}/${prog} ${bindir}/${prog}.old; fi
 	install -m 755 ${prog} ${bindir}/
-	install -m 644 ${prog}.cat1 /usr/local/man/cat1/${prog}.1
+	install -d -m 755 ${mandir}
+	install -d -m 755 ${mandir}/cat1
+	install -m 644 ${prog}.cat1 ${mandir}/cat1/${prog}.1
 
 .c.o:
 	${CC} ${CFLAGS} -c $<
