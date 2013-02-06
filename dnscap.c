@@ -847,8 +847,10 @@ parse_args(int argc, char *argv[]) {
 	}
 	assert(msg_wanted != 0U);
 	assert(err_wanted != 0U);
+#if 0
 	if (dump_type == nowhere && !preso)
 		usage("without -w or -g, there would be no output");
+#endif
 	if (end_hide != 0U && wantfrags)
 		usage("the -h and -f options are incompatible");
 	if (!EMPTY(vlans_incl) && !EMPTY(vlans_excl))
@@ -1562,7 +1564,25 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	} else {
 		descr[0] = '\0';
 	}
+
+	if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper)
+		dumper_close();
+	if (dumper == NULL && dump_type != nowhere && dumper_open(hdr->ts))
+		goto breakloop;
+
 	network_pkt(descr, hdr->ts, pf, pkt, len);
+
+	if (limit_packets != 0U && msgcount == limit_packets) {
+		if (preso)
+			goto breakloop;
+		if (dumper != NULL && dumper_close())
+			goto breakloop;
+		msgcount = 0;
+	}
+	return;
+ breakloop:
+	breakloop_pcaps();
+	main_exit = TRUE;
 }
 
 /* Discard this packet.  If it's part of TCP stream, all subsequent pkts on
@@ -2126,14 +2146,10 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 			    dump_dns(dnspkt, dnslen, stderr, "\\\n\t");
 		}
 		putc('\n', stderr);
-	}
+	} else
 	if (dump_type != nowhere) {
 		struct pcap_pkthdr h;
 
-		if (next_interval != 0 && ts.tv_sec >= next_interval)
-			dumper_close();
-		if (dumper == NULL && dumper_open(ts))
-			goto breakloop;
 		memset(&h, 0, sizeof h);
 		h.ts = ts;
 		h.len = h.caplen = olen;
@@ -2144,17 +2160,8 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
 			(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
-	if (limit_packets != 0U && msgcount == limit_packets) {
-		if (dump_type == nowhere)
-			goto breakloop;
-		if (dumper != NULL && dumper_close())
-			goto breakloop;
-		msgcount = 0;
-	}
+
 	return;
- breakloop:
-	breakloop_pcaps();
-	main_exit = TRUE;
 }
 
 static int
