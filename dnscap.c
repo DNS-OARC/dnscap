@@ -332,6 +332,7 @@ static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
+static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
 static const char *kick_cmd = NULL;
 static unsigned limit_seconds = 0U;
 static time_t next_interval = 0;
@@ -839,6 +840,8 @@ parse_args(int argc, char *argv[]) {
 				if (p->getopt)
 					(*p->getopt)(&argc, &argv);
 				APPEND(plugins, p, link);
+				if (dumptrace)
+					fprintf(stderr, "Plugin '%s' loaded\n", p->name);
 			}
 			break;
 		default:
@@ -1565,9 +1568,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		descr[0] = '\0';
 	}
 
-	if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper)
+	if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper_opened == dump_state)
 		dumper_close();
-	if (dumper == NULL && dump_type != nowhere && dumper_open(hdr->ts))
+	if (dumper_closed == dump_state && dumper_open(hdr->ts))
 		goto breakloop;
 
 	network_pkt(descr, hdr->ts, pf, pkt, len);
@@ -1575,7 +1578,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	if (limit_packets != 0U && msgcount == limit_packets) {
 		if (preso)
 			goto breakloop;
-		if (dumper != NULL && dumper_close())
+		if (dumper_opened == dump_state && dumper_close())
 			goto breakloop;
 		msgcount = 0;
 	}
@@ -2160,7 +2163,6 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
 			(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
-
 	return;
 }
 
@@ -2169,18 +2171,20 @@ dumper_open(my_bpftimeval ts) {
 	const char *t = NULL;
 	struct plugin *p;
 
+	while (ts.tv_usec >= MILLION) {
+		ts.tv_sec++;
+		ts.tv_usec -= MILLION;
+	}
+	if (limit_seconds != 0U)
+		next_interval = ts.tv_sec
+			- (ts.tv_sec % limit_seconds)
+			+ limit_seconds;
+
 	if (dump_type == to_stdout) {
 		t = "-";
-	} else {
+	} else if (dump_type == to_file) {
 		char sbuf[64];
-		while (ts.tv_usec >= MILLION) {
-			ts.tv_sec++;
-			ts.tv_usec -= MILLION;
-		}
-		if (limit_seconds != 0U)
-			next_interval = ts.tv_sec
-				- (ts.tv_sec % limit_seconds)
-				+ limit_seconds;
+
 		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
 		if (asprintf(&dumpname, "%s.%s.%06lu",
 			     dump_base, sbuf,
@@ -2192,11 +2196,13 @@ dumper_open(my_bpftimeval ts) {
 		}
 		t = dumpnamepart;
 	}
-	dumper = pcap_dump_open(pcap_dead, t);
-	if (dumper == NULL) {
-		logerr("pcap dump open: %s",
-			pcap_geterr(pcap_dead));
-		return (TRUE);
+	if (NULL != t) {
+		dumper = pcap_dump_open(pcap_dead, t);
+		if (dumper == NULL) {
+			logerr("pcap dump open: %s",
+				pcap_geterr(pcap_dead));
+			return (TRUE);
+		}
 	}
 	dumpstart = ts.tv_sec;
 	if (limit_seconds != 0U) {
@@ -2227,6 +2233,7 @@ dumper_open(my_bpftimeval ts) {
 			continue;
 		logerr("%s_open returned %d", p->name, x);
 	}
+	dump_state = dumper_opened;
 	return (FALSE);
 }
 
@@ -2259,14 +2266,17 @@ dumper_close(void) {
 		alarm(0);
 		alarm_set = FALSE;
 	}
-	pcap_dump_close(dumper); dumper = FALSE;
+	if (dumper) {
+		pcap_dump_close(dumper);
+		dumper = FALSE;
+	}
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
 		if (dumptrace >= 1)
 			fprintf(stderr, "%s: breaking\n", ProgramName);
 		ret = TRUE;
-	} else {
+	} else if (dump_type == to_file) {
 		char *cmd = NULL;;
 
 		if (dumptrace >= 1)
@@ -2297,6 +2307,7 @@ dumper_close(void) {
 		if (x)
 			logerr("%s_close returned %d", p->name, x);
 	}
+	dump_state = dumper_closed;
 	return (ret);
 }
 
