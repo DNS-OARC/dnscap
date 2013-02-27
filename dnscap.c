@@ -1060,7 +1060,7 @@ prepare_bpft(void) {
 		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ( ");
 	}
 	if (wanttcp) {
-		len += text_add(&bpfl, "( tcp port %d or ( ", dns_port);
+		len += text_add(&bpfl, "( ( tcp port %d or ( ", dns_port);
 		/* tcp packets can be filtered by initiators/responders, but
 		 * not mbs/mbc. */
 	}
@@ -1092,7 +1092,7 @@ prepare_bpft(void) {
 		}
 	}
 	if (wanttcp) {
-		len += text_add(&bpfl, " )"); /* close udp & mbs & mbc clause */
+		len += text_add(&bpfl, " ) )"); /* close udp & mbs & mbc clause */
 	}
 	if (!EMPTY(initiators) ||
 	    !EMPTY(responders))
