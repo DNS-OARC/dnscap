@@ -331,6 +331,7 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
+static const char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
 static const char *kick_cmd = NULL;
@@ -505,7 +506,7 @@ help_1(void) {
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>]+ [-E <datetime>]+\n"
-		"\t[-P plugin.so]\n",
+		"\t[-P plugin.so] [-U <str>]\n",
 		ProgramName);
 }
 
@@ -553,6 +554,7 @@ help_2(void) {
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
+		"\t-U <str>   append 'and <str>' to the pcap filter\n"
                 "\t-B <datetime> begin collecting at this date and time\n"
                 "\t-E <datetime> end collecting at this date and time\n"
 		);
@@ -582,7 +584,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"bpd1g6f?i:r:l:L:u:Tm:s:h:e:a:z:A:Z:Y:w:k:t:c:x:X:B:E:SP:")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:L:P:STU:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -843,6 +845,9 @@ parse_args(int argc, char *argv[]) {
 				if (dumptrace)
 					fprintf(stderr, "Plugin '%s' loaded\n", p->name);
 			}
+			break;
+		case 'U':
+			extra_bpf = strdup(optarg);
 			break;
 		default:
 			usage("unrecognized command line option");
@@ -1148,6 +1153,8 @@ prepare_bpft(void) {
 		len += text_add(&bpfl, " )");
 	if (wantfrags)
 		len += text_add(&bpfl, " )");
+	if (extra_bpf)
+		len += text_add(&bpfl, " and ( %s )", extra_bpf);
 
 	bpft = malloc(len + 1);
 	assert(bpft != NULL);
