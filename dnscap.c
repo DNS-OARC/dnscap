@@ -300,7 +300,7 @@ static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
 static output_t output;
 static int dumper_open(my_bpftimeval);
-static int dumper_close(void);
+static int dumper_close(my_bpftimeval);
 static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
@@ -359,6 +359,7 @@ static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
+static my_bpftimeval last_ts = {0,0};
 
 /* Public. */
 
@@ -402,7 +403,7 @@ main(int argc, char *argv[]) {
 		poll_pcaps();
 	close_pcaps();
 	if (dumper != NULL)
-		(void) dumper_close();
+		(void) dumper_close(last_ts);
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->stop)
 			(*p->stop)();
@@ -1420,6 +1421,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	unsigned etype, vlan, pf;
 	char descr[200];
 
+	last_ts = hdr->ts;
 	if (stop_time != 0 && hdr->ts.tv_sec >= stop_time) {
 		breakloop_pcaps();
 		main_exit = TRUE;
@@ -1576,7 +1578,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	}
 
 	if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper_opened == dump_state)
-		dumper_close();
+		dumper_close(hdr->ts);
 	if (dumper_closed == dump_state && dumper_open(hdr->ts))
 		goto breakloop;
 
@@ -1585,7 +1587,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 	if (limit_packets != 0U && msgcount == limit_packets) {
 		if (preso)
 			goto breakloop;
-		if (dumper_opened == dump_state && dumper_close())
+		if (dumper_opened == dump_state && dumper_close(hdr->ts))
 			goto breakloop;
 		msgcount = 0;
 	}
@@ -2262,7 +2264,7 @@ do_pcap_stats()
 }
 
 static int
-dumper_close(void) {
+dumper_close(my_bpftimeval ts) {
 	int ret = FALSE;
 	struct plugin *p;
 
@@ -2310,7 +2312,7 @@ dumper_close(void) {
 		int x;
 		if (!p->close)
 			continue;
-		x = (*p->close)();
+		x = (*p->close)(ts);
 		if (x)
 			logerr("%s_close returned %d", p->name, x);
 	}
@@ -2320,9 +2322,11 @@ dumper_close(void) {
 
 static void
 sigclose(int signum) {
+	if (0 == last_ts.tv_sec)
+		gettimeofday(&last_ts, NULL);
 	if (signum == SIGALRM)
 		alarm_set = FALSE;
-	if (dumper_close())
+	if (dumper_close(last_ts))
 		breakloop_pcaps();
 }
 

@@ -23,7 +23,7 @@
 
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
-static my_bpftimeval last_ts;
+static my_bpftimeval clos_ts;
 static const char *counts_prefix = "rssm";
 static const char *sources_prefix = 0;
 
@@ -161,7 +161,7 @@ rssm_save_counts(const char *sbuf)
 		return;
 	}
 	fprintf(fp, "first-packet-time %lu\n", open_ts.tv_sec);
-	fprintf(fp, "last-packet-time %lu\n", last_ts.tv_sec);
+	fprintf(fp, "last-packet-time %lu\n", clos_ts.tv_sec);
 	fprintf(fp, "dns-udp-queries-received-ipv4 %"PRIu64"\n", counts.dns_udp_queries_received_ipv4);
 	fprintf(fp, "dns-udp-queries-received-ipv6 %"PRIu64"\n", counts.dns_udp_queries_received_ipv6);
 	fprintf(fp, "dns-tcp-queries-received-ipv4 %"PRIu64"\n", counts.dns_tcp_queries_received_ipv4);
@@ -211,7 +211,7 @@ rssm_save_sources(const char *sbuf)
  * to avoid zombies for the main dnscap process.
  */
 int
-rssm_close()
+rssm_close(my_bpftimeval ts)
 {
 	char sbuf[265];
 	pid_t pid;
@@ -235,6 +235,7 @@ rssm_close()
 	}
 	/* grandchild (2nd gen) continues */
 	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
+	clos_ts = ts;
 	if (counts_prefix)
 		rssm_save_counts(sbuf);
 	if (sources_prefix)
@@ -266,7 +267,6 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 {
 	if (!dnspkt)
 		return;
-	last_ts = ts;
 	dnslen >>= MSG_SIZE_SHIFT;
 	if (dnslen >= MAX_SIZE_INDEX)
 		dnslen = MAX_SIZE_INDEX-1;

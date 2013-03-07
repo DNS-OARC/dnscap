@@ -139,7 +139,7 @@ pcapdump_open(my_bpftimeval ts)
 }
 
 int
-pcapdump_close()
+pcapdump_close(my_bpftimeval ts)
 {
     int ret = 0;
 #if 0

@@ -82,7 +82,7 @@ template_open(my_bpftimeval ts)
 }
 
 int
-template_close()
+template_close(my_bpftimeval ts)
 {
 	/*
 	 * The "close" function is called at the end of each
