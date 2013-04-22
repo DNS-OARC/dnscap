@@ -2379,7 +2379,9 @@ static void
 daemonize(void)
 {
   pid_t pid;
+#ifdef TIOCNOTTY
   int i;
+#endif
   if ((pid = fork()) < 0) {
     logerr("fork failed: %s", strerror(errno));
     exit(1);
@@ -2396,17 +2398,6 @@ daemonize(void)
     ioctl(i, TIOCNOTTY, NULL);
     close(i);
   }
-#endif
-#if 0
-  /*
-   * closing stdin/out/err like this currently breaks backgrounding
-   */
-  i = open("/dev/null", O_RDWR);
-  dup2(i, 0);
-  dup2(i, 1);
-  dup2(i, 2);
-  for (i = 3; i < 10; i++)
-    close(i);
 #endif
   logerr("Backgrounded as pid %u", getpid());
 }
