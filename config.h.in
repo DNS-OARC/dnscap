@@ -51,11 +51,17 @@
 /* Define to 1 if you have the `ns_initparse' function. */
 #undef HAVE_NS_INITPARSE
 
+/* Define to 1 if you have the `ns_name_uncompress' function. */
+#undef HAVE_NS_NAME_UNCOMPRESS
+
 /* Define to 1 if you have the `ns_parserr' function. */
 #undef HAVE_NS_PARSERR
 
 /* Define to 1 if you have the `ns_sprintrr' function. */
 #undef HAVE_NS_SPRINTRR
+
+/* Define to 1 if you have the `p_rcode' function. */
+#undef HAVE_P_RCODE
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H

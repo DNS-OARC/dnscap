@@ -3957,6 +3957,40 @@ fi
 
 fi
 
+ac_fn_c_check_func "$LINENO" "ns_name_uncompress" "ac_cv_func_ns_name_uncompress"
+if test "x$ac_cv_func_ns_name_uncompress" = xyes; then :
+
+$as_echo "#define HAVE_NS_NAME_UNCOMPRESS 1" >>confdefs.h
+
+else
+  ac_fn_c_check_func "$LINENO" "__ns_name_uncompress" "ac_cv_func___ns_name_uncompress"
+if test "x$ac_cv_func___ns_name_uncompress" = xyes; then :
+
+$as_echo "#define HAVE_NS_NAME_UNCOMPRESS 1" >>confdefs.h
+
+
+fi
+
+
+fi
+
+ac_fn_c_check_func "$LINENO" "p_rcode" "ac_cv_func_p_rcode"
+if test "x$ac_cv_func_p_rcode" = xyes; then :
+
+$as_echo "#define HAVE_P_RCODE 1" >>confdefs.h
+
+else
+  ac_fn_c_check_func "$LINENO" "__p_rcode" "ac_cv_func___p_rcode"
+if test "x$ac_cv_func___p_rcode" = xyes; then :
+
+$as_echo "#define HAVE_P_RCODE 1" >>confdefs.h
+
+
+fi
+
+
+fi
+
 for ac_func in __assertion_failed
 do :
   ac_fn_c_check_func "$LINENO" "__assertion_failed" "ac_cv_func___assertion_failed"

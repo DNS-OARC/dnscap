@@ -12,7 +12,7 @@
 static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif
 
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_NAME_UNCOMPRESS && HAVE_P_RCODE
 
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")

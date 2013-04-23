@@ -68,6 +68,18 @@ AC_CHECK_FUNC([ns_sprintrr],
 		[AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]
 	)
 )
+AC_CHECK_FUNC([ns_name_uncompress],
+	[AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])],
+	AC_CHECK_FUNC(__ns_name_uncompress,
+		[AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])]
+	)
+)
+AC_CHECK_FUNC([p_rcode],
+	[AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])],
+	AC_CHECK_FUNC(__p_rcode,
+		[AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])]
+	)
+)
 AC_CHECK_FUNCS([__assertion_failed])
 
 if test "$GCC" = "yes" ; then

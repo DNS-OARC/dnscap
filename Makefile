@@ -66,7 +66,7 @@ snprintf.h:
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
 	md5sum -c --status snprintf_2.2.tar.gz.md5 || true
 	gunzip -c snprintf_2.2.tar.gz | tar -xf -
-	${MAKE} -C snprintf_2.2 "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
+	cd snprintf_2.2 && ${MAKE} "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
 	cp snprintf_2.2/snprintf.[ho] .
 
 ${prog}.cat1: ${prog}.1
