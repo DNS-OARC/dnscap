@@ -61,7 +61,6 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 #include <unistd.h>
 
 extern const char *_res_opcodes[];
-extern const char *_res_sectioncodes[];
 #define p_rcode __p_rcode
 extern const char *p_rcode(int rcode);
 
