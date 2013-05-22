@@ -61,18 +61,20 @@ ${prog}: ${OBJS} Makefile
 
 ${OBJS}: Makefile ${SRCS}
 
-snprintf.h:
+snprintf_2.2:
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz
 	wget -nc http://www.ijs.si/software/snprintf/snprintf_2.2.tar.gz.md5
 	md5sum -c --status snprintf_2.2.tar.gz.md5 || true
 	gunzip -c snprintf_2.2.tar.gz | tar -xf -
+
+snprintf.h: snprintf_2.2
 	cd snprintf_2.2 && ${MAKE} "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
 	cp snprintf_2.2/snprintf.[ho] .
 
 ${prog}.cat1: ${prog}.1
 	nroff -mandoc ${prog}.1 > ${prog}.cat1
 
-clean:; rm -f ${prog} ${prog}.cat1 snprintf* *.o *.core *.orig
+clean:; rm -f ${prog} ${prog}.cat1 snprintf.[ho] *.o *.core *.orig
 
 distclean:: clean
 	rm -f config.status
