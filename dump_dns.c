@@ -60,10 +60,10 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 #include <time.h>
 #include <unistd.h>
 
-extern const char *_res_opcodes[];
 #define p_rcode __p_rcode
 extern const char *p_rcode(int rcode);
 
+static const char *p_opcode(int opcode);
 static void dump_dns_sect(ns_msg *, ns_sect, FILE *, const char *);
 static void dump_dns_rr(ns_msg *, ns_rr *, ns_sect, FILE *);
 
@@ -103,7 +103,7 @@ dump_dns(const u_char *payload, size_t paylen,
 	opcode = ns_msg_getflag(msg, ns_f_opcode);
 	rcode = ns_msg_getflag(msg, ns_f_rcode);
 	id = ns_msg_id(msg);
-	fprintf(trace, "%s,%s,%u", _res_opcodes[opcode], p_rcode(rcode), id);
+	fprintf(trace, "%s,%s,%u", p_opcode(opcode), p_rcode(rcode), id);
 	sep = ",";
 #define FLAG(t,f) if (ns_msg_getflag(msg, f)) { \
 			fprintf(trace, "%s%s", sep, t); \
@@ -216,6 +216,43 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 		putc(',', trace);
 		fputs(buf, trace);
 	}
+}
+
+static const char *
+p_opcode(int opcode)
+{
+	static char buf[20];
+	switch(opcode) {
+	case 0:
+		return "QUERY";
+		break;
+	case 1:
+		return "IQUERY";
+		break;
+	case 2:
+		return "CQUERYM";
+		break;
+	case 3:
+		return "CQUERYU";
+		break;
+	case 4:
+		return "NOTIFY";
+		break;
+	case 5:
+		return "UPDATE";
+		break;
+	case 14:
+		return "ZONEINIT";
+		break;
+	case 15:
+		return "ZONEREF";
+		break;
+	default:
+		snprintf(buf, sizeof(buf), "OPCODE%d", opcode);
+		return buf;
+		break;
+	}
+	/* NOTREACHED */
 }
 
 #else
