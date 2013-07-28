@@ -352,6 +352,7 @@ static int background = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
 static int wantfrags = FALSE;
+static int wanticmp = FALSE;
 static int wanttcp = FALSE;
 static int preso = FALSE;
 static int main_exit = FALSE;
@@ -585,7 +586,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:L:P:STU:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:IL:P:STU:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -609,6 +610,9 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case 'f':
 			wantfrags = TRUE;
+			break;
+		case 'I':
+			wanticmp = TRUE;
 			break;
 		case '?':
 			help_2();
@@ -1062,6 +1066,9 @@ prepare_bpft(void) {
 	len = 0;
 	if (!EMPTY(vlans_excl))
 		len += text_add(&bpfl, "vlan and ( ");
+	if (wanticmp) {
+		len += text_add(&bpfl, "( ip proto 1 or ip proto 58 ) or ");
+	}
 	if (wantfrags) {
 		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ( ");
 	}
