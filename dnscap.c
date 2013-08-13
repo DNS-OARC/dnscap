@@ -403,7 +403,7 @@ main(int argc, char *argv[]) {
 	while (!main_exit)
 		poll_pcaps();
 	close_pcaps();
-	if (dumper != NULL)
+	if (dumper_opened == dump_state)
 		(void) dumper_close(last_ts);
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->stop)
