@@ -1,0 +1,43 @@
+Index: dnscap/Makefile.in
+===================================================================
+--- dnscap.orig/Makefile.in	2013-09-02 12:52:38.706864677 +0100
++++ dnscap/Makefile.in	2013-09-02 12:52:43.182864861 +0100
+@@ -42,16 +42,16 @@
+ 	dump_dns.o \
+ 	${NEED_SNPRINTF_O}
+ 
+-all: ${prog} ${prog}.cat1
++all: ${prog} ${prog}.man1
+ 
+ install: all
+-	install -d -m 755 ${bindir}
+-	if [ -f ${bindir}/${prog} ]; then \
+-		mv -f ${bindir}/${prog} ${bindir}/${prog}.old; fi
+-	install -m 755 ${prog} ${bindir}/
+-	install -d -m 755 ${mandir}
+-	install -d -m 755 ${mandir}/cat1
+-	install -m 644 ${prog}.cat1 ${mandir}/cat1/${prog}.1
++	install -d -m 755 $(DESTDIR)${bindir}
++	if [ -f $(DESTDIR)${bindir}/${prog} ]; then \
++		mv -f $(DESTDIR)${bindir}/${prog} $(DESTDIR)${bindir}/${prog}.old; fi
++	install -m 755 ${prog} $(DESTDIR)${bindir}/
++	install -d -m 755 $(DESTDIR)${mandir}
++	install -d -m 755 $(DESTDIR)${mandir}/man1
++	install -m 644 ${prog}.man1 $(DESTDIR)${mandir}/man1/${prog}.1
+ 
+ .c.o:
+ 	${CC} ${CFLAGS} -c $<
+@@ -71,10 +71,10 @@
+ 	cd snprintf_2.2 && ${MAKE} "COMPATIBILITY=-DNEED_ASPRINTF -DNEED_VASPRINTF"
+ 	cp snprintf_2.2/snprintf.[ho] .
+ 
+-${prog}.cat1: ${prog}.1
+-	nroff -mandoc ${prog}.1 > ${prog}.cat1
++${prog}.man1: ${prog}.1
++	nroff -mandoc ${prog}.1 > ${prog}.man1
+ 
+-clean:; rm -f ${prog} ${prog}.cat1 snprintf.[ho] *.o *.core *.orig
++clean:; rm -f ${prog} ${prog}.man1 snprintf.[ho] *.o *.core *.orig
+ 
+ distclean:: clean
+ 	rm -f config.status
