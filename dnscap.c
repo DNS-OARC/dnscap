@@ -1755,6 +1755,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 	/* Transport. */
 	switch (proto) {
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		output(descr, from, to, ip->ip_p, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+		return;
 	case IPPROTO_UDP: {
 		if (len < sizeof *udp)
 			return;
