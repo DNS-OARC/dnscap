@@ -350,12 +350,14 @@ static const char *kick_cmd = NULL;
 static unsigned limit_seconds = 0U;
 static time_t next_interval = 0;
 static unsigned limit_packets = 0U;
+static size_t limit_pcapfilesize = 0U;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
 static pcap_t *pcap_dead;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
 static unsigned msgcount;
+static size_t capturedbytes;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
@@ -689,7 +691,7 @@ help_1(void) {
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
-		"\t[-w <base> [-W suffix] [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
+		"\t[-w <base> [-W suffix] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>]+ [-E <datetime>]+\n"
 		"\t[-P plugin.so] [-U <str>]\n",
@@ -740,6 +742,7 @@ help_2(void) {
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
+		"\t-C <lim>   close dump or exit every/after <lim> bytes captured\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
 #ifdef USE_SECCOMP
@@ -783,7 +786,7 @@ parse_args(int argc, char *argv[]) {
 #ifdef USE_SECCOMP
 			"y"
 #endif
-			"z:A:B:E:IL:P:STU:W:X:Y:Z:16?MC")
+			"z:A:B:C:E:IL:P:STU:W:X:Y:Z:16?MC")
 		) != EOF)
 	{
 		switch (ch) {
@@ -964,6 +967,12 @@ parse_args(int argc, char *argv[]) {
 				usage("argument to -c must be an integer");
 			limit_packets = (unsigned) ul;
 			break;
+		case 'C':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -C must be an integer");
+			limit_pcapfilesize = (unsigned) ul;
+			break;
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
@@ -1095,7 +1104,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -1112,7 +1121,7 @@ parse_args(int argc, char *argv[]) {
 			(err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
 			(err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
 			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
-			limit_seconds, limit_packets);
+			limit_seconds, limit_packets, limit_pcapfilesize);
 		sep = "\tinit";
 		for (ep = HEAD(initiators);
 		     ep != NULL;
@@ -1767,6 +1776,17 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const cha
 			goto breakloop;
 		msgcount = 0;
 	}
+
+	if (limit_pcapfilesize != 0U && capturedbytes >= limit_pcapfilesize) {
+		if (preso) {
+			goto breakloop;
+		}
+		if (dumper_opened == dump_state && dumper_close(hdr->ts)) {
+			goto breakloop;
+		}
+		capturedbytes = 0;
+	}
+
 	return;
  breakloop:
 	breakloop_pcaps();
