@@ -331,6 +331,7 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
+static const char *dump_suffix = NULL;
 static const char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
@@ -506,7 +507,7 @@ help_1(void) {
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
-		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
+		"\t[-w <base> [-W suffix] [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>]+ [-E <datetime>]+\n"
 		"\t[-P plugin.so] [-U <str>]\n",
@@ -554,6 +555,7 @@ help_2(void) {
 		"\t-Z <host>  want messages NOT to/from these responder(s)\n"
 		"\t-Y <host>  drop responses from these responder(s)\n"
 		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"\t-W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
@@ -589,7 +591,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:IL:P:STU:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:IL:P:STU:W:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -742,6 +744,9 @@ parse_args(int argc, char *argv[]) {
 				dump_type = to_stdout;
 			else
 				dump_type = to_file;
+			break;
+		case 'W':
+			dump_suffix = optarg;
 			break;
 		case 'k':
 			if (dump_type != to_file)
@@ -2217,9 +2222,9 @@ dumper_open(my_bpftimeval ts) {
 		char sbuf[64];
 
 		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
-		if (asprintf(&dumpname, "%s.%s.%06lu",
+		if (asprintf(&dumpname, "%s.%s.%06lu%s",
 			     dump_base, sbuf,
-			     (u_long) ts.tv_usec) < 0 ||
+			     (u_long) ts.tv_usec, dump_suffix) < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
 			logerr("asprintf: %s", strerror(errno));
