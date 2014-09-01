@@ -1076,7 +1076,7 @@ prepare_bpft(void) {
  * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
  * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
  * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
-
+*/
 	/* Make a BPF program to do early course kernel-level filtering. */
 	INIT_LIST(bpfl);
 	len = 0;
