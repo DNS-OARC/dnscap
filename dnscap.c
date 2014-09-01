@@ -501,7 +501,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fTI] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"\t[-?bpd1g6fTIS] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -525,6 +525,7 @@ help_2(void) {
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
+		"\t-S         dump capture statistics\n"
 		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
 		"\t           first DNS header, and the result will apply to all messages\n"
 		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
