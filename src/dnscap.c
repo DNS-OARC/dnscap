@@ -427,9 +427,10 @@ main(int argc, char *argv[]) {
 		daemonize();
 	while (!main_exit)
 		poll_pcaps();
-	close_pcaps();
+	/* close PCAPs after dumper_close() to have statistics still available during dumper_close() */
 	if (dumper_opened == dump_state)
 		(void) dumper_close(last_ts);
+	close_pcaps();
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->stop)
 			(*p->stop)();
