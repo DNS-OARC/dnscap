@@ -2309,7 +2309,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			abort();
 		}
 	}
-	msgcount++;
 	output(descr, from, to, proto, flags, sport, dport, ts,
 	    pkt_copy, olen, dnspkt, dnslen);
 }
@@ -2324,6 +2323,9 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     const u_char *payload, const unsigned payloadlen)
 {
 	struct plugin *p;
+
+	msgcount++;
+
 	/* Output stage. */
 	if (preso) {
 		fputs(descr, stderr);
