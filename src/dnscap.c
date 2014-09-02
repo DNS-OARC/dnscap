@@ -706,7 +706,7 @@ help_2(void) {
 		"\t-? or -\\?  print these instructions and exit\n"
 		"\t-b         run in background as daemon\n"
 		"\t-p         do not put interface in promiscuous mode\n"
-		"\t-d         dump verbose trace information to stderr\n"
+		"\t-d         dump verbose trace information to stderr, specify multiple times to increase debugging\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
@@ -1799,7 +1799,7 @@ static void
 discard(tcpstate_ptr tcpstate, const char *msg)
 {
 	if (dumptrace >= 3 && msg)
-		fprintf(stderr, "%s\n", msg);
+		fprintf(stderr, "discarding packet: %s\n", msg);
 	if (tcpstate) {
 		UNLINK(tcpstates, tcpstate, link);
 		free(tcpstate);
@@ -1825,6 +1825,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	struct ip *ip;
 	size_t len, dnslen;
 	HEADER dns;
+
+	if (dumptrace >= 4)
+		fprintf(stderr, "processing %s packet: len=%zu\n", (pf==PF_INET?"IPv4":(pf==PF_INET6?"IPv6":"unknown")), olen);
 
 	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len = olen);
@@ -2350,6 +2353,11 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
 	struct plugin *p;
 
 	msgcount++;
+
+	if (dumptrace >= 3) {
+		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%d, olen=%u, dnslen=%u\n",
+			capturedbytes, proto, isfrag, olen, dnslen);
+	}
 
 	/* Output stage. */
 	if (preso) {
