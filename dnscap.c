@@ -785,8 +785,8 @@ parse_args(int argc, char *argv[]) {
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0')
 				usage("argument to -y must be an integer");
-			select_timeout.tv_sec = ul / 1000;
-			select_timeout.tv_usec = ul % 1000;
+			select_timeout.tv_sec = ul / 1000000;
+			select_timeout.tv_usec = ul % 1000000;
 			break;
 		case 'x':
 			/* FALLTHROUGH */
@@ -907,7 +907,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu, y %ld.%ld\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu, y %ld.%06ld\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',

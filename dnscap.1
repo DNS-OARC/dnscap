@@ -334,9 +334,16 @@ or
 .Fl C
 limits are reached.
 .It Fl U Ar str
-Append "and 
+Append "and
 .Ar str
 " to the pcap filter.
+.It Fl y Ar usec
+Sets the select() timeout to 
+.Ar usec
+micro seconds (default is without timeout). This helps to work around the TPACKET_V3 
+problems with libpcap 1.5. E. g. setting
+.Ar usec
+to 10000 micro seconds should give you packets also in low traffic environemts.
 .El
 .Pp
 If started with no options,
