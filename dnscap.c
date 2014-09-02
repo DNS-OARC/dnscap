@@ -512,7 +512,7 @@ help_1(void) {
 		"\t[-?bpd1g6fTIS] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
-		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
+		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
 		"\t[-w <base> [-W suffix] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-y <usec>]\n"
