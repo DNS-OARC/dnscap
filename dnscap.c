@@ -367,6 +367,7 @@ static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 static my_bpftimeval last_ts = {0,0};
+static my_bpftimeval select_timeout = {0,-1};
 
 /* Public. */
 
@@ -514,6 +515,7 @@ help_1(void) {
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
 		"\t[-w <base> [-W suffix] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
+		"\t[-y <usec>]\n"
 		"\t[-B <datetime>]+ [-E <datetime>]+\n"
 		"\t[-P plugin.so] [-U <str>]\n",
 		ProgramName);
@@ -570,6 +572,7 @@ help_2(void) {
 		"\t-U <str>   append 'and <str>' to the pcap filter\n"
                 "\t-B <datetime> begin collecting at this date and time\n"
                 "\t-E <datetime> end collecting at this date and time\n"
+                "\t-y <usec>  set select() timeout to <usec> to work around TPACKET_V3 bug\n"
 		);
 }
 
@@ -597,7 +600,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:C:E:IL:P:STU:W:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:y:z:A:B:C:E:IL:P:STU:W:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -778,6 +781,13 @@ parse_args(int argc, char *argv[]) {
 				usage("argument to -C must be an integer");
 			limit_pcapfilesize = (unsigned) ul;
 			break;
+		case 'y':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -y must be an integer");
+			select_timeout.tv_sec = ul / 1000;
+			select_timeout.tv_usec = ul % 1000;
+			break;
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
@@ -897,7 +907,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu, y %ld.%ld\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -914,7 +924,8 @@ parse_args(int argc, char *argv[]) {
 			(err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
 			(err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
 			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
-			limit_seconds, limit_packets, limit_pcapfilesize);
+			limit_seconds, limit_packets, limit_pcapfilesize,
+			select_timeout.tv_sec, select_timeout.tv_usec);
 		sep = "\tinit";
 		for (ep = HEAD(initiators);
 		     ep != NULL;
@@ -1333,10 +1344,16 @@ poll_pcaps(void) {
 	mypcap_ptr mypcap;
 	fd_set readfds;
 	int n;
+	my_bpftimeval timeout;
 
 	do {
 		memcpy(&readfds, &mypcap_fdset, sizeof(fd_set));
-		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+		if (select_timeout.tv_usec == -1) { /* timeout not specified */
+			n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+		} else {
+			timeout = select_timeout;
+			n = select(pcap_maxfd+1, &readfds, NULL, NULL, &timeout);
+		}
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
 		if (errno != EINTR)
