@@ -501,7 +501,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fT] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"\t[-?bpd1g6fTI] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -528,6 +528,7 @@ help_2(void) {
 		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
 		"\t           first DNS header, and the result will apply to all messages\n"
 		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
+		"\t-I         include ICMP and ICMPv6 packets\n"
 		"\t-i <if>    select this live interface(s)\n"
 		"\t-r <file>  read this pcap file\n"
 		"\t-l <vlan>  select only these vlan(s)\n"
@@ -1061,23 +1062,34 @@ prepare_bpft(void) {
 		udp11_mbc |= UDP11_RC_MASK;
 	}
 
+/*
+ * Model
+ * (vlan) and (transport)
+ * (vlan) and ((icmp) or (frags) or (dns))
+ * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
+ * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
+ * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
+
 	/* Make a BPF program to do early course kernel-level filtering. */
 	INIT_LIST(bpfl);
 	len = 0;
 	if (!EMPTY(vlans_excl))
-		len += text_add(&bpfl, "vlan and ( ");
+		len += text_add(&bpfl, "vlan and ");
+	len += text_add(&bpfl, "( ");	 /* ( transports ...  */
 	if (wanticmp) {
 		len += text_add(&bpfl, "( ip proto 1 or ip proto 58 ) or ");
 	}
 	if (wantfrags) {
-		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ( ");
+		len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ");
 	}
+	len += text_add(&bpfl, "( ");	/* ( dns ...  */
+	len += text_add(&bpfl, "( ");	/* ( ports ...  */
 	if (wanttcp) {
-		len += text_add(&bpfl, "( ( tcp port %d or ( ", dns_port);
+		len += text_add(&bpfl, "( tcp port %d ) or ", dns_port);
 		/* tcp packets can be filtered by initiators/responders, but
 		 * not mbs/mbc. */
 	}
-	len += text_add(&bpfl, "udp port %d", dns_port);
+	len += text_add(&bpfl, "( udp port %d", dns_port);
 	if (!v6bug) {
 		if (udp10_mbc != 0)
 			len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
@@ -1100,13 +1112,12 @@ prepare_bpft(void) {
 						UDP10_TC_MASK, UDP10_TC_MASK);
 			}
 			len += text_add(&bpfl,
-					"0x%x << (udp[11] & 0xf) & 0x%x != 0)",
+					"0x%x << (udp[11] & 0xf) & 0x%x != 0) ",
 					ERR_RCODE_BASE, err_wanted);
 		}
 	}
-	if (wanttcp) {
-		len += text_add(&bpfl, " ) )"); /* close udp & mbs & mbc clause */
-	}
+	len += text_add(&bpfl, ") ");	/*  ... udp 53 ) */
+	len += text_add(&bpfl, ") ");	/*  ... ports ) */
 	if (!EMPTY(initiators) ||
 	    !EMPTY(responders))
 	{
@@ -1155,12 +1166,8 @@ prepare_bpft(void) {
 		}
 		len += text_add(&bpfl, " )");
 	}
-	if (!EMPTY(vlans_excl))
-		len += text_add(&bpfl, " )");
-	if (wanttcp)
-		len += text_add(&bpfl, " )");
-	if (wantfrags)
-		len += text_add(&bpfl, " )");
+	len += text_add(&bpfl, ") ");	/*  ... dns ) */
+	len += text_add(&bpfl, ")"); 	/* ... transport ) */
 	if (extra_bpf)
 		len += text_add(&bpfl, " and ( %s )", extra_bpf);
 
@@ -1755,6 +1762,10 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 
 	/* Transport. */
 	switch (proto) {
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		output(descr, from, to, ip->ip_p, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+		return;
 	case IPPROTO_UDP: {
 		if (len < sizeof *udp)
 			return;
