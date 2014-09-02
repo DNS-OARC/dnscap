@@ -2353,6 +2353,7 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
 	struct plugin *p;
 
 	msgcount++;
+	capturedbytes += olen;
 
 	if (dumptrace >= 3) {
 		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%d, olen=%u, dnslen=%u\n",
