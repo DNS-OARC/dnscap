@@ -693,7 +693,7 @@ help_1(void) {
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
 		"\t[-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
-		"\t[-B <datetime>]+ [-E <datetime>]+\n"
+		"\t[-B <datetime>] [-E <datetime>]\n"
 		"\t[-P plugin.so] [-U <str>]\n",
 		ProgramName);
 }
