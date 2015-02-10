@@ -191,12 +191,18 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 			soa[0], soa[1], soa[2], soa[3], soa[4]);
 		break;
 	case ns_t_a:
+		if (ns_msg_end(*msg) - rd < 4)
+			goto error;
 		inet_ntop(AF_INET, rd, buf, sizeof buf);
 		break;
 	case ns_t_aaaa:
+		if (ns_msg_end(*msg) - rd < 16)
+			goto error;
 		inet_ntop(AF_INET6, rd, buf, sizeof buf);
 		break;
 	case ns_t_mx:
+		if (ns_msg_end(*msg) - rd < 2)
+			goto error;
 		MY_GET16(mx, rd);
 		fprintf(trace, ",%u", mx);
 		/* FALLTHROUGH */
@@ -213,16 +219,6 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 	 */
 	case ns_t_opt:
 		{
-			/* the global rdlen for the rr is the overall optlen */
-			u_short optlen = ns_rr_rdlen(*rr);
-
-			/* the next two shorts are the edns0 opt code, and the length of the optionsection */
-			u_short edns0optcod;
-			MY_GET16(edns0optcod, rd);
-
-			u_short edns0lenopt;
-			MY_GET16(edns0lenopt, rd);
-
 			u_long  edns0csize;
 			u_short edns0version;
 			u_short edns0rcode;
@@ -244,13 +240,25 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 			edns0dobit = (u_long)ns_rr_ttl(*rr) & 0x8000 ? '1' : '0';
 			edns0z = (u_long)ns_rr_ttl(*rr) & 0x7fff;
 
-			fprintf(trace, ",edns0[len=%d,code=%d,codelen=%d,UDP=%d,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
-				optlen, edns0optcod, edns0lenopt, edns0csize, edns0version, edns0rcode, edns0dobit, edns0z, '\\');
+			/* the global rdlen for the rr is the overall optlen */
+			u_short optlen = ns_rr_rdlen(*rr);
+
+			fprintf(trace, ",edns0[len=%d,UDP=%d,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
+				optlen, edns0csize, edns0version, edns0rcode, edns0dobit, edns0z, '\\');
 
 			/* if we have any data */
-			if (optlen > 0) {
+			while (optlen >= 4) {
+				/* the next two shorts are the edns0 opt code, and the length of the optionsection */
+				u_short edns0optcod;
+				u_short edns0lenopt;
+				MY_GET16(edns0optcod, rd);
+				MY_GET16(edns0lenopt, rd);
+				fprintf(trace, "edns0[code=%d,codelen=%d] ", edns0optcod, edns0lenopt);
+
 				/* if we have edns0_client_subnet */
 				if (edns0optcod == 0x08) {
+					if (edns0lenopt < 4)
+						goto error;
 					u_short   afi;
 					MY_GET16(afi, rd);
 
@@ -260,17 +268,22 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 					u_short scomask = (masks & 0xff);
 
 					u_char buf[128];
+					u_char addr[16];
+					memset(addr, 0, sizeof addr);
+					memcpy(addr, rd, (edns0lenopt - 4) < sizeof(addr) ? (edns0lenopt - 4) : sizeof(addr));
 
 					if (afi == 0x1) {
-						inet_ntop(AF_INET, rd, buf, sizeof buf);
+						inet_ntop(AF_INET, addr, buf, sizeof buf);
 					} else if (afi == 0x2) {
-						inet_ntop(AF_INET6, rd, buf, sizeof buf);
+						inet_ntop(AF_INET6, addr, buf, sizeof buf);
 					} else {
 						fprintf(trace, "unknown AFI %d\n", afi);
 						strcpy(buf,"<unknown>");
 					}
 					fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf, srcmask, scomask);
 				}
+				rd += (edns0lenopt + 4);
+				optlen -= (edns0lenopt + 4);
 			}
 		}
 
