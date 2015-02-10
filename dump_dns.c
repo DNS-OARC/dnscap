@@ -208,6 +208,72 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 		if (n < 0)
 			goto error;
 		break;
+	/*
+	 * GGM 2014/09/04 deal with edns0 a bit more clearly
+	 */
+	case ns_t_opt:
+		{
+			/* the global rdlen for the rr is the overall optlen */
+			u_short optlen = ns_rr_rdlen(*rr);
+
+			/* the next two shorts are the edns0 opt code, and the length of the optionsection */
+			u_short edns0optcod;
+			MY_GET16(edns0optcod, rd);
+
+			u_short edns0lenopt;
+			MY_GET16(edns0lenopt, rd);
+
+			u_long  edns0csize;
+			u_short edns0version;
+			u_short edns0rcode;
+			u_char  edns0dobit;
+			u_char  edns0z;
+
+			/* class encodes client UDP size accepted */
+			edns0csize = (u_long)(class);
+
+			/*
+			 * the first two bytes of ttl encode edns0 version, and the extended rcode
+			 */
+			edns0version = ((u_long)ns_rr_ttl(*rr) & 0x00ff0000) >> 16;
+			edns0rcode = ((u_long)ns_rr_ttl(*rr) & 0xff000000) >> 24;
+
+			/*
+			 *  the next two bytes of ttl encode DO bit as the top bit, and the remainder is the 'z' value
+			 */
+			edns0dobit = (u_long)ns_rr_ttl(*rr) & 0x8000 ? '1' : '0';
+			edns0z = (u_long)ns_rr_ttl(*rr) & 0x7fff;
+
+			fprintf(trace, ",edns0[len=%d,code=%d,codelen=%d,UDP=%d,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
+				optlen, edns0optcod, edns0lenopt, edns0csize, edns0version, edns0rcode, edns0dobit, edns0z, '\\');
+
+			/* if we have any data */
+			if (optlen > 0) {
+				/* if we have edns0_client_subnet */
+				if (edns0optcod == 0x08) {
+					u_short   afi;
+					MY_GET16(afi, rd);
+
+					u_short masks;
+					MY_GET16(masks, rd);
+					u_short srcmask = (masks & 0xff00) >> 8;
+					u_short scomask = (masks & 0xff);
+
+					u_char buf[128];
+
+					if (afi == 0x1) {
+						inet_ntop(AF_INET, rd, buf, sizeof buf);
+					} else if (afi == 0x2) {
+						inet_ntop(AF_INET6, rd, buf, sizeof buf);
+					} else {
+						fprintf(trace, "unknown AFI %d\n", afi);
+						strcpy(buf,"<unknown>");
+					}
+					fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf, srcmask, scomask);
+				}
+			}
+		}
+
 	default:
  error:
 		sprintf(buf, "[%u]", ns_rr_rdlen(*rr));
