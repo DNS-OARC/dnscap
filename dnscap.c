@@ -1,17 +1,20 @@
 /* dnscap - DNS capture utility
  *
  * By Paul Vixie (ISC) and Duane Wessels (Measurement Factory), 2007.
+ * Klaus Darilion (nic.at), 2014.
  */
 
 #ifndef lint
 static const char rcsid[] = "$Id$";
 static const char copyright[] =
-	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
+	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")\n"
+	"Copyright (c) 2014 by nic.at";
 static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #endif
 
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2014 by nic.at
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -331,6 +334,7 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
+static const char *dump_suffix = NULL;
 static const char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
@@ -338,12 +342,14 @@ static const char *kick_cmd = NULL;
 static unsigned limit_seconds = 0U;
 static time_t next_interval = 0;
 static unsigned limit_packets = 0U;
+static size_t limit_pcapfilesize = 0U;
 static fd_set mypcap_fdset;
 static int pcap_maxfd;
 static pcap_t *pcap_dead;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
 static unsigned msgcount;
+static size_t capturedbytes;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
@@ -361,6 +367,7 @@ static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 static my_bpftimeval last_ts = {0,0};
+static my_bpftimeval select_timeout = {0,-1};
 
 /* Public. */
 
@@ -402,9 +409,10 @@ main(int argc, char *argv[]) {
 		daemonize();
 	while (!main_exit)
 		poll_pcaps();
-	close_pcaps();
+	/* close PCAPs after dumper_close() to have statistics still available during dumper_close() */
 	if (dumper_opened == dump_state)
 		(void) dumper_close(last_ts);
+	close_pcaps();
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->stop)
 			(*p->stop)();
@@ -501,13 +509,14 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fTI] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"\t[-?bpd1g6fTIS] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
-		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
-		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
+		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
+		"\t[-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
-		"\t[-B <datetime>]+ [-E <datetime>]+\n"
+		"\t[-y <usec>]\n"
+		"\t[-B <datetime>] [-E <datetime>]\n"
 		"\t[-P plugin.so] [-U <str>]\n",
 		ProgramName);
 }
@@ -520,11 +529,12 @@ help_2(void) {
 		"\t-? or -\\?  print these instructions and exit\n"
 		"\t-b         run in background as daemon\n"
 		"\t-p         do not put interface in promiscuous mode\n"
-		"\t-d         dump verbose trace information to stderr\n"
+		"\t-d         dump verbose trace information to stderr, specify multiple times to increase debugging\n"
 		"\t-1         flush output on every packet\n"
 		"\t-g         dump packets dig-style on stderr\n"
 		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
 		"\t-f         include fragmented packets\n"
+		"\t-S         dump capture statistics\n"
 		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
 		"\t           first DNS header, and the result will apply to all messages\n"
 		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
@@ -552,14 +562,17 @@ help_2(void) {
 		"\t-Z <host>  want messages NOT to/from these responder(s)\n"
 		"\t-Y <host>  drop responses from these responder(s)\n"
 		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"\t-W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
+		"\t-C <lim>   close dump or exit every/after <lim> bytes captured\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
 		"\t-U <str>   append 'and <str>' to the pcap filter\n"
                 "\t-B <datetime> begin collecting at this date and time\n"
                 "\t-E <datetime> end collecting at this date and time\n"
+                "\t-y <usec>  set select() timeout to <usec> to work around TPACKET_V3 bug\n"
 		);
 }
 
@@ -587,7 +600,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:IL:P:STU:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:y:z:A:B:C:E:IL:P:STU:W:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -741,6 +754,9 @@ parse_args(int argc, char *argv[]) {
 			else
 				dump_type = to_file;
 			break;
+		case 'W':
+			dump_suffix = optarg;
+			break;
 		case 'k':
 			if (dump_type != to_file)
 				usage("-k depends on -w"
@@ -758,6 +774,19 @@ parse_args(int argc, char *argv[]) {
 			if (*p != '\0')
 				usage("argument to -c must be an integer");
 			limit_packets = (unsigned) ul;
+			break;
+		case 'C':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -C must be an integer");
+			limit_pcapfilesize = (unsigned) ul;
+			break;
+		case 'y':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -y must be an integer");
+			select_timeout.tv_sec = ul / 1000000;
+			select_timeout.tv_usec = ul % 1000000;
 			break;
 		case 'x':
 			/* FALLTHROUGH */
@@ -878,7 +907,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu, y %ld.%06ld\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -895,7 +924,8 @@ parse_args(int argc, char *argv[]) {
 			(err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
 			(err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
 			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
-			limit_seconds, limit_packets);
+			limit_seconds, limit_packets, limit_pcapfilesize,
+			select_timeout.tv_sec, select_timeout.tv_usec);
 		sep = "\tinit";
 		for (ep = HEAD(initiators);
 		     ep != NULL;
@@ -1069,7 +1099,7 @@ prepare_bpft(void) {
  * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
  * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
  * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
-
+*/
 	/* Make a BPF program to do early course kernel-level filtering. */
 	INIT_LIST(bpfl);
 	len = 0;
@@ -1314,10 +1344,16 @@ poll_pcaps(void) {
 	mypcap_ptr mypcap;
 	fd_set readfds;
 	int n;
+	my_bpftimeval timeout;
 
 	do {
 		memcpy(&readfds, &mypcap_fdset, sizeof(fd_set));
-		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+		if (select_timeout.tv_usec == -1) { /* timeout not specified */
+			n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
+		} else {
+			timeout = select_timeout;
+			n = select(pcap_maxfd+1, &readfds, NULL, NULL, &timeout);
+		}
 	} while (n < 0 && errno == EINTR && !main_exit);
 	if (n < 0) {
 		if (errno != EINTR)
@@ -1605,6 +1641,17 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 			goto breakloop;
 		msgcount = 0;
 	}
+
+	if (limit_pcapfilesize != 0U && capturedbytes >= limit_pcapfilesize) {
+		if (preso) {
+			goto breakloop;
+		}
+		if (dumper_opened == dump_state && dumper_close(hdr->ts)) {
+			goto breakloop;
+		}
+		capturedbytes = 0;
+	}
+
 	return;
  breakloop:
 	breakloop_pcaps();
@@ -1617,7 +1664,7 @@ static void
 discard(tcpstate_ptr tcpstate, const char *msg)
 {
 	if (dumptrace >= 3 && msg)
-		fprintf(stderr, "%s\n", msg);
+		fprintf(stderr, "discarding packet: %s\n", msg);
 	if (tcpstate) {
 		UNLINK(tcpstates, tcpstate, link);
 		free(tcpstate);
@@ -1642,6 +1689,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	struct ip *ip;
 	size_t len, dnslen;
 	HEADER dns;
+
+	if (dumptrace >= 4)
+		fprintf(stderr, "processing %s packet: len=%zu\n", (pf==PF_INET?"IPv4":(pf==PF_INET6?"IPv6":"unknown")), olen);
 
 	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len = olen);
@@ -2151,7 +2201,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			abort();
 		}
 	}
-	msgcount++;
 	output(descr, from, to, proto, isfrag, sport, dport, ts,
 	    pkt_copy, olen, dnspkt, dnslen);
 }
@@ -2163,6 +2212,15 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
     const u_char *dnspkt, unsigned dnslen)
 {
 	struct plugin *p;
+
+	msgcount++;
+	capturedbytes += olen;
+
+	if (dumptrace >= 3) {
+		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%d, olen=%u, dnslen=%u\n",
+			capturedbytes, proto, isfrag, olen, dnslen);
+	}
+
 	/* Output stage. */
 	if (preso) {
 		fputs(descr, stderr);
@@ -2213,9 +2271,9 @@ dumper_open(my_bpftimeval ts) {
 		char sbuf[64];
 
 		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
-		if (asprintf(&dumpname, "%s.%s.%06lu",
+		if (asprintf(&dumpname, "%s.%s.%06lu%s",
 			     dump_base, sbuf,
-			     (u_long) ts.tv_usec) < 0 ||
+			     (u_long) ts.tv_usec, dump_suffix) < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
 			logerr("asprintf: %s", strerror(errno));

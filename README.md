@@ -39,3 +39,11 @@ Also note that we have observed significant memory leaks on FreeBSD
 1. reinstall the libbind port
 1. recompile and install dnscap
 
+## Problems
+
+When capturing with libpcap 1.5.3 on Linux with kernel>=3.2, there will be
+problems capturing packets when there is low traffic. The problem seems to
+be caused by libpcap with TPACKET_V3 support and the usage of select() before
+pcap_dispatch(). See https://github.com/the-tcpdump-group/libpcap/issues/380
+for details.
+

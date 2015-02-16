@@ -1,0 +1,35 @@
+Source: dnscap
+Section: net
+Priority: extra
+Maintainer: Kiall Mac Innes <kiall@hp.com>
+Build-Depends: libpcap0.8-dev, debhelper (>= 8.0.0), autotools-dev
+Standards-Version: 3.9.4
+Homepage: https://www.dns-oarc.net/tools/dnscap
+
+Package: dnscap
+Architecture: any
+Depends: libpcap0.8, ${shlibs:Depends}, ${misc:Depends}
+Description: DNSCAP - DNS traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic. It
+ produces binary data in pcap(3) format. This utility is similar to tcpdump(1),
+ but has a number of features tailored to DNS transactions and protocol options.
+
+Package: dnscap-plugin-pcapdump
+Architecture: any
+Depends: dnscap, ${shlibs:Depends}, ${misc:Depends}
+Description: DNSCAP - pcapdump plugin
+ dnscap is a network capture utility designed specifically for DNS traffic. It
+ produces binary data in pcap(3) format. This utility is similar to tcpdump(1),
+ but has a number of features tailored to DNS transactions and protocol options.
+ .
+ pcapdump plugin
+
+Package: dnscap-plugin-rssm
+Architecture: any
+Depends: dnscap, ${shlibs:Depends}, ${misc:Depends}
+Description: DNSCAP - pcapdump plugin
+ dnscap is a network capture utility designed specifically for DNS traffic. It
+ produces binary data in pcap(3) format. This utility is similar to tcpdump(1),
+ but has a number of features tailored to DNS transactions and protocol options.
+ .
+ rssm plugin
