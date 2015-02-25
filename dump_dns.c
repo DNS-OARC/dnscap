@@ -243,7 +243,7 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 			/* the global rdlen for the rr is the overall optlen */
 			u_short optlen = ns_rr_rdlen(*rr);
 
-			fprintf(trace, ",edns0[len=%d,UDP=%d,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
+			fprintf(trace, ",edns0[len=%d,UDP=%lu,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
 				optlen, edns0csize, edns0version, edns0rcode, edns0dobit, edns0z, '\\');
 
 			/* if we have any data */
@@ -267,7 +267,7 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 					u_short srcmask = (masks & 0xff00) >> 8;
 					u_short scomask = (masks & 0xff);
 
-					u_char buf[128];
+					char buf[128];
 					u_char addr[16];
 					memset(addr, 0, sizeof addr);
 					memcpy(addr, rd, (edns0lenopt - 4) < sizeof(addr) ? (edns0lenopt - 4) : sizeof(addr));
