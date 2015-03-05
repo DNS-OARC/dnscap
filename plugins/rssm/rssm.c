@@ -17,6 +17,8 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 
+#include <ldns/ldns.h>
+
 #include "../../dnscap_common.h"
 
 #include "hashtbl.h"
@@ -32,6 +34,7 @@ output_t rssm_output;
 #define MAX_SIZE_INDEX 4096
 #define MSG_SIZE_SHIFT 4
 #define MAX_TBL_ADDRS 2000000
+#define MAX_RCODE (1<<12)
 
 typedef struct {
 	hashtbl *tbl;
@@ -51,6 +54,7 @@ struct {
 	uint64_t dns_tcp_responses_received_ipv6;
 	uint64_t query_size[MAX_SIZE_INDEX];
 	uint64_t response_size[MAX_SIZE_INDEX];
+	uint64_t rcodes[MAX_RCODE];
 	my_hashtbl sources;
 } counts;
 
@@ -182,6 +186,10 @@ rssm_save_counts(const char *sbuf)
 				i<<MSG_SIZE_SHIFT,
 				((i+1)<<MSG_SIZE_SHIFT)-1,
 				counts.response_size[i]);
+	for (i=0; i<MAX_RCODE; i++)
+		if (counts.rcodes[i])
+			fprintf(fp, "dns-rcode %d %"PRIu64"\n",
+				i, counts.rcodes[i]);
 	fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
 	fclose(fp);
 	free(tbuf);
@@ -288,6 +296,7 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 			}
 		}
 	} else {
+		uint16_t rcode = dns->rcode;
 		counts.response_size[dnslen]++;
 		if (AF_INET == from.af) {
 			if (IPPROTO_UDP == proto) {
@@ -302,5 +311,13 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 				counts.dns_tcp_responses_received_ipv6++;
 			}
 		}
+		if (dns->arcount) {
+			ldns_pkt *pkt = 0;
+			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, dnspkt, dnslen)) {
+				rcode |= ((uint16_t) ldns_pkt_edns_extended_rcode(pkt) << 4);
+				ldns_pkt_free(pkt);
+			}
+		}
+		counts.rcodes[rcode]++;
 	}
 }
