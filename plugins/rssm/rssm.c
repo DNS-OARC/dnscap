@@ -275,6 +275,7 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 {
 	if (!dnspkt)
 		return;
+	unsigned o_dnslen = dnslen;
 	dnslen >>= MSG_SIZE_SHIFT;
 	if (dnslen >= MAX_SIZE_INDEX)
 		dnslen = MAX_SIZE_INDEX-1;
@@ -313,7 +314,7 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		}
 		if (dns->arcount) {
 			ldns_pkt *pkt = 0;
-			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, dnspkt, dnslen)) {
+			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, dnspkt, o_dnslen)) {
 				rcode |= ((uint16_t) ldns_pkt_edns_extended_rcode(pkt) << 4);
 				ldns_pkt_free(pkt);
 			}
