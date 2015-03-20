@@ -48,12 +48,14 @@ struct {
 	uint64_t dns_udp_queries_received_ipv6;
 	uint64_t dns_tcp_queries_received_ipv4;
 	uint64_t dns_tcp_queries_received_ipv6;
-	uint64_t dns_udp_responses_received_ipv4;
-	uint64_t dns_udp_responses_received_ipv6;
-	uint64_t dns_tcp_responses_received_ipv4;
-	uint64_t dns_tcp_responses_received_ipv6;
-	uint64_t query_size[MAX_SIZE_INDEX];
-	uint64_t response_size[MAX_SIZE_INDEX];
+	uint64_t dns_udp_responses_sent_ipv4;
+	uint64_t dns_udp_responses_sent_ipv6;
+	uint64_t dns_tcp_responses_sent_ipv4;
+	uint64_t dns_tcp_responses_sent_ipv6;
+	uint64_t udp_query_size[MAX_SIZE_INDEX];
+	uint64_t tcp_query_size[MAX_SIZE_INDEX];
+	uint64_t udp_response_size[MAX_SIZE_INDEX];
+	uint64_t tcp_response_size[MAX_SIZE_INDEX];
 	uint64_t rcodes[MAX_RCODE];
 	my_hashtbl sources;
 } counts;
@@ -170,22 +172,34 @@ rssm_save_counts(const char *sbuf)
 	fprintf(fp, "dns-udp-queries-received-ipv6 %"PRIu64"\n", counts.dns_udp_queries_received_ipv6);
 	fprintf(fp, "dns-tcp-queries-received-ipv4 %"PRIu64"\n", counts.dns_tcp_queries_received_ipv4);
 	fprintf(fp, "dns-tcp-queries-received-ipv6 %"PRIu64"\n", counts.dns_tcp_queries_received_ipv6);
-	fprintf(fp, "dns-udp-responses-received-ipv4 %"PRIu64"\n", counts.dns_udp_responses_received_ipv4);
-	fprintf(fp, "dns-udp-responses-received-ipv6 %"PRIu64"\n", counts.dns_udp_responses_received_ipv6);
-	fprintf(fp, "dns-tcp-responses-received-ipv4 %"PRIu64"\n", counts.dns_tcp_responses_received_ipv4);
-	fprintf(fp, "dns-tcp-responses-received-ipv6 %"PRIu64"\n", counts.dns_tcp_responses_received_ipv6);
+	fprintf(fp, "dns-udp-responses-sent-ipv4 %"PRIu64"\n", counts.dns_udp_responses_sent_ipv4);
+	fprintf(fp, "dns-udp-responses-sent-ipv6 %"PRIu64"\n", counts.dns_udp_responses_sent_ipv6);
+	fprintf(fp, "dns-tcp-responses-sent-ipv4 %"PRIu64"\n", counts.dns_tcp_responses_sent_ipv4);
+	fprintf(fp, "dns-tcp-responses-sent-ipv6 %"PRIu64"\n", counts.dns_tcp_responses_sent_ipv6);
 	for (i=0; i<MAX_SIZE_INDEX; i++)
-		if (counts.query_size[i])
-			fprintf(fp, "dns-query-size %d-%d %"PRIu64"\n",
+		if (counts.udp_query_size[i])
+			fprintf(fp, "dns-udp-query-size %d-%d %"PRIu64"\n",
 				i<<MSG_SIZE_SHIFT,
 				((i+1)<<MSG_SIZE_SHIFT)-1,
-				counts.query_size[i]);
+				counts.udp_query_size[i]);
 	for (i=0; i<MAX_SIZE_INDEX; i++)
-		if (counts.response_size[i])
-			fprintf(fp, "dns-response-size %d-%d %"PRIu64"\n",
+		if (counts.tcp_query_size[i])
+			fprintf(fp, "dns-tcp-query-size %d-%d %"PRIu64"\n",
 				i<<MSG_SIZE_SHIFT,
 				((i+1)<<MSG_SIZE_SHIFT)-1,
-				counts.response_size[i]);
+				counts.tcp_query_size[i]);
+	for (i=0; i<MAX_SIZE_INDEX; i++)
+		if (counts.udp_response_size[i])
+			fprintf(fp, "dns-udp-response-size %d-%d %"PRIu64"\n",
+				i<<MSG_SIZE_SHIFT,
+				((i+1)<<MSG_SIZE_SHIFT)-1,
+				counts.udp_response_size[i]);
+	for (i=0; i<MAX_SIZE_INDEX; i++)
+		if (counts.tcp_response_size[i])
+			fprintf(fp, "dns-tcp-response-size %d-%d %"PRIu64"\n",
+				i<<MSG_SIZE_SHIFT,
+				((i+1)<<MSG_SIZE_SHIFT)-1,
+				counts.tcp_response_size[i]);
 	for (i=0; i<MAX_RCODE; i++)
 		if (counts.rcodes[i])
 			fprintf(fp, "dns-rcode %d %"PRIu64"\n",
@@ -281,8 +295,12 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		dnslen = MAX_SIZE_INDEX-1;
 	HEADER *dns = (HEADER *) dnspkt;
 	if (0 == dns->qr) {
-		counts.query_size[dnslen]++;
 		hash_find_or_add(from, &counts.sources);
+		if (IPPROTO_UDP == proto) {
+			counts.udp_query_size[dnslen]++;
+		} else if (IPPROTO_TCP == proto) {
+			counts.tcp_query_size[dnslen]++;
+		}
 		if (AF_INET == from.af) {
 			if (IPPROTO_UDP == proto) {
 				counts.dns_udp_queries_received_ipv4++;
@@ -298,18 +316,22 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		}
 	} else {
 		uint16_t rcode = dns->rcode;
-		counts.response_size[dnslen]++;
+		if (IPPROTO_UDP == proto) {
+			counts.udp_response_size[dnslen]++;
+		} else if (IPPROTO_TCP == proto) {
+			counts.tcp_response_size[dnslen]++;
+		}
 		if (AF_INET == from.af) {
 			if (IPPROTO_UDP == proto) {
-				counts.dns_udp_responses_received_ipv4++;
+				counts.dns_udp_responses_sent_ipv4++;
 			} else if (IPPROTO_TCP == proto) {
-				counts.dns_tcp_responses_received_ipv4++;
+				counts.dns_tcp_responses_sent_ipv4++;
 			}
 		} else if (AF_INET6 == from.af) {
 			if (IPPROTO_UDP == proto) {
-				counts.dns_udp_responses_received_ipv6++;
+				counts.dns_udp_responses_sent_ipv6++;
 			} else if (IPPROTO_TCP == proto) {
-				counts.dns_tcp_responses_received_ipv6++;
+				counts.dns_tcp_responses_sent_ipv6++;
 			}
 		}
 		if (dns->arcount) {
