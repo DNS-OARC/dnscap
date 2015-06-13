@@ -4,7 +4,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: dnscap.c 20150225 2015-02-25 wessels $";
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
 static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
