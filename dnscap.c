@@ -2175,7 +2175,7 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 			    dump_dns(dnspkt, dnslen, stderr, "\\\n\t");
 		}
 		putc('\n', stderr);
-	} else
+	}
 	if (dump_type != nowhere) {
 		struct pcap_pkthdr h;
 
