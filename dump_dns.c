@@ -240,7 +240,7 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 			edns0dobit = (u_long)ns_rr_ttl(*rr) & 0x8000 ? '1' : '0';
 			edns0z = (u_long)ns_rr_ttl(*rr) & 0x7fff;
 
-			/* the global rdlen for the rr is the overall optlen */
+			/* optlen is the size of the OPT rdata */
 			u_short optlen = ns_rr_rdlen(*rr);
 
 			fprintf(trace, ",edns0[len=%d,UDP=%lu,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
@@ -253,24 +253,41 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 				u_short edns0lenopt;
 				MY_GET16(edns0optcod, rd);
 				MY_GET16(edns0lenopt, rd);
+				optlen -= 4;
 				fprintf(trace, "edns0[code=%d,codelen=%d] ", edns0optcod, edns0lenopt);
+
+				/*
+				 * Check that the OPTION-LENGTH for this EDNS0 option doesn't
+				 * exceed the size of the remaining OPT record rdata.  If it does,
+				 * just bail.
+				 */
+				if (edns0lenopt > optlen)
+					goto error;
+
+				/*
+				 * "pre-consume" edns0lenopt bytes from optlen here because
+				 * below we're going to decrement edns0lenopt as we go.
+				 * At this point optlen will refer to the size of the remaining
+			         * OPT_T rdata after parsing the current option.
+				 */
+				optlen -= edns0lenopt;
 
 				/* if we have edns0_client_subnet */
 				if (edns0optcod == 0x08) {
 					if (edns0lenopt < 4)
 						goto error;
-					u_short   afi;
+					u_short afi;
 					MY_GET16(afi, rd);
-
 					u_short masks;
 					MY_GET16(masks, rd);
+					edns0lenopt -= 4;
 					u_short srcmask = (masks & 0xff00) >> 8;
 					u_short scomask = (masks & 0xff);
 
 					char buf[128];
 					u_char addr[16];
 					memset(addr, 0, sizeof addr);
-					memcpy(addr, rd, (edns0lenopt - 4) < sizeof(addr) ? (edns0lenopt - 4) : sizeof(addr));
+					memcpy(addr, rd, edns0lenopt < sizeof(addr) ? edns0lenopt : sizeof(addr));
 
 					if (afi == 0x1) {
 						inet_ntop(AF_INET, addr, buf, sizeof buf);
@@ -282,8 +299,8 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 					}
 					fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf, srcmask, scomask);
 				}
-				rd += (edns0lenopt + 4);
-				optlen -= (edns0lenopt + 4);
+				/* increment the rd pointer by the remaining option data size */
+				rd += edns0lenopt;
 			}
 		}
 
