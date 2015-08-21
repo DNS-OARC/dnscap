@@ -82,3 +82,4 @@ distclean:: clean
 	rm -rf autom4te.cache
 	rm -f config.h
 	rm -f Makefile
+	rm -rf snprintf_2.2
