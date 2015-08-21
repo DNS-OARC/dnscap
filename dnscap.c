@@ -367,23 +367,25 @@ static my_bpftimeval last_ts = {0,0};
 int
 main(int argc, char *argv[]) {
 	struct plugin *p;
+	struct timeval now;
 	res_init();
 	parse_args(argc, argv);
+	gettimeofday(&now, 0);
 	if (start_time) {
-		time_t now;
-		time(&now);
-		if (now < start_time) {
+		if (now.tv_sec < start_time) {
 			char when[100];
 			struct tm *tm = gmtime(&start_time);
 			strftime(when, sizeof when, "%F %T", tm);
 			fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
-				(int) (start_time - now), when);
-			sleep(start_time - now);
+				(int) (start_time - now.tv_sec), when);
+			sleep(start_time - now.tv_sec);
 			fprintf(stderr, "Awake.\n");
 		}
 	}
 	prepare_bpft();
 	open_pcaps();
+	if (dump_type == to_stdout)
+		dumper_open(now);
 	INIT_LIST(tcpstates);
 	setsig(SIGHUP, TRUE);
 	setsig(SIGINT, TRUE);
