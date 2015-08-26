@@ -533,8 +533,8 @@ help_2(void) {
 		"\t-I         include ICMP and ICMPv6 packets\n"
 		"\t-i <if>    select this live interface(s)\n"
 		"\t-r <file>  read this pcap file\n"
-		"\t-l <vlan>  select only these vlan(s)\n"
-		"\t-L <vlan>  select these vlan(s) and non-VLAN frames\n"
+		"\t-l <vlan>  select only these vlan(s) (4095 for all)\n"
+		"\t-L <vlan>  select these vlan(s) and non-VLAN frames (4095 for all)\n"
 		"\t-u <port>  dns port (default: 53)\n"
 		"\t-m [qun]   select messages: query, update, notify\n"
 		"\t-s [ir]    select sides: initiations, responses\n"
@@ -648,22 +648,32 @@ parse_args(int argc, char *argv[]) {
 		case 'l':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
-				usage("vlan must be 0 or an integer 1..4095");
+				usage("vlan must be an integer 0..4095");
 			vlan = malloc(sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
 			APPEND(vlans_excl, vlan, link);
+			if (0 == ul)
+				fprintf(stderr, "Warning: previous versions of %s "
+					"interpreted 0 as all VLANs. "
+					"If you want all VLANs now you must "
+					"specify %u.\n", ProgramName, MAX_VLAN);
 			break;
 		case 'L':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
-				usage("vlan must be 0 or an integer 1..4095");
+				usage("vlan must be an integer 0..4095");
 			vlan = malloc(sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
 			APPEND(vlans_incl, vlan, link);
+			if (0 == ul)
+				fprintf(stderr, "Warning: previous versions of %s "
+					"interpreted 0 as all VLANs. "
+					"If you want all VLANs now you must "
+					"specify %u.\n", ProgramName, MAX_VLAN);
 			break;
 		case 'T':
 			wanttcp = TRUE;
@@ -1450,7 +1460,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		return;
 
 	/* Data link. */
-	vlan = 0;
+	vlan = MAX_VLAN;	/* MAX_VLAN (0xFFF) is reserved and shouldn't appear on the wire */
 	switch (mypcap->dlt) {
 	case DLT_NULL: {
 		uint32_t x;
@@ -1510,11 +1520,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		if (etype == ETHERTYPE_VLAN) {
 			if (len < 4)
 				return;
-			vlan = ntohs(*(const uint16_t *) pkt);
+			vlan = ntohs(*(const uint16_t *) pkt) & 0xFFF;
 			pkt += 2;
 			len -= 2;
-			if (vlan < 1 || vlan > MAX_VLAN)
-				return;
 			etype = ntohs(*(const uint16_t *) pkt);
 			pkt += 2;
 			len -= 2;
@@ -1541,7 +1549,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		for (vl = HEAD(vlans_excl);
 		     vl != NULL;
 		     vl = NEXT(vl, link))
-			if (vl->vlan == vlan || vl->vlan == 0)
+			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
         // If there is no VLAN matching the packet, skip it
 		if (vl == NULL)
@@ -1553,11 +1561,11 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		for (vl = HEAD(vlans_incl);
 		     vl != NULL;
 		     vl = NEXT(vl, link))
-			if (vl->vlan == vlan || vl->vlan == 0)
+			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
         // If there is no VLAN matching the packet, and the packet is
         // tagged, skip it
-		if (vl == NULL && vlan != 0)
+		if (vl == NULL && vlan != MAX_VLAN)
 			return;
 	}
 
@@ -1583,7 +1591,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		strcpy(via, (mypcap->name == NULL)
 				? "\"some interface\""
 				: mypcap->name);
-		if (vlan != 0)
+		if (vlan != MAX_VLAN)
 			sprintf(via + strlen(via), " (vlan %u)", vlan);
 		sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u] \\\n",
 			(u_long)len, when, (u_long)hdr->ts.tv_usec,

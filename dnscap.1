@@ -124,13 +124,13 @@ as the input packet source.  Can be given as "-" to indicate standard input.
 .It Fl l Ar vlan
 Captures only 802.1Q encapsulated packets, and selects specific vlans to be
 monitored.  Can be specified more than once to select multiple vlans.
-.Fl l Ar 0
+.Fl l Ar 4095
 means "all vlans".
 .It Fl L Ar vlan
 Captures 802.1Q encapsulated packets matching the specified vlans AND
 packets without VLAN tags. Can be specified more than one to select
 multiple vlans.
-.Fl L Ar 0
+.Fl L Ar 4095
 means "all vlans".
 .It Fl u Ar port
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
