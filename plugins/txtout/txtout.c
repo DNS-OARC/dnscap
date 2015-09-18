@@ -117,31 +117,6 @@ ia_str(iaddr ia) {
         return (ret);
 }
 
-static int
-str_is_safe(const char *s)
-{
-	const char *q = s;
-	while (*q) {
-		if (!isalpha(*q) && !isdigit(*q) && !ispunct(*q))
-			return 0;
-		q++;
-	}
-	return 1;
-}
-
-static void
-print_name(const char *s)
-{
-	const char *q;
-	if (str_is_safe(s)) {
-		fprintf(out, "%s %hhu", s, 0);
-	} else {
-		for (q = s; *q; q++)
-			fprintf(out, "%02X", *q);
-		fprintf(out, " 1");
-	}
-}
-
 void
 txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
     unsigned sport, unsigned dport, my_bpftimeval ts,
@@ -178,10 +153,10 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 		
 		qdcount = ns_msg_count(msg, ns_s_qd);
 		if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
-			fprintf (out, " %s %s ",
+			fprintf (out, " %s %s %s",
 				p_class(ns_rr_class(rr)),
-				p_type(ns_rr_type(rr)));
-			print_name(ns_rr_name(rr));
+				p_type(ns_rr_type(rr)),
+				ns_rr_name(rr));
 		}
 	}
 	/*
