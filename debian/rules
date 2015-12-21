@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+%:
+	dh $@ --with autotools-dev
+
+override_dh_auto_build:
+	dh_auto_build
+	cd plugins/pcapdump; make all
+	cd plugins/rssm; make all
+	cd plugins/template; make all
+	cd plugins/txtout; make all
+
+override_dh_auto_clean:
+	dh_auto_clean
+	cd plugins/pcapdump; make clean
+	cd plugins/rssm; make clean
+	cd plugins/template; make clean
+	cd plugins/txtout; make clean
