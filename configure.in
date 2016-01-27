@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.64])
 AC_INIT([dnscap],
-	m4_esyscmd([svn info | awk '/^Revision:/ {print "r" $2}' | tr -d '\n']),
+	m4_esyscmd_s(echo $(git describe --tags)$(git status --porcelain | awk '{if ($1 == "M") {print "-dirty";exit}}')),
 	[wessels@dns-oarc.net],
 	[],
 	[http://dnscap.dns-oarc.net/])
