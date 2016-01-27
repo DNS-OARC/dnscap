@@ -39,12 +39,17 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <stdarg.h>
 #include <syslog.h>
 #include <dlfcn.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
 
 #ifdef __linux__
 # define __FAVOR_BSD
 # define __USE_GNU
 # define _GNU_SOURCE
 # include <net/ethernet.h>
+#ifdef SECCOMP
+#include <seccomp.h>
+#endif
 #endif
 
 #ifdef __FreeBSD__
@@ -118,6 +123,7 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <pwd.h>
 
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
@@ -203,6 +209,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define FALSE		0
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 #define MAX_TCP_WINDOW	(0xFFFF << 14)
+#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
 
 /* Data structures. */
 
@@ -305,6 +312,7 @@ static void sigclose(int);
 static void sigbreak(int);
 static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
+static void drop_privileges(void);
 static logerr_t logerr;
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
@@ -355,12 +363,18 @@ static int wantfrags = FALSE;
 static int wanticmp = FALSE;
 static int wanttcp = FALSE;
 static int preso = FALSE;
+#ifdef SECCOMP
+static int use_seccomp = FALSE;
+#endif
 static int main_exit = FALSE;
 static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 static my_bpftimeval last_ts = {0,0};
+static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
+static int mem_limit_set = 1; // Should be configurable
+const char DROPTOUSER[] = "nobody";
 
 /* Public. */
 
@@ -391,6 +405,9 @@ main(int argc, char *argv[]) {
 	setsig(SIGINT, TRUE);
 	setsig(SIGALRM, FALSE);
 	setsig(SIGTERM, TRUE);
+
+	drop_privileges();
+
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->start)
 			if (0 != (*p->start)(logerr)) {
@@ -415,6 +432,130 @@ main(int argc, char *argv[]) {
 }
 
 /* Private. */
+
+static void
+drop_privileges(void)
+{
+	struct rlimit rss;
+	struct passwd pwd;
+	struct passwd *result;
+	size_t pwdBufSize;
+	char *pwdBuf;
+	unsigned int s;
+	uid_t oldUID = getuid();
+	uid_t oldGID = getgid();
+	uid_t dropUID;
+	gid_t dropGID;
+
+	// Security: getting UID and GUID for nobody
+	pwdBufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+	if (pwdBufSize == -1)
+		pwdBufSize = 16384;
+
+	pwdBuf = malloc(pwdBufSize * sizeof(char));
+	if (pwdBuf == NULL) {
+		fprintf(stderr, "unable to allocate buffer for pwdBuf\n");
+		exit(1);
+	}
+
+	s = getpwnam_r(DROPTOUSER, &pwd, pwdBuf, pwdBufSize, &result);
+	if (result == NULL) {
+		if (s == 0) {
+			fprintf(stderr, "User %s not found, exiting.\n", DROPTOUSER);
+			exit(1);
+		}else {
+			fprintf(stderr, "issue with getpwnnam_r call, exiting.\n");
+			exit(1);
+		}
+	}
+
+	dropUID = pwd.pw_uid;
+	dropGID = pwd.pw_gid;
+	memset(pwdBuf, 0, pwdBufSize);
+	free(pwdBuf);
+
+	// Security section: setting memory limit and dropping privilleges to nobody
+	getrlimit(RLIMIT_DATA, &rss);
+	if (mem_limit_set){
+		rss.rlim_cur = mem_limit;
+		rss.rlim_max = mem_limit;
+		if (setrlimit(RLIMIT_DATA, &rss) == -1) {
+			fprintf(stderr, "Unable to set the memory limit, exiting\n");
+			exit(1);
+		}
+	}
+
+	if (setresgid(dropGID, dropGID, dropGID) < 0) {
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
+
+	if (setresuid(dropUID, dropUID, dropUID) < 0) {
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
+
+	// Testing if privileges are dropped
+	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
+		fprintf(stderr, "Able to restore back to root, exiting.\n");
+		fprintf(stderr, "currentUID:%u currentGID:%u\n", getuid(), getgid());
+		exit(1);
+	}
+	if ((oldUID != getuid() && getuid() == 0) && (setuid(oldUID) != 1 && seteuid(oldUID) != 1)) {
+		fprintf(stderr, "Able to restore back to root, exiting.\n");
+		fprintf(stderr, "currentUID:%u currentGID:%u\n", getgid(), getgid());
+		exit(1);
+	}
+
+#ifdef SECCOMP
+	if(use_seccomp == FALSE) {
+		return;
+	}
+
+	// Setting SCMP_ACT_TRAP means the process will get
+	// a SIGSYS signal when a bad syscall is executed
+	// This is for debugging and should be monitored.
+	//scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+
+	// SCMP_ACT_KILL tells the kernel to kill the process
+	// when a syscall we did not filter on is called.
+	// This should be uncommented in production.
+	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
+
+	if(ctx == NULL) {
+		fprintf(stderr, "Unable to create seccomp-bpf context\n");
+		exit(1);
+	}
+
+	int r = 0;
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(setsockopt), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(uname), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+	r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+    r |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
+
+	if(r != 0) {
+		fprintf(stderr, "Unable to apply seccomp-bpf filter\n");
+		seccomp_release(ctx);
+		exit(1);
+	}
+
+	r = seccomp_load(ctx);
+
+	if(r < 0) {
+		seccomp_release(ctx);
+		fprintf(stderr, "Unable to load seccomp-bpf filter\n");
+		exit(1);
+	}
+#endif
+}
 
 #if !HAVE___ASSERTION_FAILED
 static void
@@ -559,6 +700,9 @@ help_2(void) {
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
+#ifdef SECCOMP
+		"\t-y         enable seccomp-bpf\n"
+#endif
 		"\t-U <str>   append 'and <str>' to the pcap filter\n"
                 "\t-B <datetime> begin collecting at this date and time\n"
                 "\t-E <datetime> end collecting at this date and time\n"
@@ -589,7 +733,11 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
+#ifdef SECCOMP
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:yz:A:B:E:IL:P:STU:X:Y:Z:16?")
+#else
 			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:z:A:B:E:IL:P:STU:X:Y:Z:16?")
+#endif
 		) != EOF)
 	{
 		switch (ch) {
@@ -867,6 +1015,11 @@ parse_args(int argc, char *argv[]) {
 		case 'U':
 			extra_bpf = strdup(optarg);
 			break;
+#ifdef SECCOMP
+		case 'y':
+			use_seccomp = TRUE;
+			break;
+#endif
 		default:
 			usage("unrecognized command line option");
 		}
@@ -2428,3 +2581,4 @@ daemonize(void)
 #endif
   logerr("Backgrounded as pid %u", getpid());
 }
+
