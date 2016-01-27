@@ -24,6 +24,7 @@ CC=gcc
 CFLAGS=-Wall -g -O2 
 LIBS=-ldl -lpcap -lresolv 
 LDFLAGS=
+SECCOMPFLAGS=-lseccomp -fPIE -fstack-protector-all -Wl,-z,relro -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2
 
 prog=dnscap
 prefix=/usr/local
@@ -57,7 +58,7 @@ install: all
 	${CC} ${CFLAGS} -c $<
 
 ${prog}: ${OBJS} Makefile
-	${CC} -o ${prog} ${LDFLAGS} ${OBJS} ${LIBS}
+	${CC} -o ${prog} ${LDFLAGS} ${OBJS} ${LIBS} ${SECCOMPFLAGS}
 
 ${OBJS}: Makefile ${SRCS}
 

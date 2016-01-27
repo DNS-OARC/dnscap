@@ -24,6 +24,7 @@ CC=@CC@
 CFLAGS=@CWARN@ @CFLAGS@ @OPTFLAGS@
 LIBS=@LIBS@
 LDFLAGS=@LDFLAGS@
+SECCOMPFLAGS=@SECCOMPFLAGS@
 
 prog=dnscap
 prefix=@prefix@
@@ -57,7 +58,7 @@ install: all
 	${CC} ${CFLAGS} -c $<
 
 ${prog}: ${OBJS} Makefile
-	${CC} -o ${prog} ${LDFLAGS} ${OBJS} ${LIBS}
+	${CC} -o ${prog} ${LDFLAGS} ${OBJS} ${LIBS} ${SECCOMPFLAGS}
 
 ${OBJS}: Makefile ${SRCS}
 

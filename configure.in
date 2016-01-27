@@ -86,8 +86,20 @@ if test "$GCC" = "yes" ; then
 	CWARN="-Wall"
 fi
 
+AC_ARG_ENABLE(seccomp, AC_HELP_STRING([--enable-seccomp], [Linux seccomp-bpf sandbox]))
+case "$enable_seccomp" in
+        yes)
+                AC_DEFINE_UNQUOTED([USE_SECCOMP], [1], [Define this to enable Linux seccomp-bpf sandbox.])
+		SECCOMPFLAGS="-lseccomp -fPIE -fstack-protector-all -Wl,-z,relro -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2"
+                ;;
+        no|*)
+                ;;
+esac
+
+
 OPTFLAGS=''
 AC_SUBST(OPTFLAGS, ["$OPTFLAGS"])
 AC_SUBST(CWARN, ["$CWARN"])
+AC_SUBST(SECCOMPFLAGS, ["$SECCOMPFLAGS"])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
