@@ -81,6 +81,7 @@ AC_CHECK_FUNC([p_rcode],
 	)
 )
 AC_CHECK_FUNCS([__assertion_failed])
+AC_CHECK_FUNCS([setresgid setresuid setregid setreuid setegid seteuid])
 
 if test "$GCC" = "yes" ; then
 	CWARN="-Wall"
