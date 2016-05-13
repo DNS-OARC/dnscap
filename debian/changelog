@@ -1,0 +1,5 @@
+dnscap (20151216-1) UNRELEASED; urgency=medium
+
+  * Initial release (Closes: #423458)
+
+ -- CHAMPAGNE Thomas <lafeuil@gmail.com>  Wed, 16 Dec 2015 14:37:22 +0100

@@ -1,0 +1,92 @@
+Source: dnscap
+Maintainer: Thomas Champagne <lafeuil@gmail.com>
+Section: net
+Priority: optional
+Standards-Version: 3.9.6
+Build-Depends: debhelper (>= 9), libpcap-dev (>= 1.0.0), libldns-dev, autotools-dev
+Vcs-Git: git@github.com:verisign/dnscap.git
+Vcs-Browser: https://github.com/verisign/dnscap
+Homepage: https://www.dns-oarc.net/tools/dnscap
+
+Package: dnscap
+Architecture: any
+Depends: libpcap0.8 (>= 1.0.0), ${shlibs:Depends}, ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+
+Package: dnscap-dev
+Architecture: any
+Depends: dnscap (= ${binary:Version}), ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+ .
+ This package contains plugin development files.
+
+Package: dnscap-plugin-pcapdump
+Architecture: any
+Depends: dnscap (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+ .
+ This package contains pcapdump plugin.
+
+Package: dnscap-plugin-rssm
+Architecture: any
+Depends: dnscap (= ${binary:Version}), libldns1, ${shlibs:Depends}, ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+ .
+ This package contains rssm plugin.
+
+Package: dnscap-plugin-template
+Architecture: any
+Depends: dnscap (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+ .
+ This package contains template plugin.
+
+Package: dnscap-plugin-txtout
+Architecture: any
+Depends: dnscap (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: DNS network traffic capture utility
+ dnscap is a network capture utility designed specifically for DNS traffic.
+ It normally produces binary data in pcap format, either on standard output
+ or in successive dump files (based on the -w command line option).
+ This utility is similar to tcpdump, but has finer grained packet recognition
+ tailored to DNS transactions and protocol options.
+ dnscap is expected to be used for gathering continuous research
+ or audit traces.
+ .
+ This package contains txtout plugin.
+
