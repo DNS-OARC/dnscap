@@ -19,7 +19,7 @@
 
 #include <ldns/ldns.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 #include "hashtbl.h"
 

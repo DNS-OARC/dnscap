@@ -4,7 +4,7 @@
 #include <string.h>
 #include <netinet/in.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 static logerr_t *logerr;
 static int opt_f = 0;

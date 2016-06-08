@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 #define SNAPLEN         65536
 #define THOUSAND        1000

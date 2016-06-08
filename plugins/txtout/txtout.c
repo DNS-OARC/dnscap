@@ -9,7 +9,7 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 static logerr_t *logerr;
 static int opt_f = 0;
@@ -150,7 +150,7 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 		if (ns_msg_getflag(msg, ns_f_ra)) fprintf(out, "RA|");
 		if (ns_msg_getflag(msg, ns_f_ad)) fprintf(out, "AD|");
 		if (ns_msg_getflag(msg, ns_f_cd)) fprintf(out, "CD|");
-		
+
 		qdcount = ns_msg_count(msg, ns_s_qd);
 		if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
 			fprintf (out, " %s %s %s",
