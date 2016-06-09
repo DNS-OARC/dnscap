@@ -1,10 +1,9 @@
+#include <netinet/in.h>
+
 /*
  * setup MY_BPFTIMEVAL as the timeval structure that bpf packets
  * will be assoicated with packets from libpcap
  */
-#ifdef __OpenBSD__
-# define MY_BPFTIMEVAL bpf_timeval
-#endif
 #ifndef MY_BPFTIMEVAL
 # define MY_BPFTIMEVAL timeval
 #endif
