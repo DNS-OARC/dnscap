@@ -53,6 +53,10 @@ AC_CHECK_HEADERS([ldns/ldns.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
+AC_CHECK_FUNCS([setreuid])
+AC_CHECK_FUNCS([setresuid])
+AC_CHECK_FUNCS([setregid])
+AC_CHECK_FUNCS([setresgid])
 AC_CHECK_FUNC([ns_initparse],
     [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
     AC_CHECK_FUNC(__ns_initparse,

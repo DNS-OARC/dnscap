@@ -485,15 +485,29 @@ drop_privileges(void)
 		}
 	}
 
+#if HAVE_SETRESGID
 	if (setresgid(dropGID, dropGID, dropGID) < 0) {
 		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
 		exit(1);
 	}
+#elif HAVE_SETREGID
+	if (setregid(dropGID, dropGID) < 0) {
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
+#endif
 
+#if HAVE_SETRESUID
 	if (setresuid(dropUID, dropUID, dropUID) < 0) {
 		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
 		exit(1);
 	}
+#elif HAVE_SETREUID
+	if (setreuid(dropUID, dropUID) < 0) {
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
+#endif
 
 	// Testing if privileges are dropped
 	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
