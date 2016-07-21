@@ -12,6 +12,10 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
+#ifdef __APPLE__
+#include <arpa/nameser_compat.h>
+#endif
+
 #include "dnscap_common.h"
 
 #define SNAPLEN         65536
