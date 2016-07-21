@@ -17,7 +17,11 @@ LT_INIT([disable-static])
 
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
-AC_CHECK_LIB([resolv], [res_mkquery], [], [AC_CHECK_LIB([resolv], [__res_mkquery])])
+AC_CHECK_LIB([resolv], [res_mkquery], [], [
+	AC_CHECK_LIB([resolv], [__res_mkquery], [], [
+		AC_CHECK_LIB([resolv], [res_9_mkquery])
+	])
+])
 AC_CHECK_LIB([pcap], [pcap_open_live], [],
     [
     echo "dnscap requires libpcap.  Install package libpcap-dev on most Linux"
