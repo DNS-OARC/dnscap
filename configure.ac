@@ -115,5 +115,6 @@ AC_CONFIG_FILES([
     plugins/pcapdump/Makefile
     plugins/rssm/Makefile
     plugins/txtout/Makefile
+    plugins/rzkeychange/Makefile
 ])
 AC_OUTPUT
