@@ -73,7 +73,6 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #ifdef __APPLE__
 # include <net/ethernet.h>
 # include <net/bpf.h>
-# include <arpa/nameser_compat.h>
 #endif
 
 #ifdef __hpux
@@ -108,6 +107,9 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/nameser.h>
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
 #include <arpa/inet.h>
 
 #include <assert.h>
