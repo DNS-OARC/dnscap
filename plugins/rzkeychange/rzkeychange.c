@@ -25,7 +25,9 @@
 
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
-static const char *report_zone = "rzkeychange.verisignlabs.com";
+static const char *report_zone = 0;
+static const char *report_server = 0;
+static const char *report_node = 0;
 
 output_t rzkeychange_output;
 
@@ -81,8 +83,9 @@ rzkeychange_usage()
 {
     fprintf(stderr,
 	"\nrzkeychange.so options:\n"
-	"\t-z <zone>  Report counters to DNS zone <zone>\n"
-
+	"\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
+	"\t-s <server>  Data is from server <server> (required)\n"
+	"\t-n <node>    Data is from site/node <node> (required)\n"
     );
 }
 
@@ -90,8 +93,14 @@ void
 rzkeychange_getopt(int *argc, char **argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "z:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "n:s:z:")) != EOF) {
 	switch (c) {
+	case 'n':
+	    report_node = strdup(optarg);
+	    break;
+	case 's':
+	    report_server = strdup(optarg);
+	    break;
 	case 'z':
 	    report_zone = strdup(optarg);
 	    break;
@@ -99,6 +108,10 @@ rzkeychange_getopt(int *argc, char **argv[])
 	    rzkeychange_usage();
 	    exit(1);
 	}
+    }
+    if (!report_zone || !report_server || !report_node) {
+	rzkeychange_usage();
+	exit(1);
     }
 }
 
@@ -129,12 +142,14 @@ void
 rzkeychange_submit_counts(void)
 {
     char qname[256];
-    snprintf(qname, sizeof(qname), "%lu-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s",
+    snprintf(qname, sizeof(qname), "%lu-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s-%s.%s",
 	open_ts.tv_sec,
 	counts.total,
 	counts.dnskey,
 	counts.tcp,
 	counts.tc_bit,
+	report_server,
+	report_node,
 	report_zone);
     fputs(qname, stderr);
     fputc('\n', stderr);
