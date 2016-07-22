@@ -28,6 +28,7 @@ static my_bpftimeval open_ts;
 static const char *report_zone = 0;
 static const char *report_server = 0;
 static const char *report_node = 0;
+static ldns_resolver *res;
 
 output_t rzkeychange_output;
 
@@ -115,10 +116,56 @@ rzkeychange_getopt(int *argc, char **argv[])
     }
 }
 
+ldns_pkt *
+dns_query(const char *name, ldns_rr_type type)
+{
+    ldns_rdf *domain = ldns_dname_new_frm_str(name);
+    fprintf(stderr, "%s\n", name);
+    ldns_pkt *pkt = ldns_resolver_query(res,
+	domain,
+	type,
+	LDNS_RR_CLASS_IN,
+	LDNS_RD);
+    ldns_rdf_deep_free(domain);
+    return pkt;
+}
+
 int
 rzkeychange_start(logerr_t * a_logerr)
 {
     logerr = a_logerr;
+    ldns_pkt *pkt;
+    struct timeval to;
+    char qname[256];
+    if (LDNS_STATUS_OK != ldns_resolver_new_frm_file(&res, NULL)) {
+	fprintf(stderr, "Failed to initialize ldns resolver\n");
+	exit(1);
+    }
+    //
+    fprintf(stderr, "Testing reachability of zone '%s'\n", report_zone);
+    pkt = dns_query(report_zone, LDNS_RR_TYPE_TXT);
+    if (!pkt) {
+	fprintf(stderr, "Test of zone '%s' failed\n", report_zone);
+	exit(1);
+    }
+    if (0 != ldns_pkt_get_rcode(pkt)) {
+    	fprintf(stderr, "Query to zone '%s' returned rcode %d\n", report_zone, ldns_pkt_get_rcode(pkt));
+	exit(1);
+    }
+    fprintf(stderr, "Success.\n", report_zone);
+    if (pkt)
+	ldns_pkt_free(pkt);
+    /*
+     * For all subsequent queries we don't actually care about the response
+     * and don't wait to wait very long for it so  the timeout is set really low.
+     */
+    to.tv_sec = 0;
+    to.tv_usec = 500000;
+    ldns_resolver_set_timeout(res, to);
+    snprintf(qname, sizeof(qname), "timestamp-total-dnskey-tcp-tc.%s.%s.%s", report_node, report_server, report_zone);
+    pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
+    if (pkt)
+	ldns_pkt_free(pkt);
     return 0;
 }
 
@@ -142,17 +189,17 @@ void
 rzkeychange_submit_counts(void)
 {
     char qname[256];
-    snprintf(qname, sizeof(qname), "%lu-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s-%s.%s",
+    snprintf(qname, sizeof(qname), "%lu-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
 	open_ts.tv_sec,
 	counts.total,
 	counts.dnskey,
 	counts.tcp,
 	counts.tc_bit,
-	report_server,
 	report_node,
+	report_server,
 	report_zone);
-    fputs(qname, stderr);
-    fputc('\n', stderr);
+    dns_query(qname, LDNS_RR_TYPE_TXT);
+    /* normally we would free any return packet, but this process is about to exit */
 }
 
 /*
