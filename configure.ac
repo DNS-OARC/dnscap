@@ -52,6 +52,7 @@ esac
 # Checks for header files.
 AC_HEADER_RESOLV
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h])
+AC_CHECK_HEADERS([arpa/nameser_compat.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS([ldns/ldns.h])
 
