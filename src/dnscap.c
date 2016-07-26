@@ -2508,7 +2508,9 @@ dumper_close(my_bpftimeval ts) {
 		free(dumpnamepart); dumpnamepart = NULL;
 		free(dumpname); dumpname = NULL;
 		if (cmd != NULL) {
-			(void)system(cmd);
+			int x = system(cmd);
+			if (x)
+			    logerr("system: \"%s\" returned %d", cmd, x);
 			free(cmd);
 		}
 		if (kick_cmd == NULL)
