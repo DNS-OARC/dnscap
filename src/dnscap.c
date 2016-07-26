@@ -5,8 +5,10 @@
 
 #ifndef lint
 static const char rcsid[] = "$Id$";
+/*
 static const char copyright[] =
 	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
+*/
 static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #endif
 
@@ -60,7 +62,7 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 # include <net/ethertypes.h>
 # include <net/if.h>
 # include <net/if_ether.h>
-#endif 
+#endif
 
 #ifdef __OpenBSD__
 # include <net/ethertypes.h>
@@ -497,6 +499,11 @@ drop_privileges(void)
 		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
 		exit(1);
 	}
+#elif HAVE_SETEGID
+	if (setegid(dropGID) < 0) {
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
 #endif
 
 #if HAVE_SETRESUID
@@ -506,6 +513,11 @@ drop_privileges(void)
 	}
 #elif HAVE_SETREUID
 	if (setreuid(dropUID, dropUID) < 0) {
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		exit(1);
+	}
+#elif HAVE_SETEUID
+	if (seteuid(dropUID) < 0) {
 		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
 		exit(1);
 	}
@@ -608,7 +620,7 @@ version(void)
 	snprintf(vbuf, 128, version_fmt, revnum, scandate);
 	free(copy);
 	return vbuf;
-	
+
 }
 
 static void
@@ -2496,9 +2508,7 @@ dumper_close(my_bpftimeval ts) {
 		free(dumpnamepart); dumpnamepart = NULL;
 		free(dumpname); dumpname = NULL;
 		if (cmd != NULL) {
-			/* goofyness with x = to silence gcc warnings */
-			int x = system(cmd);
-			x = x;
+			(void)system(cmd);
 			free(cmd);
 		}
 		if (kick_cmd == NULL)
@@ -2597,4 +2607,3 @@ daemonize(void)
 #endif
   logerr("Backgrounded as pid %u", getpid());
 }
-

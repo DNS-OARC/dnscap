@@ -8,9 +8,11 @@
 #include <stdio.h>
 #include "dump_dns.h"
 
+/*
 #ifndef lint
 static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif
+*/
 
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_NAME_UNCOMPRESS && HAVE_P_RCODE
 
@@ -60,6 +62,9 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 #include <time.h>
 #include <unistd.h>
 
+#ifdef p_rcode
+#undef p_rcode
+#endif
 #define p_rcode __p_rcode
 extern const char *p_rcode(int rcode);
 
