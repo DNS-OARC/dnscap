@@ -1,3 +1,4 @@
+#include "config.h"
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,10 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
 
 #include "dnscap_common.h"
 

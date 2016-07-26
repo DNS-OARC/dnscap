@@ -1,3 +1,4 @@
+#include "config.h"
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,9 @@
 #include <arpa/inet.h>
 
 #include <arpa/nameser.h>
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -159,8 +163,12 @@ rssm_save_counts(const char *sbuf)
 {
 	FILE *fp;
 	int i;
-	char *tbuf;
-	asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
+	char *tbuf = 0;
+	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
+	if (i < 1 || !tbuf) {
+		logerr("asprintf: out of memory");
+		return;
+	}
 	fp = fopen(tbuf, "w");
 	if (!fp) {
 		logerr("%s: %s", sbuf, strerror(errno));
@@ -213,9 +221,13 @@ void
 rssm_save_sources(const char *sbuf)
 {
 	FILE *fp;
-	char *tbuf;
+	char *tbuf = 0;
 	int i;
-	asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long) open_ts.tv_usec);
+	i = asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long) open_ts.tv_usec);
+	if (i < 1 || !tbuf) {
+		logerr("asprintf: out of memory");
+		return;
+	}
 	fp = fopen(tbuf, "w");
 	if (!fp) {
 		logerr("%s: %s", tbuf, strerror(errno));

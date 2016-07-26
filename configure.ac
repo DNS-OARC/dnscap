@@ -17,7 +17,11 @@ LT_INIT([disable-static])
 
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
-AC_CHECK_LIB([resolv], [res_mkquery], [], [AC_CHECK_LIB([resolv], [__res_mkquery])])
+AC_CHECK_LIB([resolv], [res_mkquery], [], [
+	AC_CHECK_LIB([resolv], [__res_mkquery], [], [
+		AC_CHECK_LIB([resolv], [res_9_mkquery])
+	])
+])
 AC_CHECK_LIB([pcap], [pcap_open_live], [],
     [
     echo "dnscap requires libpcap.  Install package libpcap-dev on most Linux"
@@ -49,14 +53,11 @@ esac
 AC_HEADER_RESOLV
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
-AC_CHECK_HEADERS([ldns/ldns.h])
+AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
-AC_CHECK_FUNCS([setreuid])
-AC_CHECK_FUNCS([setresuid])
-AC_CHECK_FUNCS([setregid])
-AC_CHECK_FUNCS([setresgid])
+AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid])
 AC_CHECK_FUNC([ns_initparse],
     [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
     AC_CHECK_FUNC(__ns_initparse,
