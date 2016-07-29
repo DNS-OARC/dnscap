@@ -53,6 +53,7 @@ struct {
     uint64_t tc_bit;
     uint64_t tcp;
     uint64_t icmp_unreach_frag;
+    uint64_t icmp_time_exceeded;
     uint64_t total;
 #if COUNT_SOURCES
     my_hashtbl sources;
@@ -131,8 +132,12 @@ rzkeychange_getopt(int *argc, char **argv[])
 ldns_pkt *
 dns_query(const char *name, ldns_rr_type type)
 {
-    ldns_rdf *domain = ldns_dname_new_frm_str(name);
     fprintf(stderr, "%s\n", name);
+    ldns_rdf *domain = ldns_dname_new_frm_str(name);
+    if (0 == domain) {
+	fprintf(stderr, "bad query name: '%s'\n", name);
+	exit(1);
+    }
     ldns_pkt *pkt = ldns_resolver_query(res,
 	domain,
 	type,
@@ -174,7 +179,7 @@ rzkeychange_start(logerr_t * a_logerr)
     to.tv_sec = 0;
     to.tv_usec = 500000;
     ldns_resolver_set_timeout(res, to);
-    snprintf(qname, sizeof(qname), "timestamp-elapsed-total-dnskey-tcp-tc-icmpunreachfrag.%s.%s.%s", report_node, report_server, report_zone);
+    snprintf(qname, sizeof(qname), "ts-elapsed-tot-dnskey-tcp-tc-icmpfrag-icmpttl.%s.%s.%s", report_node, report_server, report_zone);
     pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
     if (pkt)
 	ldns_pkt_free(pkt);
@@ -206,7 +211,7 @@ rzkeychange_submit_counts(void)
 {
     char qname[256];
     double elapsed = (double) clos_ts.tv_sec - (double) open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
-    snprintf(qname, sizeof(qname), "%lu-%u-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
+    snprintf(qname, sizeof(qname), "%lu-%u-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
 	open_ts.tv_sec,
 	(unsigned int) (elapsed + 0.5),
 	counts.total,
@@ -214,6 +219,7 @@ rzkeychange_submit_counts(void)
 	counts.tcp,
 	counts.tc_bit,
 	counts.icmp_unreach_frag,
+	counts.icmp_time_exceeded,
 	report_node,
 	report_server,
 	report_zone);
@@ -279,9 +285,12 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
     ldns_rr *question_rr = 0;
     if (IPPROTO_ICMP == proto) {
 	struct icmphdr *icmp = (void *) pkt_copy;
-	if (ICMP_DEST_UNREACH == icmp->type)
+	if (ICMP_DEST_UNREACH == icmp->type) {
 	    if (ICMP_FRAG_NEEDED == icmp->code)
 		counts.icmp_unreach_frag++;
+	} else if (ICMP_TIME_EXCEEDED == icmp->type) {
+	    counts.icmp_time_exceeded++;
+	}
     }
     if (!dnspkt)
 	return;
