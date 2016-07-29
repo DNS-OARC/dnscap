@@ -1,3 +1,5 @@
+#define COUNT_SOURCES 0
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,15 +18,19 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_icmp.h>
 
 #include <ldns/ldns.h>
 
 #include "dnscap_common.h"
 
+#if COUNT_SOURCES
 #include "hashtbl.h"
+#endif
 
 static logerr_t *logerr;
-static my_bpftimeval open_ts;
+static my_bpftimeval open_ts = {0,0};
+static my_bpftimeval clos_ts = {0,0};
 static const char *report_zone = 0;
 static const char *report_server = 0;
 static const char *report_node = 0;
@@ -34,21 +40,27 @@ output_t rzkeychange_output;
 
 #define MAX_TBL_ADDRS 2000000
 
+#if COUNT_SOURCES
 typedef struct {
     hashtbl *tbl;
     iaddr addrs[MAX_TBL_ADDRS];
     unsigned int num_addrs;
 }      my_hashtbl;
+#endif
 
 struct {
     uint64_t dnskey;
     uint64_t tc_bit;
     uint64_t tcp;
+    uint64_t icmp_unreach_frag;
     uint64_t total;
+#if COUNT_SOURCES
     my_hashtbl sources;
+#endif
 }      counts;
 
 
+#if COUNT_SOURCES
 static unsigned int
 iaddr_hash(const iaddr * ia)
 {
@@ -75,7 +87,7 @@ iaddr_cmp(const iaddr * a, const iaddr * b)
 	return -1;
     return 1;
 }
-
+#endif
 
 
 
@@ -162,7 +174,7 @@ rzkeychange_start(logerr_t * a_logerr)
     to.tv_sec = 0;
     to.tv_usec = 500000;
     ldns_resolver_set_timeout(res, to);
-    snprintf(qname, sizeof(qname), "timestamp-total-dnskey-tcp-tc.%s.%s.%s", report_node, report_server, report_zone);
+    snprintf(qname, sizeof(qname), "timestamp-elapsed-total-dnskey-tcp-tc-icmpunreachfrag.%s.%s.%s", report_node, report_server, report_zone);
     pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
     if (pkt)
 	ldns_pkt_free(pkt);
@@ -177,11 +189,15 @@ rzkeychange_stop()
 int
 rzkeychange_open(my_bpftimeval ts)
 {
-    open_ts = ts;
+    open_ts = clos_ts.tv_sec ? clos_ts : ts;
+#if COUNT_SOURCES
     if (counts.sources.tbl)
 	hash_destroy(counts.sources.tbl);
+#endif
     memset(&counts, 0, sizeof(counts));
+#if COUNT_SOURCES
     counts.sources.tbl = hash_create(65536, (hashfunc *) iaddr_hash, (hashkeycmp *) iaddr_cmp, 0);
+#endif
     return 0;
 }
 
@@ -189,12 +205,15 @@ void
 rzkeychange_submit_counts(void)
 {
     char qname[256];
-    snprintf(qname, sizeof(qname), "%lu-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
+    double elapsed = (double) clos_ts.tv_sec - (double) open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
+    snprintf(qname, sizeof(qname), "%lu-%u-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
 	open_ts.tv_sec,
+	(unsigned int) (elapsed + 0.5),
 	counts.total,
 	counts.dnskey,
 	counts.tcp,
 	counts.tc_bit,
+	counts.icmp_unreach_frag,
 	report_node,
 	report_server,
 	report_zone);
@@ -229,10 +248,12 @@ rzkeychange_close(my_bpftimeval ts)
 	exit(0);
     }
     /* grandchild (2nd gen) continues */
+    clos_ts = ts;
     rzkeychange_submit_counts();
     exit(0);
 }
 
+#if COUNT_SOURCES
 static void
 hash_find_or_add(iaddr ia, my_hashtbl * t)
 {
@@ -245,6 +266,7 @@ hash_find_or_add(iaddr ia, my_hashtbl * t)
     hash_add(&t->addrs[t->num_addrs], 0, t->tbl);
     t->num_addrs++;
 }
+#endif
 
 void
 rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
@@ -255,6 +277,12 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
     ldns_pkt *pkt = 0;
     ldns_rr_list *question_rr_list = 0;
     ldns_rr *question_rr = 0;
+    if (IPPROTO_ICMP == proto) {
+	struct icmphdr *icmp = (void *) pkt_copy;
+	if (ICMP_DEST_UNREACH == icmp->type)
+	    if (ICMP_FRAG_NEEDED == icmp->code)
+		counts.icmp_unreach_frag++;
+    }
     if (!dnspkt)
 	return;
     if (LDNS_STATUS_OK != ldns_wire2pkt(&pkt, dnspkt, dnslen))
@@ -262,7 +290,9 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
     if (0 == ldns_pkt_qr(pkt))
 	goto done;
     counts.total++;
+#if COUNT_SOURCES
     hash_find_or_add(from, &counts.sources);
+#endif
     if (IPPROTO_UDP == proto) {
 	if (0 != ldns_pkt_tc(pkt))
 	    counts.tc_bit++;
