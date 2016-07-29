@@ -164,7 +164,7 @@ rzkeychange_start(logerr_t * a_logerr)
     	fprintf(stderr, "Query to zone '%s' returned rcode %d\n", report_zone, ldns_pkt_get_rcode(pkt));
 	exit(1);
     }
-    fprintf(stderr, "Success.\n", report_zone);
+    fprintf(stderr, "Success.\n");
     if (pkt)
 	ldns_pkt_free(pkt);
     /*
