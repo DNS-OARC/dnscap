@@ -142,7 +142,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 	    | ((u_int32_t)t_cp[2] << 8) \
 	    | ((u_int32_t)t_cp[3]) \
 	    ; \
-	(cp) += INT32SZ; \
+	(cp) += NS_INT32SZ; \
 } while (0)
 
 #define ISC_CHECK_NONE 1
