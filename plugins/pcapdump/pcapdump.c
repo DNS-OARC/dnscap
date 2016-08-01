@@ -186,13 +186,13 @@ pcapdump_close(my_bpftimeval ts)
 }
 
 void
-pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char * pkt_copy, unsigned olen, const u_char * dnspkt, unsigned dnslen)
+    const u_char * pkt_copy, const unsigned olen, const u_char * payload, const unsigned payloadlen)
 {
     struct pcap_pkthdr h;
-    if (dnspkt) {
-        HEADER *dns = (HEADER *) dnspkt;
+    if (isdns) {
+        HEADER *dns = (HEADER *) payload;
         if (0 == dns->qr && 0 == (dir_wanted&DIR_INITIATE))
 	    return;
         if (1 == dns->qr && 0 == (dir_wanted&DIR_RESPONSE))

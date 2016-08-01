@@ -118,10 +118,10 @@ ia_str(iaddr ia) {
 }
 
 void
-txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen)
+    const u_char *payload, unsigned payloadlen)
 {
 	/*
 	 * IP Stuff
@@ -131,11 +131,11 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 	fprintf(out, " %s %u", ia_str(to), dport);
 	fprintf(out, " %hhu", proto);
 
-	if (dnspkt) {
+	if (isdns) {
 		ns_msg msg;
 		int qdcount;
 		ns_rr rr;
-		ns_initparse(dnspkt, dnslen, &msg);
+		ns_initparse(payload, payloadlen, &msg);
 		/*
 		 * DNS Header
 		 */

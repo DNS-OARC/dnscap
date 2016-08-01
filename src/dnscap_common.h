@@ -35,13 +35,14 @@ typedef void output_t(const char *descr,
         iaddr to,
         uint8_t proto,
         int isfrag,
+	int isdns,
         unsigned sport,
         unsigned dport,
         my_bpftimeval ts,
         const u_char *pkt_copy,
-        unsigned olen,
-        const u_char *dnspkt,
-        unsigned dnslen);
+        const unsigned olen,
+        const u_char *payload,
+        const unsigned payloadlen);
 
 #define DIR_INITIATE	0x0001
 #define DIR_RESPONSE	0x0002

@@ -294,18 +294,17 @@ hash_find_or_add(iaddr ia, my_hashtbl *t)
 }
 
 void
-rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen)
+    const u_char *pkt_copy, const unsigned olen,
+    const u_char *payload, const unsigned payloadlen)
 {
-	if (!dnspkt)
+	if (!isdns)
 		return;
-	unsigned o_dnslen = dnslen;
-	dnslen >>= MSG_SIZE_SHIFT;
+	unsigned dnslen = payloadlen >> MSG_SIZE_SHIFT;
 	if (dnslen >= MAX_SIZE_INDEX)
 		dnslen = MAX_SIZE_INDEX-1;
-	HEADER *dns = (HEADER *) dnspkt;
+	HEADER *dns = (HEADER *) payload;
 	if (0 == dns->qr) {
 		hash_find_or_add(from, &counts.sources);
 		if (IPPROTO_UDP == proto) {
@@ -348,7 +347,7 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		}
 		if (dns->arcount) {
 			ldns_pkt *pkt = 0;
-			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, dnspkt, o_dnslen)) {
+			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, payload, payloadlen)) {
 				rcode |= ((uint16_t) ldns_pkt_edns_extended_rcode(pkt) << 4);
 				ldns_pkt_free(pkt);
 			}
