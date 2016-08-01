@@ -126,7 +126,7 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 	/*
 	 * IP Stuff
 	 */
-	fprintf(out, "%10lu.%06lu", ts.tv_sec, ts.tv_usec);
+	fprintf(out, "%10ld.%06ld", ts.tv_sec, ts.tv_usec);
 	fprintf(out, " %s %u", ia_str(from), sport);
 	fprintf(out, " %s %u", ia_str(to), dport);
 	fprintf(out, " %hhu", proto);
