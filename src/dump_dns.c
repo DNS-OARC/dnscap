@@ -50,6 +50,9 @@ static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels E
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
 
 #include <assert.h>
 #include <errno.h>
@@ -77,7 +80,7 @@ static void dump_dns_rr(ns_msg *, ns_rr *, ns_sect, FILE *);
 	(s) = ((u_int16_t)t_cp[0] << 8) \
 	    | ((u_int16_t)t_cp[1]) \
 	    ; \
-	(cp) += INT16SZ; \
+	(cp) += NS_INT16SZ; \
 } while (0)
 
 #define MY_GET32(l, cp) do { \
@@ -87,7 +90,7 @@ static void dump_dns_rr(ns_msg *, ns_rr *, ns_sect, FILE *);
 	    | ((u_int32_t)t_cp[2] << 8) \
 	    | ((u_int32_t)t_cp[3]) \
 	    ; \
-	(cp) += INT32SZ; \
+	(cp) += NS_INT32SZ; \
 } while (0)
 
 #include "dump_dns.h"
