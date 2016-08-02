@@ -75,6 +75,12 @@
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 
+/* Define to 1 if you have the `setegid' function. */
+#undef HAVE_SETEGID
+
+/* Define to 1 if you have the `seteuid' function. */
+#undef HAVE_SETEUID
+
 /* Define to 1 if you have the `setregid' function. */
 #undef HAVE_SETREGID
 
@@ -126,7 +132,8 @@
 /* Define to 1 if you have the `__assertion_failed' function. */
 #undef HAVE___ASSERTION_FAILED
 
-/* Define to the sub-directory where libtool stores uninstalled libraries. */
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
 #undef LT_OBJDIR
 
 /* Name of package */
