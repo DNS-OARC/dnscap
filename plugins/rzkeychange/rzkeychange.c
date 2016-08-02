@@ -275,26 +275,27 @@ hash_find_or_add(iaddr ia, my_hashtbl * t)
 #endif
 
 void
-rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char * pkt_copy, unsigned olen,
-    const u_char * dnspkt, unsigned dnslen)
+    const u_char * pkt_copy, const unsigned olen,
+    const u_char * payload, const unsigned payloadlen)
 {
     ldns_pkt *pkt = 0;
     ldns_rr_list *question_rr_list = 0;
     ldns_rr *question_rr = 0;
-    if (IPPROTO_ICMP == proto) {
-	struct icmphdr *icmp = (void *) pkt_copy;
-	if (ICMP_DEST_UNREACH == icmp->type) {
-	    if (ICMP_FRAG_NEEDED == icmp->code)
-		counts.icmp_unreach_frag++;
-	} else if (ICMP_TIME_EXCEEDED == icmp->type) {
-	    counts.icmp_time_exceeded++;
+    if (!isdns) {
+	if (IPPROTO_ICMP == proto && payloadlen >= 4) {
+	    struct icmp *icmp = (void *) payload;
+	    if (ICMP_UNREACH == icmp->icmp_type) {
+		if (ICMP_UNREACH_NEEDFRAG == icmp->icmp_code)
+		    counts.icmp_unreach_frag++;
+	    } else if (ICMP_TIMXCEED == icmp->icmp_type) {
+		counts.icmp_time_exceeded++;
+	    }
 	}
-    }
-    if (!dnspkt)
 	return;
-    if (LDNS_STATUS_OK != ldns_wire2pkt(&pkt, dnspkt, dnslen))
+    }
+    if (LDNS_STATUS_OK != ldns_wire2pkt(&pkt, payload, payloadlen))
 	return;
     if (0 == ldns_pkt_qr(pkt))
 	goto done;
