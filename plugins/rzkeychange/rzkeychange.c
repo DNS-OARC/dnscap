@@ -28,7 +28,7 @@
 #include "hashtbl.h"
 #endif
 
-static logerr_t *logerr;
+static plugin_callbacks *callbacks = 0;
 static my_bpftimeval open_ts = {0,0};
 static my_bpftimeval clos_ts = {0,0};
 static const char *report_zone = 0;
@@ -36,7 +36,13 @@ static const char *report_server = 0;
 static const char *report_node = 0;
 static ldns_resolver *res;
 
-output_t rzkeychange_output;
+plugin_start_t rzkeychange_start;
+plugin_stop_t rzkeychange_stop;
+plugin_open_t rzkeychange_open;
+plugin_close_t rzkeychange_close;
+plugin_output_t rzkeychange_output;
+plugin_getopt_t rzkeychange_getopt;
+plugin_usage_t rzkeychange_usage;
 
 #define MAX_TBL_ADDRS 2000000
 
@@ -148,12 +154,12 @@ dns_query(const char *name, ldns_rr_type type)
 }
 
 int
-rzkeychange_start(logerr_t * a_logerr)
+rzkeychange_start(plugin_callbacks * the_callbacks)
 {
-    logerr = a_logerr;
     ldns_pkt *pkt;
     struct timeval to;
     char qname[256];
+    callbacks = the_callbacks;
     if (LDNS_STATUS_OK != ldns_resolver_new_frm_file(&res, NULL)) {
 	fprintf(stderr, "Failed to initialize ldns resolver\n");
 	exit(1);
@@ -237,7 +243,7 @@ rzkeychange_close(my_bpftimeval ts)
     pid_t pid;
     pid = fork();
     if (pid < 0) {
-	logerr("rzkeychange.so: fork: %s", strerror(errno));
+	callbacks->logerr("rzkeychange.so: fork: %s", strerror(errno));
 	return 1;
     } else if (pid) {
 	/* parent */
@@ -247,7 +253,7 @@ rzkeychange_close(my_bpftimeval ts)
     /* 1st gen child continues */
     pid = fork();
     if (pid < 0) {
-	logerr("rzkeychange.so: fork: %s", strerror(errno));
+	callbacks->logerr("rzkeychange.so: fork: %s", strerror(errno));
 	return 1;
     } else if (pid) {
 	/* 1st gen child exits */
@@ -285,7 +291,10 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
     ldns_rr *question_rr = 0;
     if (!isdns) {
 	if (IPPROTO_ICMP == proto && payloadlen >= 4) {
-	    struct icmp *icmp = (void *) payload;
+	    struct icmp *icmp;
+	    if (!callbacks->is_responder(to))
+		goto done;
+	    icmp = (void *) payload;
 	    if (ICMP_UNREACH == icmp->icmp_type) {
 		if (ICMP_UNREACH_NEEDFRAG == icmp->icmp_code)
 		    counts.icmp_unreach_frag++;
@@ -293,7 +302,7 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
 		counts.icmp_time_exceeded++;
 	    }
 	}
-	return;
+	goto done;
     }
     if (LDNS_STATUS_OK != ldns_wire2pkt(&pkt, payload, payloadlen))
 	return;
