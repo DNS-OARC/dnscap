@@ -22,10 +22,15 @@ typedef struct {
 } iaddr;
 
 /*
- * plugins can call the logerr() function in the main dnscap
+ * plugins can call these function in the main dnscap
  * process.
  */
 typedef int logerr_t(const char *fmt, ...);
+typedef int is_responder_t(iaddr);
+typedef struct {
+	logerr_t *logerr;
+	is_responder_t *is_responder;
+} plugin_callbacks;
 
 /*
  * Prototype for the plugin "output" function
@@ -43,6 +48,14 @@ typedef void output_t(const char *descr,
         const unsigned olen,
         const u_char *payload,
         const unsigned payloadlen);
+
+typedef int plugin_start_t(plugin_callbacks *);
+typedef void plugin_stop_t(void);
+typedef int plugin_open_t(my_bpftimeval);
+typedef int plugin_close_t(my_bpftimeval);
+typedef output_t plugin_output_t;
+typedef void plugin_getopt_t(int *, char **[]);
+typedef void plugin_usage_t(void);
 
 #define DIR_INITIATE	0x0001
 #define DIR_RESPONSE	0x0002

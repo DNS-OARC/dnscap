@@ -278,13 +278,13 @@ struct plugin {
 	LINK(struct plugin)	link;
 	char			*name;
 	void			*handle;
-	int			(*start)(logerr_t *);
-	void			(*stop)();
-	int			(*open)(my_bpftimeval);
-	int			(*close)();
-	output_t		(*output);
-	void			(*getopt)(int *, char **[]);
-	void			(*usage)();
+	plugin_start_t		*start;
+	plugin_stop_t		*stop;
+	plugin_open_t		*open;
+	plugin_close_t		*close;
+	plugin_output_t		*output;
+	plugin_getopt_t		*getopt;
+	plugin_usage_t		*usage;
 };
 LIST(struct plugin) plugins;
 
@@ -318,6 +318,7 @@ static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
 static void drop_privileges(void);
 static logerr_t logerr;
+static is_responder_t is_responder;
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
@@ -389,6 +390,7 @@ main(int argc, char *argv[]) {
 	res_init();
 	parse_args(argc, argv);
 	gettimeofday(&now, 0);
+	plugin_callbacks callbacks;
 	if (start_time) {
 		if (now.tv_sec < start_time) {
 			char when[100];
@@ -412,9 +414,11 @@ main(int argc, char *argv[]) {
 
 	drop_privileges();
 
+	callbacks.logerr = logerr;
+	callbacks.is_responder = is_responder;
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->start)
-			if (0 != (*p->start)(logerr)) {
+			if (0 != (*p->start)(&callbacks)) {
 				logerr("%s_start returned non-zero", p->name);
 				exit(1);
 			}
@@ -1417,6 +1421,16 @@ ep_present(const endpoint_list *list, iaddr ia) {
 		if (ia_equal(ia, ep->ia))
 			return TRUE;
 	return (FALSE);
+}
+
+static int
+is_responder(iaddr ia)
+{
+	if (EMPTY(responders))
+		return 1;
+	if (ep_present(&responders, ia))
+		return 1;
+	return 0;
 }
 
 static size_t
