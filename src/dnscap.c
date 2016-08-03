@@ -1920,7 +1920,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if (nexthdr == IPPROTO_FRAGMENT) {
 				if (wantfrags) {
 					flags |= DNSCAP_OUTPUT_ISFRAG;
-					output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
+					output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, 0, 0);
 					return;
 				}
 				return;
