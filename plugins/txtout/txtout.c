@@ -118,7 +118,7 @@ ia_str(iaddr ia) {
 }
 
 void
-txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
+txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char *pkt_copy, unsigned olen,
     const u_char *payload, unsigned payloadlen)
@@ -131,7 +131,7 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 	fprintf(out, " %s %u", ia_str(to), dport);
 	fprintf(out, " %hhu", proto);
 
-	if (isdns) {
+	if (flags & DNSCAP_OUTPUT_ISDNS) {
 		ns_msg msg;
 		int qdcount;
 		ns_rr rr;
