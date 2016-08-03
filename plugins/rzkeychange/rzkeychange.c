@@ -281,7 +281,7 @@ hash_find_or_add(iaddr ia, my_hashtbl * t)
 #endif
 
 void
-rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
+rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char * pkt_copy, const unsigned olen,
     const u_char * payload, const unsigned payloadlen)
@@ -289,7 +289,7 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int i
     ldns_pkt *pkt = 0;
     ldns_rr_list *question_rr_list = 0;
     ldns_rr *question_rr = 0;
-    if (!isdns) {
+    if (!(flags & DNSCAP_OUTPUT_ISDNS)) {
 	if (IPPROTO_ICMP == proto && payloadlen >= 4) {
 	    struct icmp *icmp;
 	    if (!callbacks->is_responder(to))
