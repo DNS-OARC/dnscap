@@ -1870,7 +1870,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		{
 			if (wantfrags) {
 				flags |= DNSCAP_OUTPUT_ISFRAG;
-				output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
+				output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
 				return;
 			}
 			return;
@@ -1920,7 +1920,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if (nexthdr == IPPROTO_FRAGMENT) {
 				if (wantfrags) {
 					flags |= DNSCAP_OUTPUT_ISFRAG;
-					output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, 0, 0);
+					output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
 					return;
 				}
 				return;
@@ -2041,7 +2041,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    if (dumptrace >= 3)
 			fprintf(stderr, "FIN|RST\n");
 		    output(descr, from, to, proto, flags, sport, dport, ts,
-			pkt_copy, olen, pkt, len);
+			pkt_copy, olen, NULL, 0);
 		    /* End of stream; deallocate the tcpstate. */
 		    if (tcpstate) {
 			UNLINK(tcpstates, tcpstate, link);
@@ -2055,7 +2055,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			fprintf(stderr, "SYN\n");
 		    /* Always output SYN segments. */
 		    output(descr, from, to, proto, flags, sport, dport, ts,
-			pkt_copy, olen, pkt, len);
+			pkt_copy, olen, NULL, 0);
 		    if (tcpstate) {
 #if 0
 			/* Disabled because warning may scare user, and
@@ -2105,7 +2105,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
 			tcpstate->maxdiff = (uint32_t)len;
 			output(descr, from, to, proto, flags, sport, dport, ts,
-			    pkt_copy, olen, pkt, len);
+			    pkt_copy, olen, NULL, 0);
 			return;
 		    } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
 			/* shouldn't happen */
@@ -2141,7 +2141,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if (tcpstate->maxdiff < seqdiff + (uint32_t)len)
 			    tcpstate->maxdiff = seqdiff + (uint32_t)len;
 			output(descr, from, to, proto, flags, sport, dport, ts,
-			    pkt_copy, olen, pkt, len);
+			    pkt_copy, olen, NULL, 0);
 			return;
 		    }
 		} else {
