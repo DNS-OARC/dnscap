@@ -294,12 +294,12 @@ hash_find_or_add(iaddr ia, my_hashtbl *t)
 }
 
 void
-rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag, int isdns,
+rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char *pkt_copy, const unsigned olen,
     const u_char *payload, const unsigned payloadlen)
 {
-	if (!isdns)
+	if (!(flags & DNSCAP_OUTPUT_ISDNS))
 		return;
 	unsigned dnslen = payloadlen >> MSG_SIZE_SHIFT;
 	if (dnslen >= MAX_SIZE_INDEX)

@@ -34,8 +34,7 @@ typedef void output_t(const char *descr,
         iaddr from,
         iaddr to,
         uint8_t proto,
-        int isfrag,
-	int isdns,
+        unsigned flags,
         unsigned sport,
         unsigned dport,
         my_bpftimeval ts,
@@ -43,6 +42,9 @@ typedef void output_t(const char *descr,
         const unsigned olen,
         const u_char *payload,
         const unsigned payloadlen);
+
+#define DNSCAP_OUTPUT_ISFRAG (1<<0)
+#define DNSCAP_OUTPUT_ISDNS (1<<1)
 
 #define DIR_INITIATE	0x0001
 #define DIR_RESPONSE	0x0002
