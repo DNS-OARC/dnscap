@@ -1825,7 +1825,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	unsigned proto, sport, dport;
 	iaddr from, to, initiator, responder;
 	struct ip6_hdr *ipv6;
-	int response, isfrag;
+	int response;
+	unsigned flags = 0;
 	struct udphdr *udp = NULL;
 	struct tcphdr *tcp = NULL;
 	tcpstate_ptr tcpstate = NULL;
@@ -1839,7 +1840,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	/* Network. */
 	ip = NULL;
 	ipv6 = NULL;
-	isfrag = FALSE;
 	sport = dport = 0;
 	switch (pf) {
 	case PF_INET: {
@@ -1869,8 +1869,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    (offset & IP_OFFMASK) != 0)
 		{
 			if (wantfrags) {
-				isfrag = TRUE;
-				output(descr, from, to, ip->ip_p, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+				flags |= DNSCAP_OUTPUT_ISFRAG;
+				output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
 				return;
 			}
 			return;
@@ -1919,8 +1919,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			/* Cannot handle fragments. */
 			if (nexthdr == IPPROTO_FRAGMENT) {
 				if (wantfrags) {
-					isfrag = TRUE;
-					output(descr, from, to, IPPROTO_FRAGMENT, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+					flags |= DNSCAP_OUTPUT_ISFRAG;
+					output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
 					return;
 				}
 				return;
@@ -1954,7 +1954,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	switch (proto) {
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		output(descr, from, to, ip->ip_p, isfrag, sport, dport, ts, pkt_copy, olen, NULL, 0);
+		output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
 		return;
 	case IPPROTO_UDP: {
 		if (len < sizeof *udp)
@@ -1973,6 +1973,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		len -= sizeof *udp;
 		dnspkt = pkt;
 		dnslen = len;
+		flags |= DNSCAP_OUTPUT_ISDNS;
 		break;
 	}
 	case IPPROTO_TCP: {
@@ -2039,7 +2040,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    /* Always output FIN and RST segments. */
 		    if (dumptrace >= 3)
 			fprintf(stderr, "FIN|RST\n");
-		    output(descr, from, to, proto, isfrag, sport, dport, ts,
+		    output(descr, from, to, proto, flags, sport, dport, ts,
 			pkt_copy, olen, NULL, 0);
 		    /* End of stream; deallocate the tcpstate. */
 		    if (tcpstate) {
@@ -2053,7 +2054,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		    if (dumptrace >= 3)
 			fprintf(stderr, "SYN\n");
 		    /* Always output SYN segments. */
-		    output(descr, from, to, proto, isfrag, sport, dport, ts,
+		    output(descr, from, to, proto, flags, sport, dport, ts,
 			pkt_copy, olen, NULL, 0);
 		    if (tcpstate) {
 #if 0
@@ -2094,6 +2095,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			dnspkt = pkt + 2;
 			if (dnslen > len - 2)
 			    dnslen = len - 2;
+			flags |= DNSCAP_OUTPUT_ISDNS;
 			tcpstate->maxdiff = (uint32_t)len;
 		    } else if (seqdiff == 0 && len == 2) {
 			/* This is the first segment of the stream, but only
@@ -2102,7 +2104,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    fprintf(stderr, "len\n");
 			tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
 			tcpstate->maxdiff = (uint32_t)len;
-			output(descr, from, to, proto, isfrag, sport, dport, ts,
+			output(descr, from, to, proto, flags, sport, dport, ts,
 			    pkt_copy, olen, NULL, 0);
 			return;
 		    } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
@@ -2121,6 +2123,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    dnslen = len;
 			if (dnslen > len)
 			    dnslen = len;
+			flags |= DNSCAP_OUTPUT_ISDNS;
 		    } else if (seqdiff > tcpstate->maxdiff + MAX_TCP_WINDOW) {
 			/* This segment is outside the window. */
 			if (dumptrace >= 3)
@@ -2137,7 +2140,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    fprintf(stderr, "keep\n");
 			if (tcpstate->maxdiff < seqdiff + (uint32_t)len)
 			    tcpstate->maxdiff = seqdiff + (uint32_t)len;
-			output(descr, from, to, proto, isfrag, sport, dport, ts,
+			output(descr, from, to, proto, flags, sport, dport, ts,
 			    pkt_copy, olen, NULL, 0);
 			return;
 		    }
@@ -2342,28 +2345,31 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 	msgcount++;
-	output(descr, from, to, proto, isfrag, sport, dport, ts,
+	output(descr, from, to, proto, flags, sport, dport, ts,
 	    pkt_copy, olen, dnspkt, dnslen);
 }
 
+/*
+ * when flags & DNSCAP_OUTPUT_ISDNS, payload points to a DNS packet
+ */
 static void
-output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen)
+    const u_char *pkt_copy, const unsigned olen,
+    const u_char *payload, const unsigned payloadlen)
 {
 	struct plugin *p;
 	/* Output stage. */
 	if (preso) {
 		fputs(descr, stderr);
-		if (isfrag) {
+		if (flags & DNSCAP_OUTPUT_ISFRAG) {
 			fprintf(stderr, ";: [%s] ", ia_str(from));
 			fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
 		} else {
 			fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
 			fprintf(stderr, "[%s].%u ", ia_str(to), dport);
-			if (dnspkt)
-			    dump_dns(dnspkt, dnslen, stderr, "\\\n\t");
+			if ((flags & DNSCAP_OUTPUT_ISDNS) && payload)
+			    dump_dns(payload, payloadlen, stderr, "\\\n\t");
 		}
 		putc('\n', stderr);
 	}
@@ -2379,7 +2385,7 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
-			(*p->output)(descr, from, to, proto, isfrag, sport, dport, ts, pkt_copy, olen, dnspkt, dnslen);
+			(*p->output)(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
 	return;
 }
 
