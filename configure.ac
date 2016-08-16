@@ -33,6 +33,9 @@ have_ldns=
 AC_CHECK_LIB([ldns], [ldns_wire2pkt], [have_ldns=yes])
 AM_CONDITIONAL([LDNS], [test "x$have_ldns" = "xyes"])
 
+# pcap_thread
+AX_PCAP_THREAD
+
 # Check for OS specific libraries
 case "$host_os" in
     # HPUX

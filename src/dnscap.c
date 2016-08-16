@@ -151,6 +151,8 @@ extern char *strptime(const char *, const char *, struct tm *);
 #include "isc/assertions.h"
 #include "dump_dns.h"
 
+#include "pcap-thread/pcap_thread.h"
+
 /* Constants. */
 
 #ifndef IPV6_VERSION
@@ -227,10 +229,12 @@ typedef LIST(struct endpoint) endpoint_list;
 struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
+/*
 	int			fdes;
 	pcap_t *		pcap;
 	int			dlt;
 	struct pcap_stat	ps0, ps1;
+*/
 };
 typedef struct mypcap *mypcap_ptr;
 typedef LIST(struct mypcap) mypcap_list;
@@ -306,7 +310,7 @@ static void open_pcaps(void);
 static void poll_pcaps(void);
 static void breakloop_pcaps(void);
 static void close_pcaps(void);
-static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const int);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
 static output_t output;
@@ -379,6 +383,7 @@ static my_bpftimeval last_ts = {0,0};
 static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
 static int mem_limit_set = 1; // Should be configurable
 const char DROPTOUSER[] = "nobody";
+static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
 
 /* Public. */
 
@@ -805,9 +810,9 @@ parse_args(int argc, char *argv[]) {
 			INIT_LINK(mypcap, link);
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
-			mypcap->fdes = -1;
-			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));
-			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));
+/*			mypcap->fdes = -1;*/
+/*			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));*/
+/*			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));*/
 			APPEND(mypcaps, mypcap, link);
 			break;
 		case 'r':
@@ -818,7 +823,7 @@ parse_args(int argc, char *argv[]) {
 			INIT_LINK(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
 			assert(pcap_offline->name != NULL);
-			pcap_offline->fdes = -1;
+/*			pcap_offline->fdes = -1;*/
 			APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
@@ -1149,21 +1154,17 @@ parse_args(int argc, char *argv[]) {
 	}
 	if (EMPTY(mypcaps)) {
 		const char *name;
-#ifdef __linux__
-		name = NULL;	/* "all interfaces" */
-#else
 		name = pcap_lookupdev(errbuf);
 		if (name == NULL) {
 			fprintf(stderr, "%s: pcap_lookupdev: %s\n",
 				ProgramName, errbuf);
 			exit(1);
 		}
-#endif
 		mypcap = malloc(sizeof *mypcap);
 		assert(mypcap != NULL);
 		INIT_LINK(mypcap, link);
 		mypcap->name = (name == NULL) ? NULL : strdup(name);
-		mypcap->fdes = -1;
+/*		mypcap->fdes = -1;*/
 		APPEND(mypcaps, mypcap, link);
 	}
 	if (start_time && stop_time && start_time >= stop_time)
@@ -1449,110 +1450,58 @@ text_free(text_list *list) {
 static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
+	int err;
+
+    pcap_thread_set_snaplen(&pcap_thread, SNAPLEN);
+    pcap_thread_set_promiscuous(&pcap_thread, promisc);
+    pcap_thread_set_callback(&pcap_thread, dl_pkt);
+    pcap_thread_set_filter(&pcap_thread, bpft, -1);
 
 	assert(!EMPTY(mypcaps));
-	FD_ZERO(&mypcap_fdset);
-	pcap_maxfd = 0;
 	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
 	     mypcap = NEXT(mypcap, link))
 	{
-		struct bpf_program bpfp;
+/*
 #ifdef __APPLE__
 		unsigned int ioarg = 1;
 #endif
+*/
 
-		errbuf[0] = '\0';
-		if (pcap_offline == NULL)
-			mypcap->pcap = pcap_open_live(mypcap->name, SNAPLEN,
-						      promisc, TO_MS, errbuf);
-		else
-			mypcap->pcap = pcap_open_offline(mypcap->name, errbuf);
-		if (mypcap->pcap == NULL) {
-			fprintf(stderr, "%s: pcap open: %s\n",
-				ProgramName, errbuf);
-			exit(1);
-		}
-		if (errbuf[0] != '\0')
-			fprintf(stderr, "%s: pcap warning: %s\n",
-				ProgramName, errbuf);
-		mypcap->dlt = pcap_datalink(mypcap->pcap);
-		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
+fprintf(stderr, "device %s\n", mypcap->name);
+        if ((err = pcap_thread_open(&pcap_thread, mypcap->name, (u_char*)mypcap))) {
+            fprintf(stderr,
+                "%s: pcap_thread_open [%d]: %s\n",
+                ProgramName,
+                err,
+                pcap_thread_errbuf(&pcap_thread)
+            );
+            exit(1);
+        }
+
+/*
 #ifdef __APPLE__
 		ioctl(mypcap->fdes, BIOCIMMEDIATE, &ioarg);
 #endif
-		if (pcap_offline == NULL)
-			if (pcap_setnonblock(mypcap->pcap, TRUE, errbuf) < 0) {
-				fprintf(stderr, "%s: pcap_setnonblock: %s\n",
-					ProgramName, errbuf);
-				exit(1);
-			}
-		FD_SET(mypcap->fdes, &mypcap_fdset);
-		if (mypcap->fdes > pcap_maxfd)
-			pcap_maxfd = mypcap->fdes;
-		if (pcap_compile(mypcap->pcap, &bpfp, bpft, TRUE, 0) < 0 ||
-		    pcap_setfilter(mypcap->pcap, &bpfp) < 0) {
-			fprintf(stderr, "%s: pcap error: %s\n",
-				ProgramName, pcap_geterr(mypcap->pcap));
-			exit(1);
-		}
-		pcap_freecode(&bpfp);
+*/
 	}
 	pcap_dead = pcap_open_dead(DLT_RAW, SNAPLEN);
 }
 
 static void
 poll_pcaps(void) {
-	mypcap_ptr mypcap;
-	fd_set readfds;
-	int n;
-
-	do {
-		memcpy(&readfds, &mypcap_fdset, sizeof(fd_set));
-		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
-	} while (n < 0 && errno == EINTR && !main_exit);
-	if (n < 0) {
-		if (errno != EINTR)
-			logerr("select: %s", strerror(errno));
-		main_exit = TRUE;
-		return;
-	}
-	/* Poll them all. */
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-	{
-		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
-				  (u_char *)mypcap);
-		if (n == -1)
-			logerr("%s: pcap_dispatch: %s",
-				ProgramName, errbuf);
-		if (n < 0 || pcap_offline != NULL) {
-			main_exit = TRUE;
-			return;
-		}
-	}
+    pcap_thread_run(&pcap_thread);
+    main_exit = TRUE;
 }
 
 static void
 breakloop_pcaps(void) {
-	mypcap_ptr mypcap;
-
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-		pcap_breakloop(mypcap->pcap);
+    pcap_thread_stop(&pcap_thread);
 }
 
 static void
 close_pcaps(void) {
-	mypcap_ptr mypcap;
-
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-		pcap_close(mypcap->pcap);
-	pcap_close(pcap_dead);
+    pcap_thread_close(&pcap_thread);
 }
 
 #define MAX_TCP_IDLE_TIME	600
@@ -1621,7 +1570,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 }
 
 static void
-dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
+dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const int dlt) {
 	mypcap_ptr mypcap = (mypcap_ptr) user;
 	size_t len = hdr->caplen;
 	unsigned etype, vlan, pf;
@@ -1642,7 +1591,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 
 	/* Data link. */
 	vlan = MAX_VLAN;	/* MAX_VLAN (0xFFF) is reserved and shouldn't appear on the wire */
-	switch (mypcap->dlt) {
+	switch (dlt) {
 	case DLT_NULL: {
 		uint32_t x;
 
@@ -2457,6 +2406,7 @@ dumper_open(my_bpftimeval ts) {
 static void
 do_pcap_stats()
 {
+/*
 	mypcap_ptr mypcap;
 	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
@@ -2469,6 +2419,7 @@ do_pcap_stats()
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
 			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
 	}
+*/
 }
 
 static int
@@ -2542,6 +2493,7 @@ static void
 sigbreak(int signum __attribute__((unused))) {
 	logerr("%s: signalled break", ProgramName);
 	main_exit = TRUE;
+	breakloop_pcaps();
 }
 
 static uint16_t

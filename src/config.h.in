@@ -69,11 +69,38 @@
 /* Define to 1 if you have the `ns_sprintrr' function. */
 #undef HAVE_NS_SPRINTRR
 
+/* Define to 1 if you have the `pcap_create' function. */
+#undef HAVE_PCAP_CREATE
+
+/* Define to 1 if the system has the type `pcap_direction_t'. */
+#undef HAVE_PCAP_DIRECTION_T
+
+/* Define to 1 if you have the `pcap_setdirection' function. */
+#undef HAVE_PCAP_SETDIRECTION
+
+/* Define to 1 if you have the `pcap_set_immediate_mode' function. */
+#undef HAVE_PCAP_SET_IMMEDIATE_MODE
+
+/* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
+#undef HAVE_PCAP_SET_TSTAMP_PRECISION
+
+/* Define to 1 if you have the `pcap_set_tstamp_type' function. */
+#undef HAVE_PCAP_SET_TSTAMP_TYPE
+
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_PTHREAD
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
 /* Define to 1 if you have the `p_rcode' function. */
 #undef HAVE_P_RCODE
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
+
+/* Define to 1 if you have the `sched_yield' function. */
+#undef HAVE_SCHED_YIELD
 
 /* Define to 1 if you have the `setegid' function. */
 #undef HAVE_SETEGID
@@ -156,6 +183,10 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
