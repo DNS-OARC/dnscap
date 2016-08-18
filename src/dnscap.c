@@ -1455,7 +1455,7 @@ open_pcaps(void) {
     pcap_thread_set_snaplen(&pcap_thread, SNAPLEN);
     pcap_thread_set_promiscuous(&pcap_thread, promisc);
     pcap_thread_set_callback(&pcap_thread, dl_pkt);
-    pcap_thread_set_filter(&pcap_thread, bpft, -1);
+    pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft));
 
 	assert(!EMPTY(mypcaps));
 	for (mypcap = HEAD(mypcaps);
