@@ -59,7 +59,8 @@ struct {
     uint64_t tc_bit;
     uint64_t tcp;
     uint64_t icmp_unreach_frag;
-    uint64_t icmp_time_exceeded;
+    uint64_t icmp_timxceed_reass;
+    uint64_t icmp_timxceed_intrans;
     uint64_t total;
 #if COUNT_SOURCES
     my_hashtbl sources;
@@ -185,7 +186,7 @@ rzkeychange_start(plugin_callbacks * the_callbacks)
     to.tv_sec = 0;
     to.tv_usec = 500000;
     ldns_resolver_set_timeout(res, to);
-    snprintf(qname, sizeof(qname), "ts-elapsed-tot-dnskey-tcp-tc-icmpfrag-icmpttl.%s.%s.%s", report_node, report_server, report_zone);
+    snprintf(qname, sizeof(qname), "ts-elapsed-tot-dnskey-tcp-tc-unreachfrag-texcfrag-texcttl.%s.%s.%s", report_node, report_server, report_zone);
     pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
     if (pkt)
 	ldns_pkt_free(pkt);
@@ -217,7 +218,7 @@ rzkeychange_submit_counts(void)
 {
     char qname[256];
     double elapsed = (double) clos_ts.tv_sec - (double) open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
-    snprintf(qname, sizeof(qname), "%lu-%u-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
+    snprintf(qname, sizeof(qname), "%lu-%u-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64"-%"PRIu64".%s.%s.%s",
 	open_ts.tv_sec,
 	(unsigned int) (elapsed + 0.5),
 	counts.total,
@@ -225,7 +226,8 @@ rzkeychange_submit_counts(void)
 	counts.tcp,
 	counts.tc_bit,
 	counts.icmp_unreach_frag,
-	counts.icmp_time_exceeded,
+	counts.icmp_timxceed_reass,
+	counts.icmp_timxceed_intrans,
 	report_node,
 	report_server,
 	report_zone);
@@ -299,7 +301,10 @@ rzkeychange_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsig
 		if (ICMP_UNREACH_NEEDFRAG == icmp->icmp_code)
 		    counts.icmp_unreach_frag++;
 	    } else if (ICMP_TIMXCEED == icmp->icmp_type) {
-		counts.icmp_time_exceeded++;
+		if (ICMP_TIMXCEED_INTRANS == icmp->icmp_code)
+		    counts.icmp_timxceed_intrans++;
+		else if (ICMP_TIMXCEED_REASS == icmp->icmp_code)
+		    counts.icmp_timxceed_reass++;
 	    }
 	}
 	goto done;
