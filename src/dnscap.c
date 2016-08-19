@@ -230,9 +230,6 @@ struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
 /*
-	int			fdes;
-	pcap_t *		pcap;
-	int			dlt;
 	struct pcap_stat	ps0, ps1;
 */
 };
@@ -810,9 +807,6 @@ parse_args(int argc, char *argv[]) {
 			INIT_LINK(mypcap, link);
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
-/*			mypcap->fdes = -1;*/
-/*			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));*/
-/*			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));*/
 			APPEND(mypcaps, mypcap, link);
 			break;
 		case 'r':
@@ -823,7 +817,6 @@ parse_args(int argc, char *argv[]) {
 			INIT_LINK(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
 			assert(pcap_offline->name != NULL);
-/*			pcap_offline->fdes = -1;*/
 			APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
@@ -1164,7 +1157,6 @@ parse_args(int argc, char *argv[]) {
 		assert(mypcap != NULL);
 		INIT_LINK(mypcap, link);
 		mypcap->name = (name == NULL) ? NULL : strdup(name);
-/*		mypcap->fdes = -1;*/
 		APPEND(mypcaps, mypcap, link);
 	}
 	if (start_time && stop_time && start_time >= stop_time)
@@ -1462,28 +1454,28 @@ open_pcaps(void) {
 	     mypcap != NULL;
 	     mypcap = NEXT(mypcap, link))
 	{
-/*
-#ifdef __APPLE__
-		unsigned int ioarg = 1;
-#endif
-*/
+        if (pcap_offline)
+            err = pcap_thread_open_offline(&pcap_thread, mypcap->name, (u_char*)mypcap);
+        else
+            err = pcap_thread_open(&pcap_thread, mypcap->name, (u_char*)mypcap);
 
-fprintf(stderr, "device %s\n", mypcap->name);
-        if ((err = pcap_thread_open(&pcap_thread, mypcap->name, (u_char*)mypcap))) {
-            fprintf(stderr,
-                "%s: pcap_thread_open [%d]: %s\n",
+        if (err == PCAP_THREAD_EPCAP) {
+            fprintf(stderr, "%s: pcap_thread libpcap error [%d]: %s (%s)\n",
                 ProgramName,
-                err,
+                pcap_thread_status(&pcap_thread),
+                pcap_statustostr(pcap_thread_status(&pcap_thread)),
                 pcap_thread_errbuf(&pcap_thread)
             );
             exit(1);
         }
-
-/*
-#ifdef __APPLE__
-		ioctl(mypcap->fdes, BIOCIMMEDIATE, &ioarg);
-#endif
-*/
+        if (err) {
+            fprintf(stderr, "%s: pcap_thread error [%d]: %s\n",
+                ProgramName,
+                err,
+                pcap_thread_strerr(err)
+            );
+            exit(1);
+        }
 	}
 	pcap_dead = pcap_open_dead(DLT_RAW, SNAPLEN);
 }

@@ -75,6 +75,10 @@
 /* Define to 1 if the system has the type `pcap_direction_t'. */
 #undef HAVE_PCAP_DIRECTION_T
 
+/* Define to 1 if you have the `pcap_open_offline_with_tstamp_precision'
+   function. */
+#undef HAVE_PCAP_OPEN_OFFLINE_WITH_TSTAMP_PRECISION
+
 /* Define to 1 if you have the `pcap_setdirection' function. */
 #undef HAVE_PCAP_SETDIRECTION
 
