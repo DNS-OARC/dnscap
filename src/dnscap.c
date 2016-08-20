@@ -229,9 +229,7 @@ typedef LIST(struct endpoint) endpoint_list;
 struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
-/*
 	struct pcap_stat	ps0, ps1;
-*/
 };
 typedef struct mypcap *mypcap_ptr;
 typedef LIST(struct mypcap) mypcap_list;
@@ -307,7 +305,7 @@ static void open_pcaps(void);
 static void poll_pcaps(void);
 static void breakloop_pcaps(void);
 static void close_pcaps(void);
-static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const int);
+static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const char*, const int);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
 static output_t output;
@@ -1562,7 +1560,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 }
 
 static void
-dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const int dlt) {
+dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const char* name, const int dlt) {
 	mypcap_ptr mypcap = (mypcap_ptr) user;
 	size_t len = hdr->caplen;
 	unsigned etype, vlan, pf;
@@ -2395,23 +2393,30 @@ dumper_open(my_bpftimeval ts) {
 	return (FALSE);
 }
 
-static void
-do_pcap_stats()
-{
-/*
+void stat_callback(u_char* user, const struct pcap_stat* stats, const char* name, int dlt) {
 	mypcap_ptr mypcap;
 	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
 	     mypcap = NEXT(mypcap, link)) {
+	     if (!strcmp(name, mypcap->name))
+	        break;
+	}
+
+    if (mypcap) {
 		mypcap->ps0 = mypcap->ps1;
-		pcap_stats(mypcap->pcap, &mypcap->ps1);
+		mypcap->ps1 = *stats;
 		logerr("%4s: %7u recv %7u drop %7u total",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
 			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
-	}
-*/
+    }
+}
+
+static void
+do_pcap_stats()
+{
+    pcap_thread_stats(&pcap_thread, stat_callback, 0);
 }
 
 static int
