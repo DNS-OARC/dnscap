@@ -3,15 +3,20 @@ CLEANFILES = dnscap.1
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir) \
-    $(SECCOMPFLAGS)
+    $(SECCOMPFLAGS) \
+    $(PTHREAD_CFLAGS)
 
 EXTRA_DIST = dnscap.1.in
 
 bin_PROGRAMS = dnscap
+
 dnscap_SOURCES = dnscap.c \
-    dump_dns.c
+    dump_dns.c \
+    pcap-thread/pcap_thread.c
 dist_dnscap_SOURCES = dnscap_common.h \
-    dump_dns.h
+    dump_dns.h \
+    pcap-thread/pcap_thread.h
+dnscap_LDADD = $(PTHREAD_LIBS)
 
 man1_MANS = dnscap.1
 

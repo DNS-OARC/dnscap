@@ -1,4 +1,18 @@
-# dnscap README                                                      
+# dnscap README
+
+## Building from Git repository
+
+If you are building `dnscap` from it's Git repository you will first need
+to initiate the Git submodules that exists and later create autoconf/automake
+files.
+
+```
+git clone https://github.com/DNS-OARC/dnscap.git
+cd dnscap
+git submodule update --init
+./autogen.sh
+./configure [options]
+```
 
 ## Linking with libbind
 
@@ -38,4 +52,3 @@ Also note that we have observed significant memory leaks on FreeBSD
 1. de-select "Compile with thread support"
 1. reinstall the libbind port
 1. recompile and install dnscap
-

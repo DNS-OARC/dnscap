@@ -11,9 +11,13 @@ AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_CANONICAL_HOST
 AM_PROG_AR
 LT_INIT([disable-static])
+
+# pcap_thread
+AX_PCAP_THREAD
 
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
@@ -22,12 +26,6 @@ AC_CHECK_LIB([resolv], [res_mkquery], [], [
 		AC_CHECK_LIB([resolv], [res_9_mkquery])
 	])
 ])
-AC_CHECK_LIB([pcap], [pcap_open_live], [],
-    [
-    echo "dnscap requires libpcap.  Install package libpcap-dev on most Linux"
-    echo "systems.  You can also get the source from www.tcpdump.org."
-    exit 1
-    ])
 AC_CHECK_LIB([dl], [dlopen])
 have_ldns=
 AC_CHECK_LIB([ldns], [ldns_wire2pkt], [have_ldns=yes])
