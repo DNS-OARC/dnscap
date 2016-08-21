@@ -456,7 +456,7 @@ drop_privileges(void)
 	if (pwdBufSize == -1)
 		pwdBufSize = 16384;
 
-	pwdBuf = malloc(pwdBufSize * sizeof(char));
+	pwdBuf = calloc(pwdBufSize, sizeof(char));
 	if (pwdBuf == NULL) {
 		fprintf(stderr, "unable to allocate buffer for pwdBuf\n");
 		exit(1);
@@ -800,7 +800,7 @@ parse_args(int argc, char *argv[]) {
 		case 'i':
 			if (pcap_offline != NULL)
 				usage("-i makes no sense after -r");
-			mypcap = malloc(sizeof *mypcap);
+			mypcap = calloc(1, sizeof *mypcap);
 			assert(mypcap != NULL);
 			INIT_LINK(mypcap, link);
 			mypcap->name = strdup(optarg);
@@ -810,7 +810,7 @@ parse_args(int argc, char *argv[]) {
 		case 'r':
 			if (!EMPTY(mypcaps))
 				usage("-r makes no sense after -i");
-			pcap_offline = malloc(sizeof *pcap_offline);
+			pcap_offline = calloc(1, sizeof *pcap_offline);
 			assert(pcap_offline != NULL);
 			INIT_LINK(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
@@ -821,7 +821,7 @@ parse_args(int argc, char *argv[]) {
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
 				usage("vlan must be an integer 0..4095");
-			vlan = malloc(sizeof *vlan);
+			vlan = calloc(1, sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
@@ -836,7 +836,7 @@ parse_args(int argc, char *argv[]) {
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
 				usage("vlan must be an integer 0..4095");
-			vlan = malloc(sizeof *vlan);
+			vlan = calloc(1, sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
@@ -949,7 +949,7 @@ parse_args(int argc, char *argv[]) {
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 			{
 				int i;
-				myregex_ptr myregex = malloc(sizeof *myregex);
+				myregex_ptr myregex = calloc(1, sizeof *myregex);
 				assert(myregex != NULL);
 				INIT_LINK(myregex, link);
 				myregex->str = strdup(optarg);
@@ -1151,7 +1151,7 @@ parse_args(int argc, char *argv[]) {
 				ProgramName, errbuf);
 			exit(1);
 		}
-		mypcap = malloc(sizeof *mypcap);
+		mypcap = calloc(1, sizeof *mypcap);
 		assert(mypcap != NULL);
 		INIT_LINK(mypcap, link);
 		mypcap->name = (name == NULL) ? NULL : strdup(name);
@@ -1208,7 +1208,7 @@ static void
 endpoint_add(endpoint_list *list, iaddr ia) {
 	endpoint_ptr ep;
 
-	ep = malloc(sizeof *ep);
+	ep = calloc(1, sizeof *ep);
 	assert(ep != NULL);
 	INIT_LINK(ep, link);
 	ep->ia = ia;
@@ -1354,25 +1354,24 @@ prepare_bpft(void) {
 	if (extra_bpf)
 		len += text_add(&bpfl, " and ( %s )", extra_bpf);
 
-	bpft = malloc(len + 1);
+	bpft = calloc(len + 1, sizeof(char));
 	assert(bpft != NULL);
-	bpft[0] = '\0';
 	for (text = HEAD(bpfl);
 	     text != NULL;
 	     text = NEXT(text, link))
 		strcat(bpft, text->text);
 	text_free(&bpfl);
-	if (!EMPTY(vlans_incl)) {
-        	static char *bpft_vlan;
-		len = 2*strlen(bpft) + strlen("() or (vlan and ())");
-        	bpft_vlan = malloc(len + 1);
-		assert(bpft_vlan != NULL);
-		sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
-		bpft = realloc(bpft, len + 1);
-		assert(bpft != NULL);
-		strcpy(bpft, bpft_vlan);
-		free(bpft_vlan);
-	}
+    if (!EMPTY(vlans_incl)) {
+        static char *bpft_vlan;
+        len = 2*strlen(bpft) + strlen("() or (vlan and ())");
+        bpft_vlan = calloc(len + 1, sizeof(char));
+        assert(bpft_vlan != NULL);
+        sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
+        bpft = realloc(bpft, len + 1);
+        assert(bpft != NULL);
+        strcpy(bpft, bpft_vlan);
+        free(bpft_vlan);
+    }
 	if (dumptrace >= 1)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
@@ -1416,7 +1415,7 @@ text_add(text_list *list, const char *fmt, ...) {
 	va_list ap;
 	int len;
 
-	text = malloc(sizeof *text);
+	text = calloc(1, sizeof *text);
 	assert(text != NULL);
 	INIT_LINK(text, link);
 	va_start(ap, fmt);
@@ -1540,7 +1539,7 @@ tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t) {
 static tcpstate_ptr
 tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 
-	tcpstate_ptr tcpstate = malloc(sizeof *tcpstate);
+	tcpstate_ptr tcpstate = calloc(1, sizeof *tcpstate);
 	if (tcpstate == NULL) {
 	    /* Out of memory; recycle the least recently used */
 	    logerr("warning: out of memory, "
