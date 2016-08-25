@@ -42,6 +42,7 @@
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
+.Op Fl q Ar unsigned int
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -315,6 +316,13 @@ to print pcap_stats() counters on stderr when
 or
 .Fl c
 limits are reached.
+.It Fl q Ar unsigned int
+Causes the output to be sampled after the application of all other filters.
+Only every nth dns initiation will be output and responses are only output
+if they correspond to one of the sampled queries. This option cannot be 
+used with option
+.Fl s 
+[r] due to obvious filter reasons.
 .El
 .Pp
 If started with no options,
