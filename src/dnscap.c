@@ -359,6 +359,8 @@ static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
 static int promisc = TRUE;
+static int monitor_mode = FALSE;
+static int immediate_mode = FALSE;
 static int background = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
@@ -672,7 +674,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fTI] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"\t[-?bpd1g6fTISMC] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
@@ -731,9 +733,13 @@ help_2(void) {
 #ifdef USE_SECCOMP
 		"\t-y         enable seccomp-bpf\n"
 #endif
+        "\t-S         show summarized statistics\n"
+        "\t-P <plugin.so> load plugin\n"
 		"\t-U <str>   append 'and <str>' to the pcap filter\n"
-                "\t-B <datetime> begin collecting at this date and time\n"
-                "\t-E <datetime> end collecting at this date and time\n"
+        "\t-B <datetime> begin collecting at this date and time\n"
+        "\t-E <datetime> end collecting at this date and time\n"
+		"\t-M         set monitor mode on interfaces\n"
+		"\t-C         set immediate mode on interfaces\n"
 		);
 }
 
@@ -765,7 +771,7 @@ parse_args(int argc, char *argv[]) {
 #ifdef USE_SECCOMP
 			"y"
 #endif
-			"z:A:B:E:IL:P:STU:X:Y:Z:16?")
+			"z:A:B:E:IL:P:STU:X:Y:Z:16?MC")
 		) != EOF)
 	{
 		switch (ch) {
@@ -1044,6 +1050,12 @@ parse_args(int argc, char *argv[]) {
 			use_seccomp = TRUE;
 			break;
 #endif
+        case 'M':
+            monitor_mode = TRUE;
+            break;
+        case 'C':
+            immediate_mode = TRUE;
+            break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -1443,6 +1455,8 @@ open_pcaps(void) {
 
     pcap_thread_set_snaplen(&pcap_thread, SNAPLEN);
     pcap_thread_set_promiscuous(&pcap_thread, promisc);
+    pcap_thread_set_monitor(&pcap_thread, monitor_mode);
+    pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode);
     pcap_thread_set_callback(&pcap_thread, dl_pkt);
     pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft));
 
