@@ -1,4 +1,7 @@
 dist: xenial
+env:
+  global:
+   - secure: "SrKMzGPphUimfpLuwxdPx6N2fpo+9K597m3dihYZbvfZEcLN8m7Auht6kJWCA47U+eMeHOS11lL1IWkjG25kif0/oIUtpDpyx2d73rjFcTYGtT29YXSml4HdhOyASL+6w+1QXZ+nMz9/4qXgM0+uUvFERFDe58k0jIFzx9V4Cg1tg0sCsY+sZpXlUtxBp6F7IUdSwyrn1OCUQAnI2dsox36Z9RwAyw9d4Ur2SiNe8ktSOgGFF4nZxo+c0ERNl81Brrnxg57hcD0K3BX2thoLpc3OcmdYUqCqbMr7n9UhJP+x8w1xhCsizQ9q7Dv9HXQa13ZbEJKwT5Q9n33yelWya496pgsYPsZYMCqhXAxXXwsEb/QONCGhM07KxTOOSLO25Sm2ZxULHP2jCRtR8PVZjZCFNN0ueii8J+hDzN9tcnYlH5nz3gfGQkMSiocQrJy2urWatf6ibqTVCBJoejSLwpFy8M45ZuVCodJ7tGq1/mgo0iaFw6rChKGTt59j5VBD+gFudRTd6iDWfxkcAimlrlbtRhwr+EygHSFK8QHvWKpdd4GYSLQ+uXKyMmqxQPHYuRcYRYKuUnC+7/if/OfJsLjFK/jJMHAX+y0oXowjf2rIsXh+t8R/LEhqsmcMQug165XwgAG+q4tT9BT6sw7oavTj51w01u9OnnRSZFid77s="
 addons:
   apt:
     sources:
@@ -11,19 +14,15 @@ addons:
     - zlib1g-dev
     - libssl-dev
     - libcryptopant-dev
+  coverity_scan:
+    project:
+      name: "DNS-OARC/dnscap"
+      description: "Build submitted via Travis CI"
+    notification_email: lundstrom.jerry@gmail.com
+    build_command_prepend: "./autogen.sh && ./configure && make clean"
+    build_command: "make"
+    branch_pattern: coverity_scan
 language: c
 compiler:
-  - clang
   - gcc
-install: ./autogen.sh
-script:
-  - ./configure --enable-warn-all
-  - make dist
-  - tar zxvf *.tar.gz
-  - cd dnscap-[0-9]*
-  - mkdir build
-  - cd build
-  - ../configure --enable-warn-all
-  - make
-  - make test
-  - src/dnscap -h
+script: true
