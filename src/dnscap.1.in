@@ -259,7 +259,7 @@ By default,
 will close its packet dump file only when interrupted.  A time limit can be
 specified with the
 .Fl t
-option.  
+option.
 When writing to a file, the packet dump file will be closed when time() %
 .Ar lim
 is zero and the first file will usually be shorter than
@@ -315,6 +315,10 @@ to print pcap_stats() counters on stderr when
 or
 .Fl c
 limits are reached.
+.It Fl M
+Enable monitor mode on interfaces.
+.It Fl C
+Enable immediate mode on interfaces.
 .El
 .Pp
 If started with no options,
