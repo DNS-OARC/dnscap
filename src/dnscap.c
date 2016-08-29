@@ -618,8 +618,9 @@ version(void)
 	revnum = atoi(t);
 	if (NULL == (t = strtok(NULL, sep)))
 		return version_fmt;
-	strncpy(scandate, t, 32);
-	snprintf(vbuf, 128, version_fmt, revnum, scandate);
+	strncpy(scandate, t, sizeof(scandate) - 1);
+	scandate[sizeof(scandate) - 1] = 0;
+	snprintf(vbuf, sizeof(vbuf), version_fmt, revnum, scandate);
 	free(copy);
 	return vbuf;
 
@@ -1295,9 +1296,11 @@ prepare_bpft(void) {
 		if (udp11_mbc != 0)
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
 					udp11_mbc);
+/* Dead code, udp11_mbs never set
 		if (udp11_mbs != 0)
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
 					udp11_mbs, udp11_mbs);
+*/
 
 		if (err_wanted != ERR_NO) {
 			len += text_add(&bpfl, " and (");
@@ -1906,7 +1909,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	switch (proto) {
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
+		output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
 		return;
 	case IPPROTO_UDP: {
 		if (len < sizeof *udp)
@@ -2265,7 +2268,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if ((end_hide & END_RESPONDER) != 0)
 				resp_addr->s_addr = HIDE_INET;
 			ip->ip_sum = ~in_checksum((u_char *)ip, sizeof *ip);
-			udp->uh_sum = 0U;
+			if (udp) udp->uh_sum = 0U;
 			break;
 		    }
 		case AF_INET6: {
@@ -2282,14 +2285,12 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
 			}
 			if ((end_hide & END_INITIATOR) != 0) {
-                    		memcpy(init_addr, HIDE_INET6,
-				       sizeof HIDE_INET6);
+                memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
 				*init_port = htons(HIDE_PORT);
 			}
 			if ((end_hide & END_RESPONDER) != 0)
-				memcpy(resp_addr, HIDE_INET6,
-				       sizeof HIDE_INET6);
-			udp->uh_sum = 0U;
+                memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
+			if (udp) udp->uh_sum = 0U;
 			break;
 		    }
 		default:
@@ -2466,7 +2467,10 @@ dumper_close(my_bpftimeval ts) {
 		if (dumptrace >= 1)
 			fprintf(stderr, "%s: closing %s\n",
 				ProgramName, dumpname);
-		rename(dumpnamepart, dumpname);
+		if (rename(dumpnamepart, dumpname)) {
+		    logerr("rename: %s", strerror(errno));
+		    return ret;
+		}
 		if (kick_cmd != NULL)
 			if (asprintf(&cmd, "%s %s &", kick_cmd, dumpname) < 0){
 				logerr("asprintf: %s", strerror(errno));

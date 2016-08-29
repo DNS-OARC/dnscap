@@ -311,6 +311,7 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 				rd += edns0lenopt;
 			}
 		}
+		break;
 
 	default:
  error:
