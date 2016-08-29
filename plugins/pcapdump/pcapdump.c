@@ -163,7 +163,10 @@ pcapdump_close(my_bpftimeval ts)
 	char *cmd = NULL;
 	if (dbg_lvl >= 1)
 	    logerr("closing %s", dumpname);
-	rename(dumpnamepart, dumpname);
+	if (rename(dumpnamepart, dumpname)) {
+	    logerr("rename: %s", strerror(errno));
+	    return 1;
+	}
 	if (kick_cmd != NULL)
 	    if (asprintf(&cmd, "%s %s &", kick_cmd, dumpname) < 0) {
 		logerr("asprintf: %s", strerror(errno));
@@ -174,9 +177,10 @@ pcapdump_close(my_bpftimeval ts)
 	free(dumpname);
 	dumpname = NULL;
 	if (cmd != NULL) {
-	    /* goofyness with x = to silence gcc warnings */
 	    int x = system(cmd);
-	    x = x;
+	    if (x) {
+	        logerr("system %s returned %d", cmd, x);
+	    }
 	    free(cmd);
 	}
 	if (kick_cmd == NULL)
