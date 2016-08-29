@@ -124,6 +124,7 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <time.h>
 #include <unistd.h>
 #include <pwd.h>
+#include "uthash/uthash.h" //for the HASH used in the sample module
 
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
@@ -284,6 +285,22 @@ struct plugin {
 };
 LIST(struct plugin) plugins;
 
+typedef struct
+{
+	UT_hash_handle 		hh; 		//makes the structure hashable using "uthash/uthash.h"
+	iaddr			from; 		//these next 5 fields make up the compound key
+	int 			sport,dport,transaction_id;
+	iaddr			to;
+
+}samplePacket ;
+
+typedef struct
+{
+	iaddr			from;
+	int 			sport,dport,transaction_id;
+	iaddr			to;
+}sample_lookup_key;
+
 /* Forward. */
 
 static void setsig(int, int);
@@ -375,7 +392,12 @@ static my_bpftimeval last_ts = {0,0};
 static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
 static int mem_limit_set = 1; // Should be configurable
 const char DROPTOUSER[] = "nobody";
-
+static int sample = FALSE;
+static unsigned sampleAmount;
+static unsigned querycount;
+static samplePacket  *allSampleQueries = NULL;
+static int chooseSidesResponse = FALSE;
+static unsigned keylen;
 /* Public. */
 
 int
@@ -592,7 +614,7 @@ version(void)
 	snprintf(vbuf, 128, version_fmt, revnum, scandate);
 	free(copy);
 	return vbuf;
-	
+
 }
 
 static void
@@ -651,7 +673,8 @@ help_1(void) {
 		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>]+ [-E <datetime>]+\n"
-		"\t[-P plugin.so] [-U <str>]\n",
+		"\t[-P plugin.so] [-U <str>]\n"
+		"\t[-q <unsigned int>]\n",
 		ProgramName);
 }
 
@@ -706,6 +729,8 @@ help_2(void) {
 		"\t-U <str>   append 'and <str>' to the pcap filter\n"
                 "\t-B <datetime> begin collecting at this date and time\n"
                 "\t-E <datetime> end collecting at this date and time\n"
+		"\t-q <unsigned int> output only every nth DNS query and only output responses\n \
+			  if they correspond to one of the sampled queries\n"
 		);
 }
 
@@ -733,7 +758,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:"
+			"a:bc:de:fgh:i:k:l:m:pq:r:s:t:u:w:x:"
 #ifdef USE_SECCOMP
 			"y"
 #endif
@@ -844,6 +869,7 @@ parse_args(int argc, char *argv[]) {
 			msg_wanted = u;
 			break;
 		case 's':
+			chooseSidesResponse = TRUE;
 			u = 0;
 			for (p = optarg; *p; p++)
 				switch (*p) {
@@ -852,6 +878,13 @@ parse_args(int argc, char *argv[]) {
 				default: usage("-s takes only [ir]");
 				}
 			dir_wanted = u;
+			break;
+		case 'q':
+			sample = TRUE;
+			sampleAmount =  atoi(optarg);
+			if(sampleAmount == 0)
+				usage("-q takes only unsigned integer values != 0");
+			querycount = 0;
 			break;
 		case 'h':
 			u = 0;
@@ -1034,6 +1067,11 @@ parse_args(int argc, char *argv[]) {
 		usage("the -L and -l options are mutually exclusive");
 	if (background && (dumptrace || preso))
 		usage("the -b option is incompatible with -d and -g");
+	if (sample && chooseSidesResponse)
+	{
+		if (!((dir_wanted & DIR_INITIATE) != 0) && ((dir_wanted & DIR_RESPONSE) != 0))
+			usage("the -q option is incompatible with -s r");
+	}
 	if (dumptrace >= 1) {
 		endpoint_ptr ep;
 		const char *sep;
@@ -2313,9 +2351,58 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			abort();
 		}
 	}
-	msgcount++;
-	output(descr, from, to, proto, isfrag, sport, dport, ts,
-	    pkt_copy, olen, dnspkt, dnslen);
+/*Sample Module*/
+	if (sample == TRUE)
+	{
+		ns_msg dnsmsgSample;
+		ns_initparse(dnspkt,dnslen,&dnsmsgSample);
+		samplePacket *currentQuery;
+
+		keylen = offsetof(samplePacket,to)	//keylen is used to define which fields of the hash structure are added
+			+ sizeof(to)			//as a compound key. Here, the key is composed of all fields between (and including)
+			- offsetof(samplePacket,from);	//samplePacket->to and samplePacket->from (from, sport, dport, transaction_id, to)
+
+		if(dns.qr == 0)
+		{
+			querycount++;
+			if(querycount % sampleAmount == 0)
+				{
+					currentQuery = malloc(sizeof(*currentQuery));
+					memset(currentQuery, 0, sizeof(*currentQuery));
+					currentQuery->from = from;
+					currentQuery->to = to;
+					currentQuery->sport = sport;
+					currentQuery->dport = dport;
+					currentQuery->transaction_id = ns_msg_id(dnsmsgSample);
+
+					HASH_ADD(hh,allSampleQueries,from,keylen,currentQuery);
+					output(descr,from,to,proto,isfrag,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+				}
+		}
+		else
+		{
+			sample_lookup_key *lookup_key = (sample_lookup_key*)malloc(sizeof(*lookup_key));;
+			memset(lookup_key, 0, sizeof(*lookup_key));
+			lookup_key->from = to;
+			lookup_key->to = from;
+			lookup_key->dport = sport;
+			lookup_key->sport = dport;
+			lookup_key->transaction_id = ns_msg_id(dnsmsgSample);
+
+			HASH_FIND(hh,allSampleQueries,&lookup_key->from,keylen,currentQuery);
+			if(currentQuery)
+			{
+				HASH_DEL(allSampleQueries,currentQuery);
+				free(currentQuery);
+				output(descr,from,to,proto,isfrag,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+			}
+			free(lookup_key);
+		}
+	}else
+	{
+		output(descr,from,to,proto,isfrag,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+	}
+		msgcount++;
 }
 
 static void
@@ -2581,4 +2668,3 @@ daemonize(void)
 #endif
   logerr("Backgrounded as pid %u", getpid());
 }
-
