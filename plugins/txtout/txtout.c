@@ -42,6 +42,8 @@ txtout_getopt(int *argc, char **argv[])
 			opt_f = 1;
 			break;
 		case 'o':
+		    if (opt_o)
+		        free(opt_o);
 			opt_o = strdup(optarg);
 			break;
 		default:

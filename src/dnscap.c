@@ -609,15 +609,23 @@ version(void)
 	const char *sep = " \t";
 	char *copy = strdup(rcsid);
 	char *t;
-	if (NULL == (t = strtok(copy, sep)))
+	if (NULL == (t = strtok(copy, sep))) {
+	    free(copy);
 		return version_fmt;
-	if (NULL == (t = strtok(NULL, sep)))
+	}
+	if (NULL == (t = strtok(NULL, sep))) {
+	    free(copy);
 		return version_fmt;
-	if (NULL == (t = strtok(NULL, sep)))
+	}
+	if (NULL == (t = strtok(NULL, sep))) {
+	    free(copy);
 		return version_fmt;
+	}
 	revnum = atoi(t);
-	if (NULL == (t = strtok(NULL, sep)))
+	if (NULL == (t = strtok(NULL, sep))) {
+	    free(copy);
 		return version_fmt;
+	}
 	strncpy(scandate, t, sizeof(scandate) - 1);
 	scandate[sizeof(scandate) - 1] = 0;
 	snprintf(vbuf, sizeof(vbuf), version_fmt, revnum, scandate);
@@ -1041,9 +1049,12 @@ parse_args(int argc, char *argv[]) {
 				APPEND(plugins, p, link);
 				if (dumptrace)
 					fprintf(stderr, "Plugin '%s' loaded\n", p->name);
+			    free(fn);
 			}
 			break;
 		case 'U':
+		    if (extra_bpf)
+		        free(extra_bpf);
 			extra_bpf = strdup(optarg);
 			break;
 #ifdef USE_SECCOMP

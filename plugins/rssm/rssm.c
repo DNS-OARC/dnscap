@@ -30,7 +30,8 @@
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval clos_ts;
-static const char *counts_prefix = "rssm";
+#define COUNTS_PREFIX_DEFAULT "rssm"
+static const char *counts_prefix = 0;
 static const char *sources_prefix = 0;
 
 output_t rssm_output;
@@ -123,9 +124,13 @@ rssm_getopt(int *argc, char **argv[])
 	while ((c = getopt(*argc, *argv, "w:s:")) != EOF) {
 		switch(c) {
 		case 'w':
+		    if (counts_prefix)
+		        free(counts_prefix);
 			counts_prefix = strdup(optarg);
 			break;
 		case 's':
+		    if (sources_prefix)
+		        free(sources_prefix);
 			sources_prefix = strdup(optarg);
 			break;
 		default:
@@ -164,7 +169,7 @@ rssm_save_counts(const char *sbuf)
 	FILE *fp;
 	int i;
 	char *tbuf = 0;
-	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
+	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix ? counts_prefix : COUNTS_PREFIX_DEFAULT, sbuf, (u_long) open_ts.tv_usec);
 	if (i < 1 || !tbuf) {
 		logerr("asprintf: out of memory");
 		return;
@@ -270,8 +275,7 @@ rssm_close(my_bpftimeval ts)
 	/* grandchild (2nd gen) continues */
 	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
 	clos_ts = ts;
-	if (counts_prefix)
-		rssm_save_counts(sbuf);
+	rssm_save_counts(sbuf);
 	if (sources_prefix)
 		rssm_save_sources(sbuf);
 	exit(0);
