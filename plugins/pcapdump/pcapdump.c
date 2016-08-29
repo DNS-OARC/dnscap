@@ -65,6 +65,8 @@ pcapdump_getopt(int *argc, char **argv[])
 	    flush = 1;
 	    break;
 	case 'k':
+	    if (kick_cmd)
+	        free(kick_cmd);
 	    kick_cmd = strdup(optarg);
 	    break;
 	case 's':
@@ -80,8 +82,11 @@ pcapdump_getopt(int *argc, char **argv[])
 	case 'w':
 	    if (!strcmp(optarg, "-"))
 		to_stdout = 1;
-	    else
-		dump_base = strdup(optarg);
+	    else {
+	        if (dump_base)
+	            free(dump_base);
+            dump_base = strdup(optarg);
+		}
 	    break;
 	default:
 	    pcapdump_usage();
