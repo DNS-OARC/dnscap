@@ -13,7 +13,7 @@
 
 static logerr_t *logerr;
 static int opt_f = 0;
-static const char *opt_o = 0;
+static char *opt_o = 0;
 static FILE *out = 0;
 
 output_t txtout_output;

@@ -165,6 +165,7 @@ dump_dns_rr(ns_msg *msg, ns_rr *rr, ns_sect sect, FILE *trace) {
 	u_int16_t mx;
 	int n;
 
+    memset(buf, 0, sizeof(buf));
 	class = ns_rr_class(*rr);
 	type = ns_rr_type(*rr);
 	fprintf(trace, "%s,%s,%s",
