@@ -342,7 +342,7 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
-static const char *extra_bpf = NULL;
+static char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
 static const char *kick_cmd = NULL;

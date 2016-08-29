@@ -26,14 +26,14 @@
 output_t pcapdump_output;
 
 static logerr_t *logerr = 0;
-const char *dump_base = 0;
+char *dump_base = 0;
 static int to_stdout = 0;
 static int dbg_lvl = 0;
 static char *dumpname = 0;
 static char *dumpnamepart = 0;
 static pcap_t *pcap_dead = 0;
 static pcap_dumper_t *dumper = 0;
-static const char *kick_cmd = 0;
+static char *kick_cmd = 0;
 static int flush = 0;
 static int dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 

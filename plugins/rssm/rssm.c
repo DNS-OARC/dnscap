@@ -31,8 +31,8 @@ static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval clos_ts;
 #define COUNTS_PREFIX_DEFAULT "rssm"
-static const char *counts_prefix = 0;
-static const char *sources_prefix = 0;
+static char *counts_prefix = 0;
+static char *sources_prefix = 0;
 
 output_t rssm_output;
 
