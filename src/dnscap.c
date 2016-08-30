@@ -691,7 +691,7 @@ help_1(void) {
 		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
 		"\t[-h [ir]] [-s [ir]]\n"
 		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
-		"\t[-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
+		"\t[-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-D <lim>]\n"
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>] [-E <datetime>]\n"
 		"\t[-P plugin.so] [-U <str>]\n",
@@ -742,7 +742,7 @@ help_2(void) {
 		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
 		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
 		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
-		"\t-C <lim>   close dump or exit every/after <lim> bytes captured\n"
+		"\t-D <lim>   close dump or exit every/after <lim> bytes captured\n"
 		"\t-x <pat>   select messages matching regex <pat>\n"
 		"\t-X <pat>   select messages not matching regex <pat>\n"
 #ifdef USE_SECCOMP
@@ -786,7 +786,7 @@ parse_args(int argc, char *argv[]) {
 #ifdef USE_SECCOMP
 			"y"
 #endif
-			"z:A:B:C:E:IL:P:STU:W:X:Y:Z:16?MC")
+			"z:A:B:D:E:IL:P:STU:W:X:Y:Z:16?MC")
 		) != EOF)
 	{
 		switch (ch) {
@@ -967,10 +967,10 @@ parse_args(int argc, char *argv[]) {
 				usage("argument to -c must be an integer");
 			limit_packets = (unsigned) ul;
 			break;
-		case 'C':
+		case 'D':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0')
-				usage("argument to -C must be an integer");
+				usage("argument to -D must be an integer");
 			limit_pcapfilesize = (unsigned) ul;
 			break;
 		case 'x':
@@ -1104,7 +1104,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, D %zu\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
