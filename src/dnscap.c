@@ -342,7 +342,7 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
-static const char *dump_suffix = NULL;
+static char *dump_suffix = NULL;
 static char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
@@ -947,7 +947,9 @@ parse_args(int argc, char *argv[]) {
 				dump_type = to_file;
 			break;
 		case 'W':
-			dump_suffix = optarg;
+		    if (dump_suffix)
+		        free(dump_suffix);
+			dump_suffix = strdup(optarg);
 			break;
 		case 'k':
 			if (dump_type != to_file)
@@ -2412,7 +2414,7 @@ dumper_open(my_bpftimeval ts) {
 		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
 		if (asprintf(&dumpname, "%s.%s.%06lu%s",
 			     dump_base, sbuf,
-			     (u_long) ts.tv_usec, dump_suffix) < 0 ||
+			     (u_long) ts.tv_usec, dump_suffix ? dump_suffix : "") < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
 			logerr("asprintf: %s", strerror(errno));
