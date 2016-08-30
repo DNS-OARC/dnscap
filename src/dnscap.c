@@ -2358,8 +2358,14 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
 	capturedbytes += olen;
 
 	if (dumptrace >= 3) {
-		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%d, olen=%u, dnslen=%u\n",
-			capturedbytes, proto, isfrag, olen, dnslen);
+		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
+			capturedbytes,
+			proto,
+			flags & DNSCAP_OUTPUT_ISFRAG ? "yes" : "no",
+			flags & DNSCAP_OUTPUT_ISDNS ? "yes" : "no",
+			olen,
+			payloadlen
+		);
 	}
 
 	/* Output stage. */
