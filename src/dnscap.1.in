@@ -32,7 +32,7 @@
 .Oc
 .Oo
 .Fl e
-.Op nytfsxirMC
+.Op nytfsxirMD
 .Oc
 .Op Fl a Ar host ...
 .Op Fl z Ar host ...
@@ -48,7 +48,7 @@
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
-.Op Fl D Ar lim
+.Op Fl C Ar lim
 .Op Fl B Ar datetime
 .Op Fl E Ar datetime
 .Op Fl P Ar plugin.so
@@ -298,12 +298,12 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
-.It Fl D Ar lim
+.It Fl C Ar lim
 By default,
 .Nm
 will close its packet dump file only when interrupted.  A dump file size,
 measured in bytes captured, can be specified with the
-.Fl D
+.Fl C
 option.  If the packet dump file is standard output, then after closing this
 file,
 .Nm
@@ -343,11 +343,11 @@ to print pcap_stats() counters on stderr when
 ,
 .Fl c
 or
-.Fl D
+.Fl C
 limits are reached.
 .It Fl M
 Enable monitor mode on interfaces.
-.It Fl C
+.It Fl D
 Enable immediate mode on interfaces.
 .It Fl U Ar str
 Append "and
