@@ -11,6 +11,7 @@
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
 .Op Fl L Ar vlan ...
+.Op Fl u Ar port
 .Op Fl x Ar pat ...
 .Op Fl X Ar pat ...
 .Oo
@@ -26,8 +27,12 @@
 .Op ir
 .Oc
 .Oo
+.Fl h
+.Op ir
+.Oc
+.Oo
 .Fl e
-.Op nytfsxir
+.Op nytfsxirMD
 .Oc
 .Op Fl a Ar host ...
 .Op Fl z Ar host ...
@@ -38,10 +43,16 @@
 .Oo
 .Fl w
 .Ar base
+.Op Fl W Ar suffix
 .Op Fl k Ar cmd
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
+.Op Fl C Ar lim
+.Op Fl B Ar datetime
+.Op Fl E Ar datetime
+.Op Fl P Ar plugin.so
+.Op Fl U Ar str
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -59,6 +70,8 @@ is expected to be used for gathering continuous research or audit traces.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
+.It Fl b
+Run in background as daemon.
 .It Fl p
 Asks that the interface not be put into promiscuous mode.  Note that even
 without this option, the interface could be in promiscuous mode for some other
@@ -110,6 +123,8 @@ boundaries, will be captured if and only if the first DNS header passed all
 filter options.
 TCP packets will usually not be printable with
 .Fl g .
+.It Fl I
+Select ICMP and ICMPv6 packets.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
@@ -241,6 +256,8 @@ and
 .Fl t
 options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
+.It Fl W Ar suffix
+The provided suffix is added to the dump file name, e. g.: ".pcap"
 .It Fl k Ar cmd
 After each dump file specified by
 .Fl w
@@ -281,6 +298,17 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
+.It Fl C Ar lim
+By default,
+.Nm
+will close its packet dump file only when interrupted.  A dump file size,
+measured in bytes captured, can be specified with the
+.Fl C
+option.  If the packet dump file is standard output, then after closing this
+file,
+.Nm
+exits.  This option is inclusive with
+.Fl t .
 .It Fl B Ar datetime
 When using
 .Fl w ,
@@ -312,13 +340,19 @@ Causes
 .Nm
 to print pcap_stats() counters on stderr when
 .Fl t
-or
+,
 .Fl c
+or
+.Fl C
 limits are reached.
 .It Fl M
 Enable monitor mode on interfaces.
-.It Fl C
+.It Fl D
 Enable immediate mode on interfaces.
+.It Fl U Ar str
+Append "and
+.Ar str
+" to the pcap filter.
 .El
 .Pp
 If started with no options,
