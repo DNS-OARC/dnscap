@@ -8,6 +8,13 @@
 #include <stdio.h>
 #include "dump_dns.h"
 
+#ifndef INT16SZ
+#define INT16SZ (2)
+#endif
+#ifndef INT32SZ
+#define INT32SZ (4)
+#endif
+
 #ifndef lint
 static const char rcsid[] = "$Id: dump_dns.c,v 1.2 2008-03-14 21:33:28 wessels Exp $";
 #endif

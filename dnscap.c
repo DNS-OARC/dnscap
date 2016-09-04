@@ -485,15 +485,53 @@ drop_privileges(void)
 		}
 	}
 
+	/* Drop the gid privilege first, because in some cases the gid privilege
+	   cannot be dropped after the uid privilege has been dropped.  */
+	/* This is for executables that have the setgid bit set.  */
+	#if HAVE_SETRESGID /* glibc, FreeBSD, OpenBSD, HP-UX */
+	/* This code is needed: In particular, on HP-UX 11.11, setregid (gid, gid)
+	   may leave the saved gid as 0.  See also the comment below regarding
+	   setresuid.  */
 	if (setresgid(dropGID, dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
-		exit(1);
-	}
+ 		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#elif HAVE_SETREGID /* Mac OS X, NetBSD, AIX, IRIX, Solaris, OSF/1, Cygwin */
+	if (setregid (dropGID, dropGID) < 0) {
+ 		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#elif HAVE_SETEGID /* Solaris 2.4 */
+	if (setegid (dropGID) < 0) {
+ 		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#endif
 
+	/* This is for executables that have the setuid bit set.  */
+	#if HAVE_SETRESUID /* glibc, FreeBSD, OpenBSD, HP-UX */
+	/* On systems which have setresuid(), we use it instead of setreuid(),
+	   because
+	      <http://www.usenix.org/events/sec02/full_papers/chen/chen.pdf>
+	   says about setreuid(): "The rule by which the saved uid id is modified
+	   is complicated." Similarly, <http://unixpapa.com/incnote/setuid.html>
+	   says about setreuid(): "What exactly happens to the saved UID when this
+	   is used seems to vary a lot."  */
 	if (setresuid(dropUID, dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
-		exit(1);
-	}
+ 		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#elif HAVE_SETREUID /* Mac OS X, NetBSD, AIX, IRIX, Solaris, OSF/1, Cygwin */
+	if (setreuid (dropUID, dropUID) < 0) {
+ 		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#elif HAVE_SETEUID /* Solaris 2.4 */
+	if (seteuid (dropUID) < 0) {
+ 		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+ 		exit(1);
+ 	}
+	#endif
 
 	// Testing if privileges are dropped
 	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
