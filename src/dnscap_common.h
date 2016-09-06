@@ -5,6 +5,7 @@
  * will be assoicated with packets from libpcap
  */
 #ifndef MY_BPFTIMEVAL
+#include <sys/time.h>
 # define MY_BPFTIMEVAL timeval
 #endif
 typedef struct MY_BPFTIMEVAL my_bpftimeval;
