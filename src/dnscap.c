@@ -1917,7 +1917,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		       nexthdr == IPPROTO_HOPOPTS ||	/* Hop-by-Hop opts */
 		       nexthdr == IPPROTO_FRAGMENT ||	/* fragmentation hdr */
 		       nexthdr == IPPROTO_DSTOPTS ||	/* destination opts */
-		       nexthdr == IPPROTO_AH ||		/* destination opts */
+		       nexthdr == IPPROTO_AH ||		/* authentication header */
 		       nexthdr == IPPROTO_ESP)		/* encap sec payload */
 		{
 			struct {
