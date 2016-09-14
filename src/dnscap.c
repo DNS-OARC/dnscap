@@ -288,17 +288,14 @@ struct plugin {
 };
 LIST(struct plugin) plugins;
 
-typedef struct
-{
+typedef struct{
         UT_hash_handle          hh;             //makes the structure hashable using "uthash/uthash.h"
         unsigned                   from;           //these next 5 fields make up the compound key
         int                     sport,dport,transaction_id;
         unsigned                   to;
-
 }samplePacket ;
 
-typedef struct
-{
+typedef struct{
         unsigned                from;
         int                     sport,dport,transaction_id;
         unsigned                to;
