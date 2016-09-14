@@ -34,6 +34,8 @@ static my_bpftimeval clos_ts = {0,0};
 static const char *report_zone = 0;
 static const char *report_server = 0;
 static const char *report_node = 0;
+static unsigned short resolver_port = 0;
+static unsigned int resolver_use_tcp = 0;
 static ldns_resolver *res;
 
 plugin_start_t rzkeychange_start;
@@ -107,6 +109,8 @@ rzkeychange_usage()
 	"\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
 	"\t-s <server>  Data is from server <server> (required)\n"
 	"\t-n <node>    Data is from site/node <node> (required)\n"
+	"\t-p <port>    Send DNS queries to this port\n"
+	"\t-t           Use TCP for DNS queries\n"
     );
 }
 
@@ -114,7 +118,7 @@ void
 rzkeychange_getopt(int *argc, char **argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "n:s:z:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "n:p:s:tz:")) != EOF) {
 	switch (c) {
 	case 'n':
 	    report_node = strdup(optarg);
@@ -124,6 +128,12 @@ rzkeychange_getopt(int *argc, char **argv[])
 	    break;
 	case 'z':
 	    report_zone = strdup(optarg);
+	    break;
+	case 'p':
+	    resolver_port = strtoul(optarg, 0, 10);
+	    break;
+	case 't':
+	    resolver_use_tcp = 1;
 	    break;
 	default:
 	    rzkeychange_usage();
@@ -165,6 +175,17 @@ rzkeychange_start(plugin_callbacks * the_callbacks)
 	fprintf(stderr, "Failed to initialize ldns resolver\n");
 	exit(1);
     }
+    if (0 == ldns_resolver_nameserver_count(res)) {
+	ldns_rdf *nsaddr;
+	fprintf(stderr, "adding loopback to resolver config\n");
+	nsaddr = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, "127.0.0.1");
+	assert(nsaddr);
+	assert(LDNS_STATUS_OK == ldns_resolver_push_nameserver(res, nsaddr));
+    }
+    if (resolver_port)
+	ldns_resolver_set_port(res, resolver_port);
+    if (resolver_use_tcp)
+	ldns_resolver_set_usevc(res, 1);
     //
     fprintf(stderr, "Testing reachability of zone '%s'\n", report_zone);
     pkt = dns_query(report_zone, LDNS_RR_TYPE_TXT);
