@@ -923,11 +923,19 @@ parse_args(int argc, char *argv[]) {
 			dir_wanted = u;
 			break;
                 case 'q':
-                        sample = TRUE;
-                        sampleAmount =  atoi(optarg);
-                        if(sampleAmount == 0)
-                                usage("-q takes only unsigned integer values != 0");
-                        querycount = 0;
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
+                       {
+        	        	sample = TRUE;
+                	        sampleAmount =  atoi(optarg);
+                		if(sampleAmount == 0)
+                                	usage("-q takes only unsigned integer values != 0");
+                        	querycount = 0;
+                        }
+#else
+                        fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
+                                ProgramName);
+                        exit(1);
+#endif	
                         break;
 		case 'h':
 			u = 0;
