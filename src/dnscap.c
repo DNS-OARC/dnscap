@@ -402,7 +402,6 @@ static int sample = FALSE;
 static unsigned sampleAmount;
 static unsigned querycount;
 static samplePacket  *allSampleQueries = NULL;
-static int chooseSidesResponse = FALSE;
 static unsigned keylen;
 
 /* Public. */
@@ -912,7 +911,6 @@ parse_args(int argc, char *argv[]) {
 			msg_wanted = u;
 			break;
 		case 's':
-                        chooseSidesResponse = TRUE;
 			u = 0;
 			for (p = optarg; *p; p++)
 				switch (*p) {
@@ -1138,11 +1136,9 @@ parse_args(int argc, char *argv[]) {
 		usage("the -L and -l options are mutually exclusive");
 	if (background && (dumptrace || preso))
 		usage("the -b option is incompatible with -d and -g");
-        if (sample && chooseSidesResponse)
-        {
-		if(((dir_wanted & DIR_RESPONSE) != 0) && ((dir_wanted & DIR_INITIATE) == 0))
-			usage("the -q option is incompatible with -s r");
-        }
+        if(sample && ((dir_wanted & DIR_INITIATE) == 0))
+		usage("the -q option is incompatible with -s r");
+
 	if (dumptrace >= 1) {
 		endpoint_ptr ep;
 		const char *sep;
