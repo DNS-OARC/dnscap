@@ -289,16 +289,16 @@ struct plugin {
 LIST(struct plugin) plugins;
 
 typedef struct{
-        UT_hash_handle          hh;             //makes the structure hashable using "uthash/uthash.h"
-        unsigned                   from;           //these next 5 fields make up the compound key
-        int                     sport,dport,transaction_id;
-        unsigned                   to;
+        UT_hash_handle             hh;             //makes the structure hashable using "uthash/uthash.h"
+        uint32_t                   from;           //these next 5 fields make up the compound key
+        int                        sport,dport,transaction_id;
+        uint32_t                   to;
 }samplePacket ;
 
 typedef struct{
-        unsigned                from;
+        uint32_t                from;
         int                     sport,dport,transaction_id;
-        unsigned                to;
+        uint32_t                to;
 }sample_lookup_key;
 
 /* Forward. */
@@ -715,7 +715,7 @@ help_1(void) {
 		"\t[-x <pat>]+ [-X <pat>]+\n"
 		"\t[-B <datetime>] [-E <datetime>]\n"
 		"\t[-P plugin.so] [-U <str>]\n"
-                "\t[-q <unsinged int>]\n",
+                "\t[-q <nth>]\n",
 		ProgramName);
 }
 
@@ -776,8 +776,8 @@ help_2(void) {
         "\t-E <datetime> end collecting at this date and time\n"
 		"\t-M         set monitor mode on interfaces\n"
 		"\t-D         set immediate mode on interfaces\n"
-                "\t-q <unsigned int> output only every nth DNS query and only output responses\n \
-                          if they correspond to one of the sampled queries\n"
+                "\t-q <nth> output only every nth DNS query and only output responses\n \
+                  if they correspond to one of the sampled queries\n"
 		);
 }
 
@@ -1132,8 +1132,8 @@ parse_args(int argc, char *argv[]) {
 		usage("the -b option is incompatible with -d and -g");
         if (sample && chooseSidesResponse)
         {
-                if (!((dir_wanted & DIR_INITIATE) != 0) && ((dir_wanted & DIR_RESPONSE) != 0))
-                        usage("the -q option is incompatible with -s r");
+		if(((dir_wanted & DIR_RESPONSE) != 0) && ((dir_wanted & DIR_INITIATE) == 0))
+			usage("the -q option is incompatible with -s r");
         }
 	if (dumptrace >= 1) {
 		endpoint_ptr ep;
@@ -2381,10 +2381,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
                 ns_msg dnsmsgSample;
                 ns_initparse(dnspkt,dnslen,&dnsmsgSample);
                 samplePacket *currentQuery;
-                void *ipAddrBufferFrom = &from.u;
-                void *ipAddrBufferTo = &to.u;
-                unsigned *fromBuffer = (unsigned*)ipAddrBufferFrom;
-                unsigned *toBuffer = (unsigned*)ipAddrBufferTo;
+
+		uint32_t *fromBuffer = (uint32_t*)&from.u;
+		uint32_t *toBuffer = (uint32_t*)&to.u;
 
                 keylen = offsetof(samplePacket,to)      //keylen is used to define which fields of the hash structure are added
                         + sizeof(*toBuffer)                    //as a compound key. Here, the key is composed of all fields between (and including)
@@ -2395,8 +2394,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
                         querycount++;
                         if(querycount % sampleAmount == 0)
                                 {
-                                        currentQuery = malloc(sizeof(*currentQuery));
-                                        memset(currentQuery, 0, sizeof(*currentQuery));
+                                        currentQuery = calloc(1,sizeof(*currentQuery));
+					assert(currentQuery != NULL);
                                         currentQuery->from = *fromBuffer;
                                         currentQuery->to = *toBuffer;
                                         currentQuery->sport = sport;
@@ -2409,8 +2408,8 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
                 }
                 else
                 {
-                        sample_lookup_key *lookup_key = (sample_lookup_key*)malloc(sizeof(*lookup_key));;
-                        memset(lookup_key, 0, sizeof(*lookup_key));
+                        sample_lookup_key *lookup_key = (sample_lookup_key*)calloc(1,sizeof(*lookup_key));
+			assert(lookup_key != NULL);
                         lookup_key->from = *toBuffer;
                         lookup_key->to = *fromBuffer;
                         lookup_key->dport = sport;
