@@ -69,6 +69,10 @@ struct {
 #endif
 }      counts;
 
+#define MAX_NAMESERVERS 10
+static unsigned int num_ns_addrs = 0;
+static char *ns_addrs[MAX_NAMESERVERS];
+
 
 #if COUNT_SOURCES
 static unsigned int
@@ -109,6 +113,7 @@ rzkeychange_usage()
 	"\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
 	"\t-s <server>  Data is from server <server> (required)\n"
 	"\t-n <node>    Data is from site/node <node> (required)\n"
+	"\t-a <addr>	Send DNS queries to this addr\n"
 	"\t-p <port>    Send DNS queries to this port\n"
 	"\t-t           Use TCP for DNS queries\n"
     );
@@ -118,7 +123,7 @@ void
 rzkeychange_getopt(int *argc, char **argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "n:p:s:tz:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "a:n:p:s:tz:")) != EOF) {
 	switch (c) {
 	case 'n':
 	    report_node = strdup(optarg);
@@ -128,6 +133,12 @@ rzkeychange_getopt(int *argc, char **argv[])
 	    break;
 	case 'z':
 	    report_zone = strdup(optarg);
+	    break;
+	case 'a':
+	    if (num_ns_addrs < MAX_NAMESERVERS) {
+		ns_addrs[num_ns_addrs] = strdup(optarg);
+		num_ns_addrs++;
+	    }
 	    break;
 	case 'p':
 	    resolver_port = strtoul(optarg, 0, 10);
@@ -164,6 +175,22 @@ dns_query(const char *name, ldns_rr_type type)
     return pkt;
 }
 
+static void
+add_resolver_nameserver(const char *s)
+{
+    ldns_rdf *nsaddr;
+    fprintf(stderr, "adding nameserver '%s' to resolver config\n", s);
+    if (strchr(s, ':'))
+	nsaddr = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_AAAA, s);
+    else
+	nsaddr = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, s);
+    if (!nsaddr) {
+	callbacks->logerr("rzkeychange.so: invalid IP address '%s'", s);
+	exit(1);
+    }
+    assert(LDNS_STATUS_OK == ldns_resolver_push_nameserver(res, nsaddr));
+}
+
 int
 rzkeychange_start(plugin_callbacks * the_callbacks)
 {
@@ -175,13 +202,14 @@ rzkeychange_start(plugin_callbacks * the_callbacks)
 	fprintf(stderr, "Failed to initialize ldns resolver\n");
 	exit(1);
     }
-    if (0 == ldns_resolver_nameserver_count(res)) {
-	ldns_rdf *nsaddr;
-	fprintf(stderr, "adding loopback to resolver config\n");
-	nsaddr = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, "127.0.0.1");
-	assert(nsaddr);
-	assert(LDNS_STATUS_OK == ldns_resolver_push_nameserver(res, nsaddr));
+    if (num_ns_addrs) {
+	unsigned int i;
+	ldns_resolver_set_nameserver_count(res, 0);
+	for (i=0; i<num_ns_addrs; i++)
+	    add_resolver_nameserver(ns_addrs[i]);
     }
+    if (0 == ldns_resolver_nameserver_count(res))
+	add_resolver_nameserver("127.0.0.1");
     if (resolver_port)
 	ldns_resolver_set_port(res, resolver_port);
     if (resolver_use_tcp)
