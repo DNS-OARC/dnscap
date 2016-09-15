@@ -354,7 +354,7 @@ Enable immediate mode on interfaces.
 Append "and
 .Ar str
 " to the pcap filter.
-.It Fl q Ar unsigned int
+.It Fl q Ar nth
 Causes the output to be sampled after the application of all other filters.
 Only every nth dns initiation will be output and responses are only output
 if they correspond to one of the sampled queries. This option cannot be
