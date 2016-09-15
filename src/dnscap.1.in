@@ -53,7 +53,7 @@
 .Op Fl E Ar datetime
 .Op Fl P Ar plugin.so
 .Op Fl U Ar str
-.Op Fl q Ar unsigned int
+.Op Fl q Ar nth
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -358,7 +358,9 @@ Append "and
 Causes the output to be sampled after the application of all other filters.
 Only every nth dns initiation will be output and responses are only output
 if they correspond to one of the sampled queries. This option cannot be
-used with option.
+used with option
+.Fl s
+[r] due to obvious filter reasons.
 .El
 .Pp
 If started with no options,
