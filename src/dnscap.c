@@ -206,17 +206,18 @@ extern char *strptime(const char *, const char *, struct tm *);
 # define ETHERTYPE_IPV6 0x86DD
 #endif
 
-#define THOUSAND	1000
-#define MILLION		(THOUSAND*THOUSAND)
-#define MAX_VLAN	4095
-#define DNS_PORT	53
-#define TO_MS		1
-#define SNAPLEN		65536
-#define TRUE		1
-#define FALSE		0
-#define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
-#define MAX_TCP_WINDOW	(0xFFFF << 14)
-#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
+#define THOUSAND		1000
+#define MILLION			(THOUSAND*THOUSAND)
+#define MAX_VLAN		4095
+#define DNS_PORT		53
+#define TO_MS			1
+#define SNAPLEN			65536
+#define TRUE			1
+#define FALSE			0
+#define REGEX_CFLAGS		(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
+#define MAX_TCP_WINDOW		(0xFFFF << 14)
+#define MEM_MAX			20000000000		// SETTING MAX MEMORY USAGE TO 2GB
+#define AMOUNT_32BIT_IN_128BIT	4
 
 /* Data structures. */
 
@@ -289,16 +290,16 @@ struct plugin {
 LIST(struct plugin) plugins;
 
 typedef struct{
-        UT_hash_handle             hh;             //makes the structure hashable using "uthash/uthash.h"
-        uint32_t                   from;           //these next 5 fields make up the compound key
-        int                        sport,dport,transaction_id;
-        uint32_t                   to;
-}samplePacket ;
+	UT_hash_handle		hh;				//makes the structure hashable using "uthash/uthash.h"
+	uint32_t		from[AMOUNT_32BIT_IN_128BIT];	//up to 4 32-bit fields will be used for IPv6 addresses. IPv4 will use 1
+	int			sport,dport,transaction_id;
+	uint32_t		to[AMOUNT_32BIT_IN_128BIT];
+}samplePacket;
 
 typedef struct{
-        uint32_t                from;
-        int                     sport,dport,transaction_id;
-        uint32_t                to;
+	uint32_t		from[AMOUNT_32BIT_IN_128BIT];
+	int			sport,dport,transaction_id;
+	uint32_t		to[AMOUNT_32BIT_IN_128BIT];
 }sample_lookup_key;
 
 /* Forward. */
@@ -402,7 +403,6 @@ static int sample = FALSE;
 static unsigned sampleAmount;
 static unsigned querycount;
 static samplePacket  *allSampleQueries = NULL;
-static unsigned keylen;
 
 /* Public. */
 
@@ -920,21 +920,21 @@ parse_args(int argc, char *argv[]) {
 				}
 			dir_wanted = u;
 			break;
-                case 'q':
+		case 'q':
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-                       {
-        	        	sample = TRUE;
-                	        sampleAmount =  atoi(optarg);
-                		if(sampleAmount == 0)
-                                	usage("-q takes only unsigned integer values != 0");
-                        	querycount = 0;
-                        }
+			{
+				sample = TRUE;
+				sampleAmount =  atoi(optarg);
+				if(sampleAmount == 0)
+					usage("-q takes only unsigned integer values != 0");
+				querycount = 0;
+			}
 #else
-                        fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
-                                ProgramName);
-                        exit(1);
+			fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
+				ProgramName);
+			exit(1);
 #endif	
-                        break;
+			break;
 		case 'h':
 			u = 0;
 			for (p = optarg; *p; p++)
@@ -2380,59 +2380,94 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 /*Sample Module*/
-        if (sample == TRUE)
-        {
-                ns_msg dnsmsgSample;
-                ns_initparse(dnspkt,dnslen,&dnsmsgSample);
-                samplePacket *currentQuery;
+	if (sample == TRUE)
+	{
+		int i;
+		ns_msg dnsmsgSample;
+		ns_initparse(dnspkt,dnslen,&dnsmsgSample);
+		samplePacket *currentQuery;
+		uint32_t fromBuffer[AMOUNT_32BIT_IN_128BIT];
+		uint32_t toBuffer[AMOUNT_32BIT_IN_128BIT];
 
-		uint32_t *fromBuffer = (uint32_t*)&from.u;
-		uint32_t *toBuffer = (uint32_t*)&to.u;
+		unsigned keylen = offsetof(samplePacket,to[AMOUNT_32BIT_IN_128BIT - 1]) //keylen is used to define which fields of the hash structure are added
+			+ sizeof(uint32_t)						//as a compound key. Here, the key is composed of all fields between (and including)
+			- offsetof(samplePacket,from[0]);				//samplePacket->to and samplePacket->from (from, sport, dport, transaction_id, to)
 
-                keylen = offsetof(samplePacket,to)      //keylen is used to define which fields of the hash structure are added
-                        + sizeof(*toBuffer)                    //as a compound key. Here, the key is composed of all fields between (and including)
-                        - offsetof(samplePacket,from);  //samplePacket->to and samplePacket->from (from, sport, dport, transaction_id, to)
+		//Parsing the IPv4 or IPv6 addresses into an array, so they can be hashed.
+		if(from.af == AF_INET)
+		{
+			uint32_t *f = (uint32_t*) &from.u;
+			uint32_t *t = (uint32_t*) &to.u;
 
-                if(dns.qr == 0)
-                {
-                        querycount++;
-                        if(querycount % sampleAmount == 0)
-                                {
-                                        currentQuery = calloc(1,sizeof(*currentQuery));
-					assert(currentQuery != NULL);
-                                        currentQuery->from = *fromBuffer;
-                                        currentQuery->to = *toBuffer;
-                                        currentQuery->sport = sport;
-                                        currentQuery->dport = dport;
-                                        currentQuery->transaction_id = ns_msg_id(dnsmsgSample);
+			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
+			{
+				fromBuffer[i] = f[i];
+				toBuffer[i] = t[i];
+			}
+		}
+		else if(from.af == AF_INET6)
+		{
+			uint32_t *f = (uint32_t*) &from.u;
+			uint32_t *t = (uint32_t*) &to.u;
 
-                                        HASH_ADD(hh,allSampleQueries,from,keylen,currentQuery);
-                                        output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
-                                }
-                }
-                else
-                {
-                        sample_lookup_key *lookup_key = (sample_lookup_key*)calloc(1,sizeof(*lookup_key));
+			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
+			{
+				fromBuffer[i] = f[i];
+				toBuffer[i] = t[i];
+			}
+		}
+
+
+		if(dns.qr == 0)
+		{
+		querycount++;
+
+			if(querycount % sampleAmount == 0)
+			{
+				currentQuery = calloc(1,sizeof(*currentQuery));
+				assert(currentQuery != NULL);
+				for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
+				{
+					currentQuery->from[i] = fromBuffer[i];
+					currentQuery->to[i] = toBuffer[i];
+				}
+
+				currentQuery->sport = sport;
+				currentQuery->dport = dport;
+				currentQuery->transaction_id = ns_msg_id(dnsmsgSample);
+
+				HASH_ADD(hh,allSampleQueries,from[0],keylen,currentQuery);
+				output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+			}
+		}
+		else
+		{
+			sample_lookup_key *lookup_key = (sample_lookup_key*)calloc(1,sizeof(*lookup_key));
 			assert(lookup_key != NULL);
-                        lookup_key->from = *toBuffer;
-                        lookup_key->to = *fromBuffer;
-                        lookup_key->dport = sport;
-                        lookup_key->sport = dport;
-                        lookup_key->transaction_id = ns_msg_id(dnsmsgSample);
+			
+			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
+			{
+				lookup_key->from[i] = toBuffer[i];
+				 lookup_key->to[i] = fromBuffer[i];
+			}
 
-                        HASH_FIND(hh,allSampleQueries,&lookup_key->from,keylen,currentQuery);
-                        if(currentQuery)
-                        {
-                                HASH_DEL(allSampleQueries,currentQuery);
-                                free(currentQuery);
-                                output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
-                        }
-                        free(lookup_key);
-                }
-        }else
-        {
-                output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
-        }
+			lookup_key->dport = sport;
+			lookup_key->sport = dport;
+			lookup_key->transaction_id = ns_msg_id(dnsmsgSample);
+
+			HASH_FIND(hh,allSampleQueries,&lookup_key->from[0],keylen,currentQuery);
+			if(currentQuery)
+			{
+				HASH_DEL(allSampleQueries,currentQuery);
+				free(currentQuery);
+				output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+			}
+			free(lookup_key);
+		}
+	}else
+	{
+		output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
+	}
 }
 
 /*
