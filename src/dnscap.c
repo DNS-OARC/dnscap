@@ -206,18 +206,17 @@ extern char *strptime(const char *, const char *, struct tm *);
 # define ETHERTYPE_IPV6 0x86DD
 #endif
 
-#define THOUSAND		1000
-#define MILLION			(THOUSAND*THOUSAND)
-#define MAX_VLAN		4095
-#define DNS_PORT		53
-#define TO_MS			1
-#define SNAPLEN			65536
-#define TRUE			1
-#define FALSE			0
-#define REGEX_CFLAGS		(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
-#define MAX_TCP_WINDOW		(0xFFFF << 14)
-#define MEM_MAX			20000000000		// SETTING MAX MEMORY USAGE TO 2GB
-#define AMOUNT_32BIT_IN_128BIT	4
+#define THOUSAND	1000
+#define MILLION		(THOUSAND*THOUSAND)
+#define MAX_VLAN	4095
+#define DNS_PORT	53
+#define TO_MS		1
+#define SNAPLEN		65536
+#define TRUE		1
+#define FALSE		0
+#define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
+#define MAX_TCP_WINDOW	(0xFFFF << 14)
+#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
 
 /* Data structures. */
 
@@ -290,16 +289,16 @@ struct plugin {
 LIST(struct plugin) plugins;
 
 typedef struct{
-	UT_hash_handle		hh;				//makes the structure hashable using "uthash/uthash.h"
-	uint32_t		from[AMOUNT_32BIT_IN_128BIT];	//up to 4 32-bit fields will be used for IPv6 addresses. IPv4 will use 1
+	UT_hash_handle		hh;		//makes the structure hashable using "uthash/uthash.h"
+	iaddr			from;
 	int			sport,dport,transaction_id;
-	uint32_t		to[AMOUNT_32BIT_IN_128BIT];
+	iaddr			to;
 }samplePacket;
 
 typedef struct{
-	uint32_t		from[AMOUNT_32BIT_IN_128BIT];
+	iaddr			from;
 	int			sport,dport,transaction_id;
-	uint32_t		to[AMOUNT_32BIT_IN_128BIT];
+	iaddr			to;
 }sample_lookup_key;
 
 /* Forward. */
@@ -921,11 +920,17 @@ parse_args(int argc, char *argv[]) {
 			dir_wanted = u;
 			break;
 		case 'q':
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 			sample = TRUE;
 			sampleAmount =  atoi(optarg);
 			if(sampleAmount == 0)
 				usage("-q takes only unsigned integer values != 0");
 			querycount = 0;
+#else
+			fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
+				ProgramName);
+			exit(1);
+#endif
 			break;
 		case 'h':
 			u = 0;
@@ -2371,45 +2376,18 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			abort();
 		}
 	}
+	
 /*Sample Module*/
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 	if (sample == TRUE)
 	{
-		int i;
 		ns_msg dnsmsgSample;
 		ns_initparse(dnspkt,dnslen,&dnsmsgSample);
 		samplePacket *currentQuery;
-		uint32_t fromBuffer[AMOUNT_32BIT_IN_128BIT];
-		uint32_t toBuffer[AMOUNT_32BIT_IN_128BIT];
 
-		unsigned keylen = offsetof(samplePacket,to[AMOUNT_32BIT_IN_128BIT - 1]) //keylen is used to define which fields of the hash structure are added
-			+ sizeof(uint32_t)						//as a compound key. Here, the key is composed of all fields between (and including)
-			- offsetof(samplePacket,from[0]);				//samplePacket->to and samplePacket->from (from, sport, dport, transaction_id, to)
-
-		//Parsing the IPv4 or IPv6 addresses into an array, so they can be hashed.
-		if(from.af == AF_INET)
-		{
-			uint32_t *f = (uint32_t*) &from.u;
-			uint32_t *t = (uint32_t*) &to.u;
-
-			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
-			{
-				fromBuffer[i] = f[i];
-				toBuffer[i] = t[i];
-			}
-		}
-		else if(from.af == AF_INET6)
-		{
-			uint32_t *f = (uint32_t*) &from.u;
-			uint32_t *t = (uint32_t*) &to.u;
-
-			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
-			{
-				fromBuffer[i] = f[i];
-				toBuffer[i] = t[i];
-			}
-		}
-
+		unsigned keylen = offsetof(samplePacket,to)	//keylen is used to define which fields of the hash structure are added
+			+ sizeof(to)				//as a compound key. Here, the key is composed of all fields between (and including)
+			- offsetof(samplePacket,from);		//samplePacket->to and samplePacket->from (from, sport, dport, transaction_id, to)
 
 		if(dns.qr == 0)
 		{
@@ -2419,17 +2397,14 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			{
 				currentQuery = calloc(1,sizeof(*currentQuery));
 				assert(currentQuery != NULL);
-				for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
-				{
-					currentQuery->from[i] = fromBuffer[i];
-					currentQuery->to[i] = toBuffer[i];
-				}
 
+				currentQuery->from = from;
+				currentQuery->to = to;
 				currentQuery->sport = sport;
 				currentQuery->dport = dport;
 				currentQuery->transaction_id = ns_msg_id(dnsmsgSample);
 
-				HASH_ADD(hh,allSampleQueries,from[0],keylen,currentQuery);
+				HASH_ADD(hh,allSampleQueries,from,keylen,currentQuery);
 				output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
 			}
 		}
@@ -2437,18 +2412,14 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		{
 			sample_lookup_key *lookup_key = (sample_lookup_key*)calloc(1,sizeof(*lookup_key));
 			assert(lookup_key != NULL);
-			
-			for(i = 0; i < AMOUNT_32BIT_IN_128BIT; i++)
-			{
-				lookup_key->from[i] = toBuffer[i];
-				 lookup_key->to[i] = fromBuffer[i];
-			}
 
+			lookup_key->from = to;
+			lookup_key->to = from;
 			lookup_key->dport = sport;
 			lookup_key->sport = dport;
 			lookup_key->transaction_id = ns_msg_id(dnsmsgSample);
 
-			HASH_FIND(hh,allSampleQueries,&lookup_key->from[0],keylen,currentQuery);
+			HASH_FIND(hh,allSampleQueries,&lookup_key->from,keylen,currentQuery);
 			if(currentQuery)
 			{
 				HASH_DEL(allSampleQueries,currentQuery);
@@ -2461,10 +2432,6 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	{
 		output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
 	}
-#else
-	fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
-	        ProgramName);
-	exit(1);	
 #endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 }
 
