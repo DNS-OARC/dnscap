@@ -921,19 +921,11 @@ parse_args(int argc, char *argv[]) {
 			dir_wanted = u;
 			break;
 		case 'q':
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-			{
-				sample = TRUE;
-				sampleAmount =  atoi(optarg);
-				if(sampleAmount == 0)
-					usage("-q takes only unsigned integer values != 0");
-				querycount = 0;
-			}
-#else
-			fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
-				ProgramName);
-			exit(1);
-#endif	
+			sample = TRUE;
+			sampleAmount =  atoi(optarg);
+			if(sampleAmount == 0)
+				usage("-q takes only unsigned integer values != 0");
+			querycount = 0;
 			break;
 		case 'h':
 			u = 0;
@@ -2380,6 +2372,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 /*Sample Module*/
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 	if (sample == TRUE)
 	{
 		int i;
@@ -2468,6 +2461,11 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	{
 		output(descr,from,to,proto,flags,sport,dport,ts,pkt_copy,olen,dnspkt,dnslen);
 	}
+#else
+	fprintf(stderr, "%s must be compiled with libbind to use the -q option.\n",
+	        ProgramName);
+	exit(1);	
+#endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 }
 
 /*
