@@ -2377,7 +2377,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		}
 	}
 	
-/*Sample Module*/
+/*sampling*/
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 	if (sample == TRUE)
 	{
