@@ -687,14 +687,18 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fTISMD] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
-		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
-		"\t[-h [ir]] [-s [ir]]\n"
-		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
-		"\t[-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
-		"\t[-x <pat>]+ [-X <pat>]+\n"
-		"\t[-B <datetime>] [-E <datetime>]\n"
-		"\t[-P plugin.so] [-U <str>]\n",
+		"  [-?bpd1g6fTI"
+#ifdef USE_SECCOMP
+		"y"
+#endif
+		"SMD] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"  [-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
+		"  [-h [ir]] [-s [ir]]\n"
+		"  [-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
+		"  [-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
+		"  [-x <pat>]+ [-X <pat>]+\n"
+		"  [-B <datetime>] [-E <datetime>]\n"
+		"  [-U <str>] [-P plugin.so <plugin options...>]\n",
 		ProgramName);
 }
 
@@ -703,58 +707,59 @@ help_2(void) {
 	help_1();
 	fprintf(stderr,
 		"\noptions:\n"
-		"\t-? or -\\?  print these instructions and exit\n"
-		"\t-b         run in background as daemon\n"
-		"\t-p         do not put interface in promiscuous mode\n"
-		"\t-d         dump verbose trace information to stderr, specify multiple times to increase debugging\n"
-		"\t-1         flush output on every packet\n"
-		"\t-g         dump packets dig-style on stderr\n"
-		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
-		"\t-f         include fragmented packets\n"
-		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
-		"\t           first DNS header, and the result will apply to all messages\n"
-		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
-		"\t-I         include ICMP and ICMPv6 packets\n"
-		"\t-i <if>    select this live interface(s)\n"
-		"\t-r <file>  read this pcap file\n"
-		"\t-l <vlan>  select only these vlan(s) (4095 for all)\n"
-		"\t-L <vlan>  select these vlan(s) and non-VLAN frames (4095 for all)\n"
-		"\t-u <port>  dns port (default: 53)\n"
-		"\t-m [qun]   select messages: query, update, notify\n"
-		"\t-s [ir]    select sides: initiations, responses\n"
-		"\t-h [ir]    hide initiators and/or responders\n"
-		"\t-e [nytfsxir] select error/response code\n"
-		"\t               n = no error\n"
-		"\t               y = any error\n"
-		"\t               t = truncated response\n"
-		"\t               f = format error (rcode 1)\n"
-		"\t               s = server failure (rcode 2)\n"
-		"\t               x = nxdomain (rcode 3)\n"
-		"\t               i = not implemented (rcode 4)\n"
-		"\t               r = refused (rcode 5)\n"
-		"\t-a <host>  want messages from these initiator(s)\n"
-		"\t-z <host>  want messages from these responder(s)\n"
-		"\t-A <host>  want messages NOT to/from these initiator(s)\n"
-		"\t-Z <host>  want messages NOT to/from these responder(s)\n"
-		"\t-Y <host>  drop responses from these responder(s)\n"
-		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
-		"\t-W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
-		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
-		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
-		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
-		"\t-C <lim>   close dump or exit every/after <lim> bytes captured\n"
-		"\t-x <pat>   select messages matching regex <pat>\n"
-		"\t-X <pat>   select messages not matching regex <pat>\n"
+		"  -? or -\\?  print these instructions and exit\n"
+		"  -b         run in background as daemon\n"
+		"  -p         do not put interface in promiscuous mode\n"
+		"  -d         dump verbose trace information to stderr, specify multiple\n"
+		"             times to increase debugging\n"
+		"  -1         flush output on every packet\n"
+		"  -g         dump packets dig-style on stderr\n"
+		"  -6         compensate for PCAP/BPF IPv6 bug\n"
+		"  -f         include fragmented packets\n"
+		"  -T         include TCP packets (DNS header filters will inspect only the\n"
+		"             first DNS header, and the result will apply to all messages\n"
+		"             in the TCP stream; DNS payload filters will not be applied.)\n"
+		"  -I         include ICMP and ICMPv6 packets\n"
+		"  -i <if>    select this live interface(s)\n"
+		"  -r <file>  read this pcap file\n"
+		"  -l <vlan>  select only these vlan(s) (4095 for all)\n"
+		"  -L <vlan>  select these vlan(s) and non-VLAN frames (4095 for all)\n"
+		"  -u <port>  dns port (default: 53)\n"
+		"  -m [qun]   select messages: query, update, notify\n"
+		"  -e [nytfsxir] select error/response code\n"
+		"                 n = no error\n"
+		"                 y = any error\n"
+		"                 t = truncated response\n"
+		"                 f = format error (rcode 1)\n"
+		"                 s = server failure (rcode 2)\n"
+		"                 x = nxdomain (rcode 3)\n"
+		"                 i = not implemented (rcode 4)\n"
+		"                 r = refused (rcode 5)\n"
+		"  -h [ir]    hide initiators and/or responders\n"
+		"  -s [ir]    select sides: initiations, responses\n"
+		"  -a <host>  want messages from these initiator(s)\n"
+		"  -z <host>  want messages from these responder(s)\n"
+		"  -A <host>  want messages NOT to/from these initiator(s)\n"
+		"  -Z <host>  want messages NOT to/from these responder(s)\n"
+		"  -Y <host>  drop responses from these responder(s)\n"
+		"  -w <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"  -W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
+		"  -k <cmd>   kick off <cmd> when each dump closes\n"
+		"  -t <lim>   close dump or exit every/after <lim> secs\n"
+		"  -c <lim>   close dump or exit every/after <lim> pkts\n"
+		"  -C <lim>   close dump or exit every/after <lim> bytes captured\n"
+		"  -x <pat>   select messages matching regex <pat>\n"
+		"  -X <pat>   select messages not matching regex <pat>\n"
 #ifdef USE_SECCOMP
-		"\t-y         enable seccomp-bpf\n"
+		"  -y         enable seccomp-bpf\n"
 #endif
-        "\t-S         show summarized statistics\n"
-        "\t-P <plugin.so> load plugin\n"
-		"\t-U <str>   append 'and <str>' to the pcap filter\n"
-        "\t-B <datetime> begin collecting at this date and time\n"
-        "\t-E <datetime> end collecting at this date and time\n"
-		"\t-M         set monitor mode on interfaces\n"
-		"\t-D         set immediate mode on interfaces\n"
+        "  -S         show summarized statistics\n"
+        "  -B <datetime> begin collecting at this date and time\n"
+        "  -E <datetime> end collecting at this date and time\n"
+		"  -M         set monitor mode on interfaces\n"
+		"  -D         set immediate mode on interfaces\n"
+		"  -U <str>   append 'and <str>' to the pcap filter\n"
+        "  -P <plugin.so> load plugin, any argument after this is sent to the plugin!\n"
 		);
 }
 
@@ -782,11 +787,8 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:"
-#ifdef USE_SECCOMP
-			"y"
-#endif
-			"z:A:B:C:DE:IL:MP:STU:W:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:yz:"
+			"A:B:C:DE:IL:MP:STU:W:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -1074,11 +1076,13 @@ parse_args(int argc, char *argv[]) {
 		        free(extra_bpf);
 			extra_bpf = strdup(optarg);
 			break;
-#ifdef USE_SECCOMP
 		case 'y':
+#ifdef USE_SECCOMP
 			use_seccomp = TRUE;
-			break;
+#else
+			usage("seccomp-bpf not enabled");
 #endif
+			break;
         case 'M':
             monitor_mode = TRUE;
             break;
