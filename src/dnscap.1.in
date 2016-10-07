@@ -1,4 +1,4 @@
-.Dd April 25, 2007
+.Dd October 7, 2016
 .Dt DNSCAP 1
 .Os
 .Sh NAME
@@ -6,40 +6,33 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl pd1g?6fT
+.Op Fl ?bpd1g6fTIySMD
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
 .Op Fl L Ar vlan ...
 .Op Fl u Ar port
-.Op Fl x Ar pat ...
-.Op Fl X Ar pat ...
 .Oo
 .Fl m
 .Op qun
 .Oc
 .Oo
-.Fl s
-.Op ir
-.Oc
-.Oo
-.Fl h
-.Op ir
-.Oc
-.Oo
-.Fl h
-.Op ir
-.Oc
-.Oo
 .Fl e
 .Op nytfsxirMD
+.Oc
+.Oo
+.Fl h
+.Op ir
+.Oc
+.Oo
+.Fl s
+.Op ir
 .Oc
 .Op Fl a Ar host ...
 .Op Fl z Ar host ...
 .Op Fl A Ar host ...
 .Op Fl Z Ar host ...
 .Op Fl Y Ar host ...
-.Op Fl u Ar port
 .Oo
 .Fl w
 .Ar base
@@ -49,10 +42,12 @@
 .Op Fl t Ar lim
 .Op Fl c Ar lim
 .Op Fl C Ar lim
+.Op Fl x Ar pat ...
+.Op Fl X Ar pat ...
 .Op Fl B Ar datetime
 .Op Fl E Ar datetime
-.Op Fl P Ar plugin.so
 .Op Fl U Ar str
+.Op Fl P Ar plugin.so ...
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -70,6 +65,10 @@ is expected to be used for gathering continuous research or audit traces.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
+.It Fl ?
+Prints some text to stdout describing the command line options, so that you
+won't have to refer back to this man page as often.  Probably you will have
+to say "-\\?" to get this option past your shell.
 .It Fl b
 Run in background as daemon.
 .It Fl p
@@ -93,10 +92,6 @@ messages which passed through all of the filters.  If
 .Fl w
 is also used, then every message will be dumped in both binary and
 presentation form.
-.It Fl ?
-Prints some text to stdout describing the command line options, so that you
-won't have to refer back to this man page as often.  Probably you will have
-to say "-\\?" to get this option past your shell.
 .It Fl 6
 Suppress the use of packet filter patterns that are known (as of 2007) to
 cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
@@ -151,49 +146,9 @@ means "all vlans".
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
 port is 53.  Note that there is no way to select multiple UDP ports, as would
 be necessary to capture both DNS (port 53) and mDNS (port 5353) traffic.
-.It Fl x Ar pat
-If one or more
-.Fl x
-options are provided, then DNS messages will only be selected if the
-printable representation of the QNAME or any RR matches at least one of the
-provided
-.Ar pat
-patterns.  See
-.Xr regex 3
-and
-.Xr re_format 7
-for more information about extended regular expression syntax.
-.It Fl X Ar pat
-If one or more
-.Fl X
-options are provided, then DNS messages matching these patterns will not
-be selected.  See the description of
-.Fl x
-above.
-.Pp
-NOTE: for reasons lost to the mists of time, it seems that
-.Fl X
-only takes effect when
-.Fl x
-is also used.  If you use
-.Fl X
-alone, you'll get no output.  Thus, you should at least use "-x ."
-to initially match all queries and then exclude certain patterns with
-.Fl X.
-Users of the
-.Fl X
-option should be advised that this behavior could change in future versions.
 .It Fl m Op qun
 Capture only messages of designated types (query, update, and notify).
 Default is query.
-.It Fl s Op ir
-Select messages which are initiations and/or responses.  Default is both.
-.It Fl h Op ir
-Hide initiator or responder of each captured transaction.  Hiding an initiator
-means wiping out the address and port number.  Hiding a responder means to wipe
-out the address only.  This wiping occurs on the copy of the packet sent to the
-.Xr pcap 3
-dump output, and both the IP and UDP checksums will be recomputed in that case.
 .It Fl e Op nytfsxir
 Among responses, consider nonzero DNS TC or DNS RCODE to indicate an error,
 and select only responses which do not have (n), or which have (y), these
@@ -223,6 +178,14 @@ not implemented (rcode 4)
 .It Va r
 refusal (rcode 5)
 .El
+.It Fl h Op ir
+Hide initiator or responder of each captured transaction.  Hiding an initiator
+means wiping out the address and port number.  Hiding a responder means to wipe
+out the address only.  This wiping occurs on the copy of the packet sent to the
+.Xr pcap 3
+dump output, and both the IP and UDP checksums will be recomputed in that case.
+.It Fl s Op ir
+Select messages which are initiations and/or responses.  Default is both.
 .It Fl a Ar host
 Capture only transactions having these initiators.  Can be specified more than
 once to select multiple initiators.  If a host name is used, then all of that
@@ -309,6 +272,50 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
+.It Fl x Ar pat
+If one or more
+.Fl x
+options are provided, then DNS messages will only be selected if the
+printable representation of the QNAME or any RR matches at least one of the
+provided
+.Ar pat
+patterns.  See
+.Xr regex 3
+and
+.Xr re_format 7
+for more information about extended regular expression syntax.
+.It Fl X Ar pat
+If one or more
+.Fl X
+options are provided, then DNS messages matching these patterns will not
+be selected.  See the description of
+.Fl x
+above.
+.Pp
+NOTE: for reasons lost to the mists of time, it seems that
+.Fl X
+only takes effect when
+.Fl x
+is also used.  If you use
+.Fl X
+alone, you'll get no output.  Thus, you should at least use "-x ."
+to initially match all queries and then exclude certain patterns with
+.Fl X.
+Users of the
+.Fl X
+option should be advised that this behavior could change in future versions.
+.It Fl y
+Enable Linux seccomp-bpf sandbox if available (compile option).
+.It Fl S
+Causes
+.Nm
+to print pcap_stats() counters on stderr when
+.Fl t
+,
+.Fl c
+or
+.Fl C
+limits are reached.
 .It Fl B Ar datetime
 When using
 .Fl w ,
@@ -335,16 +342,6 @@ to stop collecting at a specific time.
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
 when it sees a packet with timestamp greater than
 .Ar datetime .
-.It Fl S
-Causes
-.Nm
-to print pcap_stats() counters on stderr when
-.Fl t
-,
-.Fl c
-or
-.Fl C
-limits are reached.
 .It Fl M
 Enable monitor mode on interfaces.
 .It Fl D
@@ -353,6 +350,9 @@ Enable immediate mode on interfaces.
 Append "and
 .Ar str
 " to the pcap filter.
+.It Fl P Ar plugin.so ...
+Load and use the specified plugin. Any options given after this are
+sent to the plugin.
 .El
 .Pp
 If started with no options,
