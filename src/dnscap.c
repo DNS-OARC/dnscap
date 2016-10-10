@@ -3,15 +3,6 @@
  * By Paul Vixie (ISC) and Duane Wessels (Measurement Factory), 2007.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id$";
-/*
-static const char copyright[] =
-	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-*/
-static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
-#endif
-
 /*
  * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
  *
@@ -607,35 +598,7 @@ assertion_failure_callback __assertion_failed = my_assertion_failed;
 static const char *
 version(void)
 {
-	int revnum;
-	char scandate[32];
-	static char vbuf[128];
-	const char *sep = " \t";
-	char *copy = strdup(rcsid);
-	char *t;
-	if (NULL == (t = strtok(copy, sep))) {
-	    free(copy);
-		return version_fmt;
-	}
-	if (NULL == (t = strtok(NULL, sep))) {
-	    free(copy);
-		return version_fmt;
-	}
-	if (NULL == (t = strtok(NULL, sep))) {
-	    free(copy);
-		return version_fmt;
-	}
-	revnum = atoi(t);
-	if (NULL == (t = strtok(NULL, sep))) {
-	    free(copy);
-		return version_fmt;
-	}
-	strncpy(scandate, t, sizeof(scandate) - 1);
-	scandate[sizeof(scandate) - 1] = 0;
-	snprintf(vbuf, sizeof(vbuf), version_fmt, revnum, scandate);
-	free(copy);
-	return vbuf;
-
+    return PACKAGE_VERSION;
 }
 
 static void
@@ -687,7 +650,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"  [-?bpd1g6fTI"
+		"  [-?Vbpd1g6fTI"
 #ifdef USE_SECCOMP
 		"y"
 #endif
@@ -708,6 +671,7 @@ help_2(void) {
 	fprintf(stderr,
 		"\noptions:\n"
 		"  -? or -\\?  print these instructions and exit\n"
+		"  -V         print version and exit\n"
 		"  -b         run in background as daemon\n"
 		"  -p         do not put interface in promiscuous mode\n"
 		"  -d         dump verbose trace information to stderr, specify multiple\n"
@@ -788,7 +752,7 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
 			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:yz:"
-			"A:B:C:DE:IL:MP:STU:W:X:Y:Z:16?")
+			"A:B:C:DE:IL:MP:STU:VW:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
@@ -818,6 +782,10 @@ parse_args(int argc, char *argv[]) {
 			break;
 		case '?':
 			help_2();
+			exit(0);
+			break;
+		case 'V':
+			printf("%s version %s\n", ProgramName, version());
 			exit(0);
 			break;
 		case 'i':

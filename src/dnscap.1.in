@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?bpd1g6fTIySMD
+.Op Fl ?Vbpd1g6fTIySMD
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
@@ -69,6 +69,8 @@ The following options are available:
 Prints some text to stdout describing the command line options, so that you
 won't have to refer back to this man page as often.  Probably you will have
 to say "-\\?" to get this option past your shell.
+.It Fl V
+Print version and exit.
 .It Fl b
 Run in background as daemon.
 .It Fl p
