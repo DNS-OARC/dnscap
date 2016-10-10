@@ -3,7 +3,11 @@ Upstream-Name: dnscap
 Source: https://github.com/DNS-OARC/dnscap
 
 Files: *
-Copyright: 2007 Internet Systems Consortium, Inc.
+Copyright: 2016 OARC, Inc.
+License: BSD-3-Clause
+
+Files: isc/*
+Copyright: 2008 Internet Systems Consortium, Inc.
 License: ISC
 
 Files: debian/*
@@ -18,6 +22,10 @@ License: MIT
 Files: src/pcap-thread/*
 Copyright: 2016 OARC, Inc.
 License: BSD-3-Clause
+
+Files: m4/*
+Copyright: 2011 Free Software Foundation, Inc.
+License: FSF
 
 License: ISC
  Permission to use, copy, modify, and/or distribute this software for any
@@ -80,3 +88,8 @@ License: MIT
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  SOFTWARE.
+
+License: FSF
+ This file is free software; the Free Software Foundation gives
+ unlimited permission to copy and/or distribute it, with or without
+ modifications, as long as this notice is preserved.

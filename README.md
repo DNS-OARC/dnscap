@@ -1,5 +1,7 @@
 # dnscap README
 
+[![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
+
 ## Building from Git repository
 
 If you are building `dnscap` from it's Git repository you will first need
