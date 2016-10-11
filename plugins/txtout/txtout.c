@@ -1,3 +1,37 @@
+/*
+ * Copyright (c) 2016, OARC, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,11 +43,11 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 static logerr_t *logerr;
 static int opt_f = 0;
-static const char *opt_o = 0;
+static char *opt_o = 0;
 static FILE *out = 0;
 
 output_t txtout_output;
@@ -42,6 +76,8 @@ txtout_getopt(int *argc, char **argv[])
 			opt_f = 1;
 			break;
 		case 'o':
+		    if (opt_o)
+		        free(opt_o);
 			opt_o = strdup(optarg);
 			break;
 		default:
@@ -118,24 +154,24 @@ ia_str(iaddr ia) {
 }
 
 void
-txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen)
+    const u_char *payload, unsigned payloadlen)
 {
 	/*
 	 * IP Stuff
 	 */
-	fprintf(out, "%10lu.%06lu", ts.tv_sec, ts.tv_usec);
-	fprintf(out, " %s %hu", ia_str(from), sport);
-	fprintf(out, " %s %hu", ia_str(to), dport);
+	fprintf(out, "%10ld.%06ld", ts.tv_sec, ts.tv_usec);
+	fprintf(out, " %s %u", ia_str(from), sport);
+	fprintf(out, " %s %u", ia_str(to), dport);
 	fprintf(out, " %hhu", proto);
 
-	if (dnspkt) {
+	if (flags & DNSCAP_OUTPUT_ISDNS) {
 		ns_msg msg;
 		int qdcount;
 		ns_rr rr;
-		ns_initparse(dnspkt, dnslen, &msg);
+		ns_initparse(payload, payloadlen, &msg);
 		/*
 		 * DNS Header
 		 */
@@ -150,7 +186,7 @@ txtout_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag
 		if (ns_msg_getflag(msg, ns_f_ra)) fprintf(out, "RA|");
 		if (ns_msg_getflag(msg, ns_f_ad)) fprintf(out, "AD|");
 		if (ns_msg_getflag(msg, ns_f_cd)) fprintf(out, "CD|");
-		
+
 		qdcount = ns_msg_count(msg, ns_s_qd);
 		if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
 			fprintf (out, " %s %s %s",

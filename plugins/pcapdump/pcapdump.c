@@ -1,3 +1,38 @@
+/*
+ * Copyright (c) 2016, OARC, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "config.h"
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +47,11 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
-#include "../../dnscap_common.h"
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
+
+#include "dnscap_common.h"
 
 #define SNAPLEN         65536
 #define THOUSAND        1000
@@ -21,14 +60,14 @@
 output_t pcapdump_output;
 
 static logerr_t *logerr = 0;
-const char *dump_base = 0;
+char *dump_base = 0;
 static int to_stdout = 0;
 static int dbg_lvl = 0;
 static char *dumpname = 0;
 static char *dumpnamepart = 0;
 static pcap_t *pcap_dead = 0;
 static pcap_dumper_t *dumper = 0;
-static const char *kick_cmd = 0;
+static char *kick_cmd = 0;
 static int flush = 0;
 static int dir_wanted = DIR_INITIATE|DIR_RESPONSE;
 
@@ -60,6 +99,8 @@ pcapdump_getopt(int *argc, char **argv[])
 	    flush = 1;
 	    break;
 	case 'k':
+	    if (kick_cmd)
+	        free(kick_cmd);
 	    kick_cmd = strdup(optarg);
 	    break;
 	case 's':
@@ -75,8 +116,11 @@ pcapdump_getopt(int *argc, char **argv[])
 	case 'w':
 	    if (!strcmp(optarg, "-"))
 		to_stdout = 1;
-	    else
-		dump_base = strdup(optarg);
+	    else {
+	        if (dump_base)
+	            free(dump_base);
+            dump_base = strdup(optarg);
+		}
 	    break;
 	default:
 	    pcapdump_usage();
@@ -158,7 +202,10 @@ pcapdump_close(my_bpftimeval ts)
 	char *cmd = NULL;
 	if (dbg_lvl >= 1)
 	    logerr("closing %s", dumpname);
-	rename(dumpnamepart, dumpname);
+	if (rename(dumpnamepart, dumpname)) {
+	    logerr("rename: %s", strerror(errno));
+	    return 1;
+	}
 	if (kick_cmd != NULL)
 	    if (asprintf(&cmd, "%s %s &", kick_cmd, dumpname) < 0) {
 		logerr("asprintf: %s", strerror(errno));
@@ -169,9 +216,10 @@ pcapdump_close(my_bpftimeval ts)
 	free(dumpname);
 	dumpname = NULL;
 	if (cmd != NULL) {
-	    /* goofyness with x = to silence gcc warnings */
 	    int x = system(cmd);
-	    x = x;
+	    if (x) {
+	        logerr("system %s returned %d", cmd, x);
+	    }
 	    free(cmd);
 	}
 	if (kick_cmd == NULL)
@@ -181,13 +229,13 @@ pcapdump_close(my_bpftimeval ts)
 }
 
 void
-pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+pcapdump_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char * pkt_copy, unsigned olen, const u_char * dnspkt, unsigned dnslen)
+    const u_char * pkt_copy, const unsigned olen, const u_char * payload, const unsigned payloadlen)
 {
     struct pcap_pkthdr h;
-    if (dnspkt) {
-        HEADER *dns = (HEADER *) dnspkt;
+    if (flags & DNSCAP_OUTPUT_ISDNS) {
+        HEADER *dns = (HEADER *) payload;
         if (0 == dns->qr && 0 == (dir_wanted&DIR_INITIATE))
 	    return;
         if (1 == dns->qr && 0 == (dir_wanted&DIR_RESPONSE))

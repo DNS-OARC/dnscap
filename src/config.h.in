@@ -1,16 +1,25 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
+/* Define to 1 if you have the <arpa/nameser_compat.h> header file. */
+#undef HAVE_ARPA_NAMESER_COMPAT_H
+
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <ldns/ldns.h> header file. */
+#undef HAVE_LDNS_LDNS_H
 
 /* Define to 1 if you have the `bind' library (-lbind). */
 #undef HAVE_LIBBIND
@@ -60,11 +69,60 @@
 /* Define to 1 if you have the `ns_sprintrr' function. */
 #undef HAVE_NS_SPRINTRR
 
+/* Define to 1 if you have the `pcap_create' function. */
+#undef HAVE_PCAP_CREATE
+
+/* Define to 1 if the system has the type `pcap_direction_t'. */
+#undef HAVE_PCAP_DIRECTION_T
+
+/* Define to 1 if you have the `pcap_open_offline_with_tstamp_precision'
+   function. */
+#undef HAVE_PCAP_OPEN_OFFLINE_WITH_TSTAMP_PRECISION
+
+/* Define to 1 if you have the `pcap_setdirection' function. */
+#undef HAVE_PCAP_SETDIRECTION
+
+/* Define to 1 if you have the `pcap_set_immediate_mode' function. */
+#undef HAVE_PCAP_SET_IMMEDIATE_MODE
+
+/* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
+#undef HAVE_PCAP_SET_TSTAMP_PRECISION
+
+/* Define to 1 if you have the `pcap_set_tstamp_type' function. */
+#undef HAVE_PCAP_SET_TSTAMP_TYPE
+
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_PTHREAD
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
 /* Define to 1 if you have the `p_rcode' function. */
 #undef HAVE_P_RCODE
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
+
+/* Define to 1 if you have the `sched_yield' function. */
+#undef HAVE_SCHED_YIELD
+
+/* Define to 1 if you have the `setegid' function. */
+#undef HAVE_SETEGID
+
+/* Define to 1 if you have the `seteuid' function. */
+#undef HAVE_SETEUID
+
+/* Define to 1 if you have the `setregid' function. */
+#undef HAVE_SETREGID
+
+/* Define to 1 if you have the `setresgid' function. */
+#undef HAVE_SETRESGID
+
+/* Define to 1 if you have the `setresuid' function. */
+#undef HAVE_SETRESUID
+
+/* Define to 1 if you have the `setreuid' function. */
+#undef HAVE_SETREUID
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
@@ -105,6 +163,13 @@
 /* Define to 1 if you have the `__assertion_failed' function. */
 #undef HAVE___ASSERTION_FAILED
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
+/* Name of package */
+#undef PACKAGE
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
@@ -123,8 +188,15 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
 /* Define this to enable Linux seccomp-bpf sandbox. */
 #undef USE_SECCOMP
+
+/* Version number of package */
+#undef VERSION

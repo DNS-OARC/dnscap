@@ -1,0 +1,19 @@
+language: c
+compiler:
+  - clang
+  - gcc
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libpcap-dev libldns-dev libbind-dev
+install: ./autogen.sh
+script:
+  - ./configure
+  - make dist
+  - tar zxvf *.tar.gz
+  - cd dnscap-[0-9]*
+  - mkdir build
+  - cd build
+  - ../configure
+  - make
+  - make test
+  - src/dnscap -h

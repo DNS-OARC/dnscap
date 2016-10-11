@@ -1,3 +1,38 @@
+/*
+ * Copyright (c) 2016, OARC, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "config.h"
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +46,9 @@
 #include <arpa/inet.h>
 
 #include <arpa/nameser.h>
+#if HAVE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -19,15 +57,16 @@
 
 #include <ldns/ldns.h>
 
-#include "../../dnscap_common.h"
+#include "dnscap_common.h"
 
 #include "hashtbl.h"
 
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval clos_ts;
-static const char *counts_prefix = "rssm";
-static const char *sources_prefix = 0;
+#define COUNTS_PREFIX_DEFAULT "rssm"
+static char *counts_prefix = 0;
+static char *sources_prefix = 0;
 
 output_t rssm_output;
 
@@ -119,9 +158,13 @@ rssm_getopt(int *argc, char **argv[])
 	while ((c = getopt(*argc, *argv, "w:s:")) != EOF) {
 		switch(c) {
 		case 'w':
+		    if (counts_prefix)
+		        free(counts_prefix);
 			counts_prefix = strdup(optarg);
 			break;
 		case 's':
+		    if (sources_prefix)
+		        free(sources_prefix);
 			sources_prefix = strdup(optarg);
 			break;
 		default:
@@ -159,8 +202,12 @@ rssm_save_counts(const char *sbuf)
 {
 	FILE *fp;
 	int i;
-	char *tbuf;
-	asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
+	char *tbuf = 0;
+	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix ? counts_prefix : COUNTS_PREFIX_DEFAULT, sbuf, (u_long) open_ts.tv_usec);
+	if (i < 1 || !tbuf) {
+		logerr("asprintf: out of memory");
+		return;
+	}
 	fp = fopen(tbuf, "w");
 	if (!fp) {
 		logerr("%s: %s", sbuf, strerror(errno));
@@ -213,9 +260,13 @@ void
 rssm_save_sources(const char *sbuf)
 {
 	FILE *fp;
-	char *tbuf;
+	char *tbuf = 0;
 	int i;
-	asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long) open_ts.tv_usec);
+	i = asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long) open_ts.tv_usec);
+	if (i < 1 || !tbuf) {
+		logerr("asprintf: out of memory");
+		return;
+	}
 	fp = fopen(tbuf, "w");
 	if (!fp) {
 		logerr("%s: %s", tbuf, strerror(errno));
@@ -258,8 +309,7 @@ rssm_close(my_bpftimeval ts)
 	/* grandchild (2nd gen) continues */
 	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
 	clos_ts = ts;
-	if (counts_prefix)
-		rssm_save_counts(sbuf);
+	rssm_save_counts(sbuf);
 	if (sources_prefix)
 		rssm_save_sources(sbuf);
 	exit(0);
@@ -282,18 +332,17 @@ hash_find_or_add(iaddr ia, my_hashtbl *t)
 }
 
 void
-rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
+rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char *pkt_copy, unsigned olen,
-    const u_char *dnspkt, unsigned dnslen)
+    const u_char *pkt_copy, const unsigned olen,
+    const u_char *payload, const unsigned payloadlen)
 {
-	if (!dnspkt)
+	if (!(flags & DNSCAP_OUTPUT_ISDNS))
 		return;
-	unsigned o_dnslen = dnslen;
-	dnslen >>= MSG_SIZE_SHIFT;
+	unsigned dnslen = payloadlen >> MSG_SIZE_SHIFT;
 	if (dnslen >= MAX_SIZE_INDEX)
 		dnslen = MAX_SIZE_INDEX-1;
-	HEADER *dns = (HEADER *) dnspkt;
+	HEADER *dns = (HEADER *) payload;
 	if (0 == dns->qr) {
 		hash_find_or_add(from, &counts.sources);
 		if (IPPROTO_UDP == proto) {
@@ -336,7 +385,7 @@ rssm_output(const char *descr, iaddr from, iaddr to, uint8_t proto, int isfrag,
 		}
 		if (dns->arcount) {
 			ldns_pkt *pkt = 0;
-			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, dnspkt, o_dnslen)) {
+			if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, payload, payloadlen)) {
 				rcode |= ((uint16_t) ldns_pkt_edns_extended_rcode(pkt) << 4);
 				ldns_pkt_free(pkt);
 			}

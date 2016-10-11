@@ -1,0 +1,110 @@
+2016-10-11 Jerry Lundström
+
+    Release 1.1.0
+
+    The ownership of DNSCAP was transferred from ISC to DNS-OARC in
+    the summer of 2016 and this is the first release since that.
+
+    This project now uses Semantic Versioning and these are the changes
+    since the `dnscap-20160205` release (which can also be found using
+    the tag `v0.0.0-20160205`).
+
+    Highlights:
+    - Restructure repository and use autotools
+    - Compiled and tested on Debian, Ubuntu, CentOS, FreeBSD and OpenBSD
+      using Jenkins and Travis-CI
+    - Source code static analysis using Coverity Scan
+    - Compatibility fixes for FreeBSD, OpenBSD and OS X
+    - ABI change to `output()`, previous `isfrag` is now a `flags` that
+      represents what the packet is through a bitmask
+    - Use helper library `pcap-thread` when capturing to solve missing
+      packets during very low traffic
+
+    New command line options:
+    - `-V`: Prints version and then exits
+    - `-M`: Enable monitor mode on interfaces
+    - `-D`: Enable immediate mode on interfaces
+    - `-W`: Allow to specify a suffix for the pcap dump file
+    - `-C`: Limit/rotate capture after a certain amount of bytes
+
+    Special thanks to:
+    - Duane Wessels
+    - Paul Vixie
+    - Klaus Darilion
+
+    Commits:
+
+    bc7eb22 Update license after ownership transfer from ISC to DNS-OARC,
+            update contributors, add build badges and removed SuperFastHash
+            since apparently it was not used.
+    778e457 Add `-V` for displaying version and the exiting
+    71c2d79 Fix #12: Sync man-page and help text
+    33576ef Swap option C and D, C for this makes more sense. Also ensure
+            that `capturedbytes` is zero on start.
+    0077aff Correct dump trace with new `flags`
+    f9cbba0 Do not use dump suffix unless it set
+    4dd81d6 Update the man page
+    7435c49 Change new option C to D because C was already taken
+    813dddb Fix -B and -E, these options are supported only once
+    76f19d1 fix usage of -W
+    519b64f Add -Y option to short usage instructions
+    348c738 Fix -C feature: capturedbytes was not increased
+    3db6f94 Improve logging
+    b567bef New option -C: limit/rotate capture after a certain amount
+            of bytes
+    341abdf Add -W feature: allow to specify a suffix for the pcap dump
+            file, e. g.: '.pcap'
+    097a3b4 Count every packet which is sent to output(), not only
+            the normal ones.
+    75e5968 Close PCAPs after dumper_close() to have statistics still
+            available during dumper_close(). Otherwise we get a segfault
+            on shutdown.
+    c09d61a Add debian/ubuntu package files.
+    020f2aa Forgot about the compiler warnings and fix the last
+            Coverity Scan issue
+    00c834d More Coverity Scan fixes
+    ad2f230 Fix various Coverity Scan issues
+    606f0cd Update pcap thread to version 1.1.1
+    f065cd7 Fix #14: Add options `-M` and `-C` for monitor and
+            immediate mode, update help and man-page.
+    b872035 Update to pcap-thread version 1.1.0
+    1f30637 Update pcap_thread to v1.0.1, add travis check that dnscap
+            can run
+    b19efaa Building from Git repository instructions
+    b5460df Use `calloc()` instead of `malloc()` to be sure the memory
+            is zeroed
+    ae6a04d Use pcap_thread v1.0.0
+    9426a2d Update pcap_thread and add pcap stats
+    820b2f2 Update pcap_thread and support offline pcaps
+    a47dd67 Update pcap_thread
+    237a7a7 CentOS autoreconf complained
+    7b5568c Use pcap_thread
+    11d0388 Revert the changes on all lines that had NULL, 0 before.
+    7d6a7e4 Passing IPv6 fragment payloads may not currently be safe.
+            Needs more work. For now pass pkt=NULL to be safe for plugins.
+    ea8f9a4 Make the family of output() functions future proof with a flags
+            bitmask. Rather than separate 'isfrag' and 'isdns' flags,
+            they are now set as bitmasks in a single 'flags' value passed
+            to output() f
+    472a172 A change to the interface of the family of output() functions.
+    95a6e62 timeval.* are not unsigned
+    d3f32de Fix #1: Use NS_*SZ
+    e555871 Fix compiler warnings
+    3ed8f29 Fix #1
+    864cbd7 Can you change #ifdef __APPLE__ to check for the
+            arpa/nameser_compat.h header and include it if it exists?
+    796e8ea plugin/rssm needs to include arpa/nameser_compat.h for OS X
+            so that the HEADER struct is declared.
+    daf4bd3 In plugin/txtout silence compiler warnings about int vs short
+    e5bc24b plugin/pcapdump needs to include arpa/nameser_compat.h for OS X
+            so that the HEADER struct is declared.
+    0061b57 Work around configure problem detecting libresolv on Mac OS X
+            Without some #include files, the configure test won't find
+            the symbol res_mkquery() in libresolv on OS X.  It is called
+            res_9_mkquery()
+    5309655 Mac OS X doesn't have setresuid() and setresgid().
+            This patch adds configure checks for setreuid() and setregid()
+            and will use those instead if the other versions are
+            not available.
+    d257a1c Fix compilation on FreeBSD and OpenBSD
+    07b2a75 Restructure repository and move to Automake.

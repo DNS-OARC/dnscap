@@ -1,4 +1,4 @@
-.Dd April 25, 2007
+.Dd October 7, 2016
 .Dt DNSCAP 1
 .Os
 .Sh NAME
@@ -6,42 +6,48 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl pd1g?6fT
+.Op Fl ?Vbpd1g6fTIySMD
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
 .Op Fl L Ar vlan ...
-.Op Fl x Ar pat ...
-.Op Fl X Ar pat ...
+.Op Fl u Ar port
 .Oo
 .Fl m
 .Op qun
 .Oc
 .Oo
-.Fl s
-.Op ir
+.Fl e
+.Op nytfsxirMD
 .Oc
 .Oo
 .Fl h
 .Op ir
 .Oc
 .Oo
-.Fl e
-.Op nytfsxir
+.Fl s
+.Op ir
 .Oc
 .Op Fl a Ar host ...
 .Op Fl z Ar host ...
 .Op Fl A Ar host ...
 .Op Fl Z Ar host ...
 .Op Fl Y Ar host ...
-.Op Fl u Ar port
 .Oo
 .Fl w
 .Ar base
+.Op Fl W Ar suffix
 .Op Fl k Ar cmd
 .Oc
 .Op Fl t Ar lim
 .Op Fl c Ar lim
+.Op Fl C Ar lim
+.Op Fl x Ar pat ...
+.Op Fl X Ar pat ...
+.Op Fl B Ar datetime
+.Op Fl E Ar datetime
+.Op Fl U Ar str
+.Op Fl P Ar plugin.so ...
 .Sh DESCRIPTION
 .Nm
 is a network capture utility designed specifically for DNS traffic.  It
@@ -59,6 +65,14 @@ is expected to be used for gathering continuous research or audit traces.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
+.It Fl ?
+Prints some text to stdout describing the command line options, so that you
+won't have to refer back to this man page as often.  Probably you will have
+to say "-\\?" to get this option past your shell.
+.It Fl V
+Print version and exit.
+.It Fl b
+Run in background as daemon.
 .It Fl p
 Asks that the interface not be put into promiscuous mode.  Note that even
 without this option, the interface could be in promiscuous mode for some other
@@ -80,10 +94,6 @@ messages which passed through all of the filters.  If
 .Fl w
 is also used, then every message will be dumped in both binary and
 presentation form.
-.It Fl ?
-Prints some text to stdout describing the command line options, so that you
-won't have to refer back to this man page as often.  Probably you will have
-to say "-\\?" to get this option past your shell.
 .It Fl 6
 Suppress the use of packet filter patterns that are known (as of 2007) to
 cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
@@ -110,6 +120,8 @@ boundaries, will be captured if and only if the first DNS header passed all
 filter options.
 TCP packets will usually not be printable with
 .Fl g .
+.It Fl I
+Select ICMP and ICMPv6 packets.
 .It Fl i Ar if
 Select an interface to be monitored.  On BSD systems, the default is the first
 interface that was configured at system boot time.  On Linux systems, the
@@ -136,49 +148,9 @@ means "all vlans".
 Capture only packets on this UDP port, and treat as DNS traffic.  The default
 port is 53.  Note that there is no way to select multiple UDP ports, as would
 be necessary to capture both DNS (port 53) and mDNS (port 5353) traffic.
-.It Fl x Ar pat
-If one or more
-.Fl x
-options are provided, then DNS messages will only be selected if the
-printable representation of the QNAME or any RR matches at least one of the
-provided
-.Ar pat
-patterns.  See
-.Xr regex 3
-and
-.Xr re_format 7
-for more information about extended regular expression syntax.
-.It Fl X Ar pat
-If one or more
-.Fl X
-options are provided, then DNS messages matching these patterns will not
-be selected.  See the description of
-.Fl x
-above.
-.Pp
-NOTE: for reasons lost to the mists of time, it seems that
-.Fl X
-only takes effect when
-.Fl x
-is also used.  If you use
-.Fl X
-alone, you'll get no output.  Thus, you should at least use "-x ."
-to initially match all queries and then exclude certain patterns with
-.Fl X.
-Users of the
-.Fl X
-option should be advised that this behavior could change in future versions.
 .It Fl m Op qun
 Capture only messages of designated types (query, update, and notify).
 Default is query.
-.It Fl s Op ir
-Select messages which are initiations and/or responses.  Default is both.
-.It Fl h Op ir
-Hide initiator or responder of each captured transaction.  Hiding an initiator
-means wiping out the address and port number.  Hiding a responder means to wipe
-out the address only.  This wiping occurs on the copy of the packet sent to the
-.Xr pcap 3
-dump output, and both the IP and UDP checksums will be recomputed in that case.
 .It Fl e Op nytfsxir
 Among responses, consider nonzero DNS TC or DNS RCODE to indicate an error,
 and select only responses which do not have (n), or which have (y), these
@@ -208,6 +180,14 @@ not implemented (rcode 4)
 .It Va r
 refusal (rcode 5)
 .El
+.It Fl h Op ir
+Hide initiator or responder of each captured transaction.  Hiding an initiator
+means wiping out the address and port number.  Hiding a responder means to wipe
+out the address only.  This wiping occurs on the copy of the packet sent to the
+.Xr pcap 3
+dump output, and both the IP and UDP checksums will be recomputed in that case.
+.It Fl s Op ir
+Select messages which are initiations and/or responses.  Default is both.
 .It Fl a Ar host
 Capture only transactions having these initiators.  Can be specified more than
 once to select multiple initiators.  If a host name is used, then all of that
@@ -241,6 +221,8 @@ and
 .Fl t
 options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
+.It Fl W Ar suffix
+The provided suffix is added to the dump file name, e. g.: ".pcap"
 .It Fl k Ar cmd
 After each dump file specified by
 .Fl w
@@ -259,7 +241,7 @@ By default,
 will close its packet dump file only when interrupted.  A time limit can be
 specified with the
 .Fl t
-option.  
+option.
 When writing to a file, the packet dump file will be closed when time() %
 .Ar lim
 is zero and the first file will usually be shorter than
@@ -281,6 +263,61 @@ file,
 .Nm
 exits.  This option is inclusive with
 .Fl t .
+.It Fl C Ar lim
+By default,
+.Nm
+will close its packet dump file only when interrupted.  A dump file size,
+measured in bytes captured, can be specified with the
+.Fl C
+option.  If the packet dump file is standard output, then after closing this
+file,
+.Nm
+exits.  This option is inclusive with
+.Fl t .
+.It Fl x Ar pat
+If one or more
+.Fl x
+options are provided, then DNS messages will only be selected if the
+printable representation of the QNAME or any RR matches at least one of the
+provided
+.Ar pat
+patterns.  See
+.Xr regex 3
+and
+.Xr re_format 7
+for more information about extended regular expression syntax.
+.It Fl X Ar pat
+If one or more
+.Fl X
+options are provided, then DNS messages matching these patterns will not
+be selected.  See the description of
+.Fl x
+above.
+.Pp
+NOTE: for reasons lost to the mists of time, it seems that
+.Fl X
+only takes effect when
+.Fl x
+is also used.  If you use
+.Fl X
+alone, you'll get no output.  Thus, you should at least use "-x ."
+to initially match all queries and then exclude certain patterns with
+.Fl X.
+Users of the
+.Fl X
+option should be advised that this behavior could change in future versions.
+.It Fl y
+Enable Linux seccomp-bpf sandbox if available (compile option).
+.It Fl S
+Causes
+.Nm
+to print pcap_stats() counters on stderr when
+.Fl t
+,
+.Fl c
+or
+.Fl C
+limits are reached.
 .It Fl B Ar datetime
 When using
 .Fl w ,
@@ -307,14 +344,17 @@ to stop collecting at a specific time.
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
 when it sees a packet with timestamp greater than
 .Ar datetime .
-.It Fl S
-Causes
-.Nm
-to print pcap_stats() counters on stderr when
-.Fl t
-or
-.Fl c
-limits are reached.
+.It Fl M
+Enable monitor mode on interfaces.
+.It Fl D
+Enable immediate mode on interfaces.
+.It Fl U Ar str
+Append "and
+.Ar str
+" to the pcap filter.
+.It Fl P Ar plugin.so ...
+Load and use the specified plugin. Any options given after this are
+sent to the plugin.
 .El
 .Pp
 If started with no options,
@@ -427,16 +467,34 @@ doesn't necessarily work without an "enclosing"
 .Fl x
 option.
 .Sh LICENSE
-Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
+Copyright (c) 2016, OARC, Inc.
+All rights reserved.
 .Pp
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
 .Pp
-THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
-OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+.Pp
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in
+   the documentation and/or other materials provided with the
+   distribution.
+.Pp
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived
+   from this software without specific prior written permission.
+.Pp
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
