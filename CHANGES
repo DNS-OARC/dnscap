@@ -1,6 +1,6 @@
-dnscap (1.1.0-1~unstable+1) unstable; urgency=low
+2016-10-11 Jerry Lundström
 
-  * Release 1.1.0
+    Release 1.1.0
 
     The ownership of DNSCAP was transferred from ISC to DNS-OARC in
     the summer of 2016 and this is the first release since that.
@@ -108,5 +108,3 @@ dnscap (1.1.0-1~unstable+1) unstable; urgency=low
             not available.
     d257a1c Fix compilation on FreeBSD and OpenBSD
     07b2a75 Restructure repository and move to Automake.
-
- -- Jerry Lundström <lundstrom.jerry@gmail.com>  Tue, 11 Oct 2016 11:47:05 +0200
