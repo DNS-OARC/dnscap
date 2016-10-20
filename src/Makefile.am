@@ -12,10 +12,15 @@ bin_PROGRAMS = dnscap
 
 dnscap_SOURCES = dnscap.c \
     dump_dns.c \
-    pcap-thread/pcap_thread.c
-dist_dnscap_SOURCES = dnscap_common.h \
+    dump_cbor.c \
+    pcap-thread/pcap_thread.c \
+    options.c
+dist_dnscap_SOURCES = dnscap.h \
+    dnscap_common.h \
     dump_dns.h \
-    pcap-thread/pcap_thread.h
+    dump_cbor.h \
+    pcap-thread/pcap_thread.h \
+    options.h
 dnscap_LDADD = $(PTHREAD_LIBS)
 
 man1_MANS = dnscap.1
