@@ -391,6 +391,8 @@ static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory li
 static int mem_limit_set = 1; // Should be configurable
 const char DROPTOUSER[] = "nobody";
 static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
+static int only_offline_pcaps = TRUE;
+static int dont_drop_privileges = FALSE;
 
 /* Public. */
 
@@ -422,7 +424,9 @@ main(int argc, char *argv[]) {
 	setsig(SIGALRM, FALSE);
 	setsig(SIGTERM, TRUE);
 
-	drop_privileges();
+    if (!dont_drop_privileges && !only_offline_pcaps) {
+        drop_privileges();
+    }
 
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->start)
@@ -666,7 +670,7 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"  [-?Vbpd1g6fTI"
+		"  [-?VbNpd1g6fTI"
 #ifdef USE_SECCOMP
 		"y"
 #endif
@@ -689,6 +693,8 @@ help_2(void) {
 		"  -? or -\\?  print these instructions and exit\n"
 		"  -V         print version and exit\n"
 		"  -b         run in background as daemon\n"
+		"  -N         do not attempt to drop privileges, this is implicit\n"
+		"             if only reading offline pcap files\n"
 		"  -p         do not put interface in promiscuous mode\n"
 		"  -d         dump verbose trace information to stderr, specify multiple\n"
 		"             times to increase debugging\n"
@@ -768,13 +774,16 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
 			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:yz:"
-			"A:B:C:DE:IL:MP:STU:VW:X:Y:Z:16?")
+			"A:B:C:DE:IL:MNP:STU:VW:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
 		case 'b':
 			background = TRUE;
 			break;
+		case 'N':
+		    dont_drop_privileges = TRUE;
+		    break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -813,6 +822,7 @@ parse_args(int argc, char *argv[]) {
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
 			APPEND(mypcaps, mypcap, link);
+			only_offline_pcaps = FALSE;
 			break;
 		case 'r':
 			if (!EMPTY(mypcaps))
