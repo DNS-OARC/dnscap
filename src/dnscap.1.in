@@ -6,7 +6,7 @@
 .Nd DNS network traffic capture utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?Vbpd1g6fTIySMD
+.Op Fl ?VbNpd1g6fTIySMD
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
@@ -73,6 +73,9 @@ to say "-\\?" to get this option past your shell.
 Print version and exit.
 .It Fl b
 Run in background as daemon.
+.It Fl N
+Do not attempt to drop privileges, this is implicit if only reading
+offline pcap files.
 .It Fl p
 Asks that the interface not be put into promiscuous mode.  Note that even
 without this option, the interface could be in promiscuous mode for some other
