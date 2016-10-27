@@ -32,59 +32,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <netinet/in.h>
-#include <sys/types.h>
+#include "dnscap_common.h"
 
-#ifndef __dnscap_dnscap_common_h
-#define __dnscap_dnscap_common_h
+#ifndef __dnscap_dump_cbor_h
+#define __dnscap_dump_cbor_h
 
-/*
- * setup MY_BPFTIMEVAL as the timeval structure that bpf packets
- * will be assoicated with packets from libpcap
- */
-#ifndef MY_BPFTIMEVAL
-# define MY_BPFTIMEVAL timeval
-#endif
-typedef struct MY_BPFTIMEVAL my_bpftimeval;
-
+#define DUMP_CBOR_OK        0
+#define DUMP_CBOR_EINVAL    1
+#define DUMP_CBOR_ENOMEM    2
+#define DUMP_CBOR_ECBOR     3
+#define DUMP_CBOR_ELDNS     4
+#define DUMP_CBOR_EWRITE    5
+#define DUMP_CBOR_FLUSH     6
+#define DUMP_CBOR_ENOSUP    7
 
 /*
- * Structure to contain IP addresses
- */
-typedef struct {
-        int                     af;
-        union {
-                struct in_addr          a4;
-                struct in6_addr         a6;
-        } u;
-} iaddr;
+typedef struct cbor_stringref cbor_stringref_t;
+struct cbor_stringref {
+    char *string;
+    size_t ref;
+};
+*/
 
-/*
- * plugins can call the logerr() function in the main dnscap
- * process.
- */
-typedef int logerr_t(const char *fmt, ...);
+int cbor_set_size(size_t size);
+int cbor_set_reserve(size_t reserve);
+int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char *payload, size_t payloadlen);
+int dump_cbor();
+int have_cbor_support();
 
-/*
- * Prototype for the plugin "output" function
- */
-typedef void output_t(const char *descr,
-        iaddr from,
-        iaddr to,
-        uint8_t proto,
-        unsigned flags,
-        unsigned sport,
-        unsigned dport,
-        my_bpftimeval ts,
-        const u_char *pkt_copy,
-        const unsigned olen,
-        const u_char *payload,
-        const unsigned payloadlen);
-
-#define DNSCAP_OUTPUT_ISFRAG (1<<0)
-#define DNSCAP_OUTPUT_ISDNS (1<<1)
-
-#define DIR_INITIATE	0x0001
-#define DIR_RESPONSE	0x0002
-
-#endif /* __dnscap_dnscap_common_h */
+#endif /* __dnscap_dump_cbor_h */

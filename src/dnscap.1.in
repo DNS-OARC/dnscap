@@ -7,6 +7,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ?VbNpd1g6fTIySMD
+.Op Fl o Ar option=value
 .Op Fl i Ar if ...
 .Op Fl r Ar file ...
 .Op Fl l Ar vlan ...
@@ -71,6 +72,8 @@ won't have to refer back to this man page as often.  Probably you will have
 to say "-\\?" to get this option past your shell.
 .It Fl V
 Print version and exit.
+.It Fl o
+See EXTENDED OPTIONS.
 .It Fl b
 Run in background as daemon.
 .It Fl N
@@ -422,6 +425,23 @@ will also be tagged, thus we need
 on both
 .Nm
 commands.
+.Sh EXTENDED OPTIONS
+The following extended options exists and some of them might also exist
+as a short option.
+.Bl -tag -width 10n
+.It cbor_chunk_size=<bytes>
+Specify the number of bytes of CBOR to construct before flushing the output,
+must be a non zero positive number.
+.It dump_format=<format>
+Specify the output format to use, see OUTPUT FORMATS.
+.Sh OUTPUT FORMATS
+The following output format are supported:
+.Bl -tag -width 10n
+.It cbor
+Uses tinycbor library to write CBOR objects that are based on DNS-in-JSON
+draft by Paul Hoffman.
+.It pcap
+This uses the pcap library to output the captured DNS packets.
 .Sh "COMPATIBILITY NOTES"
 If
 .Nm dnscap
