@@ -1,3 +1,41 @@
+2016-10-27 Jerry Lundström
+
+    Release 1.2.0
+
+    Update `pcap-thread` to v1.2.0 to get the new callback queue mode which
+    puts that mode into using pthread conditions if all pcaps are offline and
+    keeps us from losing packets.
+
+    Use `pcap_thread_dropback()` callback to get the notification when a
+    packet was dropped because the queue was full, indicating that we can't
+    process all the packets.  Added this stats to the `-S` output as total
+    and per interface as `ptdrop`.  Changed the output for each interface
+    to not cut of information, for example interface name was cut to
+    4 characters.
+
+    Other changes:
+
+    - Add extended options `-o <option>=<value>` because we are running out
+      of short options.
+    - Better handling of library checks and automake rules
+    - New option `-F <format>` to specify the format of the output in `-w`
+    - Add experimental CBOR output support
+      - LDNS is used to parse the packets
+      - Tinycbor is used to construct the CBOR output
+      - DNS-in-JSON draft [1] for representing the objects
+      - Check CBOR topic in README.md for more information
+    - When only reading offline pcap files it will not attempt to drop
+      privileges and add new option `-N` to explicitly not drop privileges.
+
+    Commits:
+
+    f42e23f Extended options and CBOR output format
+    a28f498 Fix #24: Handle packet drops
+    2308eaa Fix #26: Unable to drop GID to nobody, exiting.
+    82d65f2 Update pcap-thread to v1.1.2
+
+    [1] https://datatracker.ietf.org/doc/draft-hoffman-dns-in-json/
+
 2016-10-11 Jerry Lundström
 
     Release 1.1.0
