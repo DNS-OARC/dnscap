@@ -237,6 +237,7 @@ struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
 	struct pcap_stat	ps0, ps1;
+	uint64_t            drops;
 };
 typedef struct mypcap *mypcap_ptr;
 typedef LIST(struct mypcap) mypcap_list;
@@ -386,6 +387,7 @@ static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
+static uint64_t pcap_drops = 0;
 static my_bpftimeval last_ts = {0,0};
 static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
 static int mem_limit_set = 1; // Should be configurable
@@ -1478,6 +1480,16 @@ text_free(text_list *list) {
 }
 
 static void
+drop_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const char* name, const int dlt) {
+	mypcap_ptr mypcap = (mypcap_ptr) user;
+
+    pcap_drops++;
+    if (mypcap) {
+        mypcap->drops++;
+    }
+}
+
+static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
 	int err;
@@ -1487,6 +1499,7 @@ open_pcaps(void) {
     pcap_thread_set_monitor(&pcap_thread, monitor_mode);
     pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode);
     pcap_thread_set_callback(&pcap_thread, dl_pkt);
+    pcap_thread_set_dropback(&pcap_thread, drop_pkt);
     pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft));
 
 	assert(!EMPTY(mypcaps));
@@ -2479,17 +2492,20 @@ void stat_callback(u_char* user, const struct pcap_stat* stats, const char* name
     if (mypcap) {
 		mypcap->ps0 = mypcap->ps1;
 		mypcap->ps1 = *stats;
-		logerr("%4s: %7u recv %7u drop %7u total",
+		logerr("%s: %u recv %u drop %u total ptdrop %lu",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
-			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
+			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop,
+			mypcap->drops
+		);
     }
 }
 
 static void
 do_pcap_stats()
 {
+    logerr("total drops: %lu", pcap_drops);
     pcap_thread_stats(&pcap_thread, stat_callback, 0);
 }
 
