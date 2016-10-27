@@ -9,6 +9,12 @@
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
+/* Define to 1 if you have the <cbor/cbor.h> header file. */
+#undef HAVE_CBOR_CBOR_H
+
+/* Define to 1 if you have the <cbor.h> header file. */
+#undef HAVE_CBOR_H
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -30,6 +36,9 @@
 /* Define to 1 if you have the `hplx' library (-lhplx). */
 #undef HAVE_LIBHPLX
 
+/* Define to 1 if you have the `ldns' library (-lldns). */
+#undef HAVE_LIBLDNS
+
 /* Define to 1 if you have the `md5' library (-lmd5). */
 #undef HAVE_LIBMD5
 
@@ -47,6 +56,9 @@
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
+
+/* Define to 1 if you have the `tinycbor' library (-ltinycbor). */
+#undef HAVE_LIBTINYCBOR
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H

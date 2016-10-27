@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ(2.61)
-AC_INIT([dnscap], [1.1.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_INIT([dnscap], [1.2.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
 AC_CONFIG_HEADER([src/config.h])
@@ -57,9 +57,10 @@ AC_CHECK_LIB([resolv], [res_mkquery], [], [
 	])
 ])
 AC_CHECK_LIB([dl], [dlopen])
-have_ldns=
-AC_CHECK_LIB([ldns], [ldns_wire2pkt], [have_ldns=yes])
-AM_CONDITIONAL([LDNS], [test "x$have_ldns" = "xyes"])
+AC_CHECK_LIB([tinycbor], [cbor_parser_init])
+AM_CONDITIONAL([HAVE_CBOR], [test "x$ac_cv_lib_tinycbor_cbor_parser_init" = "xyes"])
+AC_CHECK_LIB([ldns], [ldns_wire2pkt])
+AM_CONDITIONAL([HAVE_LDNS], [test "x$ac_cv_lib_ldns_ldns_wire2pkt" = "xyes"])
 
 # Check for OS specific libraries
 case "$host_os" in
@@ -81,7 +82,7 @@ esac
 AC_HEADER_RESOLV
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
-AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h])
+AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h cbor.h cbor/cbor.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])

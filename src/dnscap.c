@@ -141,6 +141,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #endif
 
 #include "dnscap_common.h"
+#include "dnscap.h"
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -157,6 +158,8 @@ extern char *strptime(const char *, const char *, struct tm *);
 #include "isc/list.h"
 #include "isc/assertions.h"
 #include "dump_dns.h"
+#include "dump_cbor.h"
+#include "options.h"
 
 #include "pcap-thread/pcap_thread.h"
 
@@ -237,6 +240,7 @@ struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
 	struct pcap_stat	ps0, ps1;
+	uint64_t            drops;
 };
 typedef struct mypcap *mypcap_ptr;
 typedef LIST(struct mypcap) mypcap_list;
@@ -304,7 +308,6 @@ static void parse_args(int, char *[]);
 static void endpoint_arg(endpoint_list *, const char *);
 static void endpoint_add(endpoint_list *, iaddr);
 static void prepare_bpft(void);
-static const char *ia_str(iaddr);
 static int ep_present(const endpoint_list *, iaddr);
 static size_t text_add(text_list *, const char *, ...);
 static void text_free(text_list *);
@@ -386,11 +389,15 @@ static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
+static uint64_t pcap_drops = 0;
 static my_bpftimeval last_ts = {0,0};
 static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
 static int mem_limit_set = 1; // Should be configurable
 const char DROPTOUSER[] = "nobody";
 static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
+static int only_offline_pcaps = TRUE;
+static int dont_drop_privileges = FALSE;
+static options_t options = OPTIONS_T_DEFAULTS;
 
 /* Public. */
 
@@ -422,7 +429,9 @@ main(int argc, char *argv[]) {
 	setsig(SIGALRM, FALSE);
 	setsig(SIGTERM, TRUE);
 
-	drop_privileges();
+    if (!dont_drop_privileges && !only_offline_pcaps) {
+        drop_privileges();
+    }
 
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->start)
@@ -666,15 +675,16 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"  [-?Vbpd1g6fTI"
+		"  [-?VbNpd1g6fTI"
 #ifdef USE_SECCOMP
 		"y"
 #endif
-		"SMD] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
-		"  [-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
-		"  [-h [ir]] [-s [ir]]\n"
+		"SMD] [-o option=value]+\n"
+		"  [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"  [-u <port>] [-m [qun]] [-e [nytfsxir]] [-h [ir]] [-s [ir]]\n"
 		"  [-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
-		"  [-w <base> [-W <suffix>] [-k <cmd>]] [-t <lim>] [-c <lim>] [-C <lim>]\n"
+		"  [-w <base> [-W <suffix>] [-k <cmd>] -F <format>]\n"
+		"  [-t <lim>] [-c <lim>] [-C <lim>]\n"
 		"  [-x <pat>]+ [-X <pat>]+\n"
 		"  [-B <datetime>] [-E <datetime>]\n"
 		"  [-U <str>] [-P plugin.so <plugin options...>]\n",
@@ -688,7 +698,10 @@ help_2(void) {
 		"\noptions:\n"
 		"  -? or -\\?  print these instructions and exit\n"
 		"  -V         print version and exit\n"
+		"  -o opt=val extended options, see man page for list of options\n"
 		"  -b         run in background as daemon\n"
+		"  -N         do not attempt to drop privileges, this is implicit\n"
+		"             if only reading offline pcap files\n"
 		"  -p         do not put interface in promiscuous mode\n"
 		"  -d         dump verbose trace information to stderr, specify multiple\n"
 		"             times to increase debugging\n"
@@ -725,6 +738,7 @@ help_2(void) {
 		"  -w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"  -W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
 		"  -k <cmd>   kick off <cmd> when each dump closes\n"
+		"  -F <format> dump format: pcap (default), cbor\n"
 		"  -t <lim>   close dump or exit every/after <lim> secs\n"
 		"  -c <lim>   close dump or exit every/after <lim> pkts\n"
 		"  -C <lim>   close dump or exit every/after <lim> bytes captured\n"
@@ -767,14 +781,23 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:yz:"
-			"A:B:C:DE:IL:MP:STU:VW:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:o:pr:s:t:u:w:x:yz:"
+			"A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
+		case 'o':
+		    if (option_parse(&options, optarg)) {
+		        fprintf(stderr, "%s: unknown or invalid extended option: %s\n", ProgramName, optarg);
+		        exit(1);
+		    }
+		    break;
 		case 'b':
 			background = TRUE;
 			break;
+		case 'N':
+		    dont_drop_privileges = TRUE;
+		    break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -813,6 +836,7 @@ parse_args(int argc, char *argv[]) {
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
 			APPEND(mypcaps, mypcap, link);
+			only_offline_pcaps = FALSE;
 			break;
 		case 'r':
 			if (!EMPTY(mypcaps))
@@ -943,6 +967,17 @@ parse_args(int argc, char *argv[]) {
 				      " (note: can't be stdout)");
 			kick_cmd = optarg;
 			break;
+		case 'F':
+		    if (!strcmp(optarg, "pcap")) {
+		        options.dump_format = pcap;
+		    }
+		    else if (!strcmp(optarg, "cbor")) {
+		        options.dump_format = cbor;
+		    }
+		    else {
+		        usage("invalid output format for -F");
+		    }
+		    break;
 		case 't':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0')
@@ -1190,6 +1225,13 @@ parse_args(int argc, char *argv[]) {
 		usage("start time must be before stop time");
 	if ((start_time || stop_time) && NULL == dump_base)
 		usage("--B and --E require -w");
+
+    if (options.dump_format == cbor) {
+        if (!have_cbor_support()) {
+            usage("no built in cbor support");
+        }
+        cbor_set_size(options.cbor_chunk_size);
+    }
 }
 
 static void
@@ -1407,7 +1449,7 @@ prepare_bpft(void) {
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
 
-static const char *
+const char *
 ia_str(iaddr ia) {
 	static char ret[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
 
@@ -1468,6 +1510,16 @@ text_free(text_list *list) {
 }
 
 static void
+drop_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const char* name, const int dlt) {
+	mypcap_ptr mypcap = (mypcap_ptr) user;
+
+    pcap_drops++;
+    if (mypcap) {
+        mypcap->drops++;
+    }
+}
+
+static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
 	int err;
@@ -1477,6 +1529,7 @@ open_pcaps(void) {
     pcap_thread_set_monitor(&pcap_thread, monitor_mode);
     pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode);
     pcap_thread_set_callback(&pcap_thread, dl_pkt);
+    pcap_thread_set_dropback(&pcap_thread, drop_pkt);
     pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft));
 
 	assert(!EMPTY(mypcaps));
@@ -2371,14 +2424,34 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
 		putc('\n', stderr);
 	}
 	if (dump_type != nowhere) {
-		struct pcap_pkthdr h;
+	    if (options.dump_format == pcap) {
+		    struct pcap_pkthdr h;
 
-		memset(&h, 0, sizeof h);
-		h.ts = ts;
-		h.len = h.caplen = olen;
-		pcap_dump((u_char *)dumper, &h, pkt_copy);
-		if (flush)
-			pcap_dump_flush(dumper);
+		    memset(&h, 0, sizeof h);
+		    h.ts = ts;
+		    h.len = h.caplen = olen;
+		    pcap_dump((u_char *)dumper, &h, pkt_copy);
+		    if (flush)
+			    pcap_dump_flush(dumper);
+        }
+        else if (options.dump_format == cbor && (flags & DNSCAP_OUTPUT_ISDNS) && payload) {
+            int ret = output_cbor(from, to, proto, flags, sport, dport, ts, payload, payloadlen);
+
+            if (ret == DUMP_CBOR_FLUSH) {
+                if (dumper_close(ts)) {
+                    fprintf(stderr, "%s: dumper_close() failed\n", ProgramName);
+                    exit(1);
+                }
+                if (dumper_open(ts)) {
+                    fprintf(stderr, "%s: dumper_open() failed\n", ProgramName);
+                    exit(1);
+                }
+            }
+            else if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+            }
+        }
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
@@ -2390,6 +2463,8 @@ static int
 dumper_open(my_bpftimeval ts) {
 	const char *t = NULL;
 	struct plugin *p;
+
+    assert(dump_state == dumper_closed);
 
 	while (ts.tv_usec >= MILLION) {
 		ts.tv_sec++;
@@ -2417,12 +2492,14 @@ dumper_open(my_bpftimeval ts) {
 		t = dumpnamepart;
 	}
 	if (NULL != t) {
-		dumper = pcap_dump_open(pcap_dead, t);
-		if (dumper == NULL) {
-			logerr("pcap dump open: %s",
-				pcap_geterr(pcap_dead));
-			return (TRUE);
-		}
+	    if (options.dump_format == pcap) {
+		    dumper = pcap_dump_open(pcap_dead, t);
+		    if (dumper == NULL) {
+			    logerr("pcap dump open: %s",
+				    pcap_geterr(pcap_dead));
+			    return (TRUE);
+		    }
+	    }
 	}
 	dumpstart = ts.tv_sec;
 	if (limit_seconds != 0U) {
@@ -2469,17 +2546,20 @@ void stat_callback(u_char* user, const struct pcap_stat* stats, const char* name
     if (mypcap) {
 		mypcap->ps0 = mypcap->ps1;
 		mypcap->ps1 = *stats;
-		logerr("%4s: %7u recv %7u drop %7u total",
+		logerr("%s: %u recv %u drop %u total ptdrop %lu",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
-			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
+			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop,
+			mypcap->drops
+		);
     }
 }
 
 static void
 do_pcap_stats()
 {
+    logerr("total drops: %lu", pcap_drops);
     pcap_thread_stats(&pcap_thread, stat_callback, 0);
 }
 
@@ -2488,6 +2568,8 @@ dumper_close(my_bpftimeval ts) {
 	int ret = FALSE;
 	struct plugin *p;
 
+    assert(dump_state == dumper_opened);
+
 	if (print_pcap_stats)
 		do_pcap_stats();
 
@@ -2495,10 +2577,40 @@ dumper_close(my_bpftimeval ts) {
 		alarm(0);
 		alarm_set = FALSE;
 	}
-	if (dumper) {
-		pcap_dump_close(dumper);
-		dumper = FALSE;
+
+    if (options.dump_format == pcap) {
+    	if (dumper) {
+    		pcap_dump_close(dumper);
+    		dumper = FALSE;
+    	}
 	}
+	else if (options.dump_format == cbor) {
+	    int ret;
+
+    	if (dump_type == to_stdout) {
+    	    ret = dump_cbor(stdout);
+
+    	    if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	}
+    	else if (dump_type == to_file) {
+    	    FILE * fp;
+
+    	    if (!(fp = fopen(dumpnamepart, "w"))) {
+                fprintf(stderr, "%s: fopen(%s) failed: %s\n", ProgramName, dumpnamepart, strerror(errno));
+                exit(1);
+    	    }
+    	    ret = dump_cbor(fp);
+    	    if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	    fclose(fp);
+    	}
+	}
+
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
