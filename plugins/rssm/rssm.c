@@ -33,12 +33,12 @@
  */
 
 #include "config.h"
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
-#include <time.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <assert.h>

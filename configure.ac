@@ -80,9 +80,11 @@ esac
 
 # Checks for header files.
 AC_HEADER_RESOLV
+AC_HEADER_TIME
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h cbor.h cbor/cbor.h])
+AC_CHECK_HEADERS([sys/time.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
