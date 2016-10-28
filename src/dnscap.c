@@ -132,16 +132,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <pwd.h>
+
+#include "dnscap_common.h"
+#include "dnscap.h"
+#define ISC_CHECK_NONE 1
+#include "isc/list.h"
+#include "isc/assertions.h"
+#include "dump_dns.h"
+#include "dump_cbor.h"
+#include "options.h"
+#include "pcap-thread/pcap_thread.h"
 
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
 #endif
-
-#include "dnscap_common.h"
-#include "dnscap.h"
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -152,16 +158,6 @@ extern char *strptime(const char *, const char *, struct tm *);
 	    ; \
 	(cp) += NS_INT32SZ; \
 } while (0)
-
-#define ISC_CHECK_NONE 1
-
-#include "isc/list.h"
-#include "isc/assertions.h"
-#include "dump_dns.h"
-#include "dump_cbor.h"
-#include "options.h"
-
-#include "pcap-thread/pcap_thread.h"
 
 /* Constants. */
 

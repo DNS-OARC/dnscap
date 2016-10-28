@@ -35,6 +35,17 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
+#ifdef TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+
 #ifndef __dnscap_dnscap_common_h
 #define __dnscap_dnscap_common_h
 
