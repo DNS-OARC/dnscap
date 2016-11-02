@@ -85,6 +85,35 @@ int option_parse(options_t * options, const char * option) {
             return 0;
         }
     }
+    else if (have("user")) {
+        if (options->user) {
+            free(options->user);
+        }
+        if ((options->user = strdup(argument))) {
+            return 0;
+        }
+    }
+    else if (have("group")) {
+        if (options->group) {
+            free(options->group);
+        }
+        if ((options->group = strdup(argument))) {
+            return 0;
+        }
+    }
 
     return 1;
+}
+
+void options_free(options_t * options) {
+    if (options) {
+        if (options->user) {
+            free(options->user);
+            options->user = 0;
+        }
+        if (options->group) {
+            free(options->group);
+            options->group = 0;
+        }
+    }
 }

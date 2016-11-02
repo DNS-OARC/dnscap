@@ -434,6 +434,11 @@ Specify the number of bytes of CBOR to construct before flushing the output,
 must be a non zero positive number.
 .It dump_format=<format>
 Specify the output format to use, see OUTPUT FORMATS.
+.It user=<user>
+Specify the user to drop privileges to (default nobody).
+.It group=<group>
+Specify the group to drop privileges to (default nobody).
+.El
 .Sh OUTPUT FORMATS
 The following output format are supported:
 .Bl -tag -width 10n
@@ -442,6 +447,7 @@ Uses tinycbor library to write CBOR objects that are based on DNS-in-JSON
 draft by Paul Hoffman.
 .It pcap
 This uses the pcap library to output the captured DNS packets.
+.El
 .Sh "COMPATIBILITY NOTES"
 If
 .Nm dnscap

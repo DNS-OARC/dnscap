@@ -45,15 +45,20 @@ enum dump_format {
 
 #define OPTIONS_T_DEFAULTS { \
     1024 * 1024, \
-    pcap \
+    pcap, \
+    0, \
+    0 \
 }
 
 typedef struct options options_t;
 struct options {
     size_t          cbor_chunk_size;
     dump_format_t   dump_format;
+    char *          user;
+    char *          group;
 };
 
 int option_parse(options_t * options, const char * option);
+void options_free(options_t * options);
 
 #endif /* __dnscap_options_h */
