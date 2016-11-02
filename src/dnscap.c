@@ -134,6 +134,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include "dnscap_common.h"
 #include "dnscap.h"
@@ -450,6 +451,7 @@ main(int argc, char *argv[]) {
 		if (p->stop)
 			(*p->stop)();
 	}
+	options_free(&options);
 	exit(0);
 }
 
@@ -468,6 +470,8 @@ drop_privileges(void)
 	uid_t oldGID = getgid();
 	uid_t dropUID;
 	gid_t dropGID;
+	const char * user;
+	struct group * grp = 0;
 
 	// Security: getting UID and GUID for nobody
 	pwdBufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -480,10 +484,23 @@ drop_privileges(void)
 		exit(1);
 	}
 
-	s = getpwnam_r(DROPTOUSER, &pwd, pwdBuf, pwdBufSize, &result);
+    user = options.user ? options.user : DROPTOUSER;
+    if (options.group) {
+        if (!(grp = getgrnam(options.group))) {
+            if (errno) {
+                fprintf(stderr, "Unable to get group %s: %s\n", options.group, strerror(errno));
+            }
+            else {
+                fprintf(stderr, "Group %s not found, existing.\n", options.group);
+            }
+            exit(1);
+        }
+    }
+
+	s = getpwnam_r(user, &pwd, pwdBuf, pwdBufSize, &result);
 	if (result == NULL) {
 		if (s == 0) {
-			fprintf(stderr, "User %s not found, exiting.\n", DROPTOUSER);
+			fprintf(stderr, "User %s not found, exiting.\n", user);
 			exit(1);
 		}else {
 			fprintf(stderr, "issue with getpwnnam_r call, exiting.\n");
@@ -492,11 +509,11 @@ drop_privileges(void)
 	}
 
 	dropUID = pwd.pw_uid;
-	dropGID = pwd.pw_gid;
+	dropGID = grp ? grp->gr_gid : pwd.pw_gid;
 	memset(pwdBuf, 0, pwdBufSize);
 	free(pwdBuf);
 
-	// Security section: setting memory limit and dropping privilleges to nobody
+	// Security section: setting memory limit and dropping privileges to nobody
 	getrlimit(RLIMIT_DATA, &rss);
 	if (mem_limit_set){
 		rss.rlim_cur = mem_limit;
@@ -509,34 +526,34 @@ drop_privileges(void)
 
 #if HAVE_SETRESGID
 	if (setresgid(dropGID, dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETREGID
 	if (setregid(dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETEGID
 	if (setegid(dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #endif
 
 #if HAVE_SETRESUID
 	if (setresuid(dropUID, dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETREUID
 	if (setreuid(dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETEUID
 	if (seteuid(dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #endif
