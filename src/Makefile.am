@@ -12,13 +12,13 @@ bin_PROGRAMS = dnscap
 
 dnscap_SOURCES = dnscap.c \
     dump_dns.c \
-    dump_cbor.c \
+    dump_cbor.c dump_cds.c \
     pcap-thread/pcap_thread.c \
     options.c
 dist_dnscap_SOURCES = dnscap.h \
     dnscap_common.h \
     dump_dns.h \
-    dump_cbor.h \
+    dump_cbor.h dump_cds.h \
     pcap-thread/pcap_thread.h \
     options.h
 dnscap_LDADD = $(PTHREAD_LIBS)

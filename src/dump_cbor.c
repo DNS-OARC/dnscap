@@ -97,30 +97,30 @@ int cbor_set_reserve(size_t reserve) {
 
 #define append_cbor(func, name, type) CborError func(CborEncoder *encoder, type value, int *should_flush) { \
     CborError err; \
-    uint8_t *ptr = encoder->ptr; \
+    uint8_t *ptr = encoder->data.ptr; \
     err = name(encoder, value); \
     if (err == CborErrorOutOfMemory && !*should_flush) { \
         *should_flush = 1; \
-        encoder->ptr = ptr; \
+        encoder->data.ptr = ptr; \
         encoder->end = cbor_buf + cbor_size + cbor_reserve; \
         err = name(encoder, value); \
     } \
     return err; \
 }
 
-append_cbor(append_cbor_text_stringz, cbor_encode_text_stringz, const char *);
-append_cbor(append_cbor_boolean, cbor_encode_boolean, bool);
-append_cbor(append_cbor_int, cbor_encode_int, int64_t);
-append_cbor(append_cbor_uint, cbor_encode_uint, uint64_t);
-append_cbor(append_cbor_double, cbor_encode_double, double);
+static append_cbor(append_cbor_text_stringz, cbor_encode_text_stringz, const char *);
+static append_cbor(append_cbor_boolean, cbor_encode_boolean, bool);
+static append_cbor(append_cbor_int, cbor_encode_int, int64_t);
+static append_cbor(append_cbor_uint, cbor_encode_uint, uint64_t);
+static append_cbor(append_cbor_double, cbor_encode_double, double);
 
-CborError append_cbor_bytes(CborEncoder *encoder, uint8_t *bytes, size_t length, int *should_flush) {
+static CborError append_cbor_bytes(CborEncoder *encoder, uint8_t *bytes, size_t length, int *should_flush) {
     CborError err;
-    uint8_t *ptr = encoder->ptr;
+    uint8_t *ptr = encoder->data.ptr;
     err = cbor_encode_byte_string(encoder, bytes, length);
     if (err == CborErrorOutOfMemory && !*should_flush) {
         *should_flush = 1;
-        encoder->ptr = ptr;
+        encoder->data.ptr = ptr;
         encoder->end = cbor_buf + cbor_size + cbor_reserve;
         err = cbor_encode_byte_string(encoder, bytes, length);
     }
@@ -129,11 +129,11 @@ CborError append_cbor_bytes(CborEncoder *encoder, uint8_t *bytes, size_t length,
 
 /*CborError append_cbor_text_stringz2(CborEncoder *encoder, const char *value, int *should_flush) {*/
 /*    CborError err;*/
-/*    uint8_t *ptr = encoder->ptr;*/
+/*    uint8_t *ptr = encoder->data.ptr;*/
 /*    err = cbor_encode_byte_string(encoder, bytes, length);*/
 /*    if (err == CborErrorOutOfMemory && !*should_flush) {*/
 /*        *should_flush = 1;*/
-/*        encoder->ptr = ptr;*/
+/*        encoder->data.ptr = ptr;*/
 /*        encoder->end = cbor_buf + cbor_size + cbor_reserve;*/
 /*        err = cbor_encode_byte_string(encoder, bytes, length);*/
 /*    }*/
@@ -142,34 +142,34 @@ CborError append_cbor_bytes(CborEncoder *encoder, uint8_t *bytes, size_t length,
 
 #define append_cbor_container(func, name) CborError func(CborEncoder *encoder, CborEncoder *container, size_t length, int *should_flush) { \
     CborError err; \
-    uint8_t *ptr = encoder->ptr; \
+    uint8_t *ptr = encoder->data.ptr; \
     err = name(encoder, container, length); \
     if (err == CborErrorOutOfMemory && !*should_flush) { \
         *should_flush = 1; \
-        encoder->ptr = ptr; \
+        encoder->data.ptr = ptr; \
         encoder->end = cbor_buf + cbor_size + cbor_reserve; \
         err = name(encoder, container, length); \
     } \
     return err; \
 }
 
-append_cbor_container(append_cbor_array, cbor_encoder_create_array);
-append_cbor_container(append_cbor_map, cbor_encoder_create_map);
+static append_cbor_container(append_cbor_array, cbor_encoder_create_array);
+static append_cbor_container(append_cbor_map, cbor_encoder_create_map);
 
-CborError close_cbor_container(CborEncoder *encoder, CborEncoder *container, int *should_flush) {
+static CborError close_cbor_container(CborEncoder *encoder, CborEncoder *container, int *should_flush) {
     CborError err;
-    uint8_t *ptr = encoder->ptr;
+    uint8_t *ptr = encoder->data.ptr;
     err = cbor_encoder_close_container_checked(encoder, container);
     if (err == CborErrorOutOfMemory && !*should_flush) {
         *should_flush = 1;
-        encoder->ptr = ptr;
+        encoder->data.ptr = ptr;
         encoder->end = cbor_buf + cbor_size + cbor_reserve;
         err = cbor_encoder_close_container_checked(encoder, container);
     }
     return err;
 }
 
-CborError cbor_ldns_rr_list(CborEncoder *encoder, ldns_rr_list *list, size_t count, int *should_flush) {
+static CborError cbor_ldns_rr_list(CborEncoder *encoder, ldns_rr_list *list, size_t count, int *should_flush) {
     CborError cbor_err = CborNoError;
     size_t n;
     ldns_buffer *dname;
