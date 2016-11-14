@@ -74,6 +74,7 @@ git clone https://github.com/DNS-OARC/dnscap.git
 cd dnscap
 git clone https://github.com/01org/tinycbor.git
 cd tinycbor
+git checkout v0.4
 make
 cd ..
 sh autogen.sh

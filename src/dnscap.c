@@ -143,6 +143,7 @@
 #include "isc/assertions.h"
 #include "dump_dns.h"
 #include "dump_cbor.h"
+#include "dump_cds.h"
 #include "options.h"
 #include "pcap-thread/pcap_thread.h"
 
@@ -751,7 +752,7 @@ help_2(void) {
 		"  -w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"  -W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
 		"  -k <cmd>   kick off <cmd> when each dump closes\n"
-		"  -F <format> dump format: pcap (default), cbor\n"
+		"  -F <format> dump format: pcap (default), cbor, cds\n"
 		"  -t <lim>   close dump or exit every/after <lim> secs\n"
 		"  -c <lim>   close dump or exit every/after <lim> pkts\n"
 		"  -C <lim>   close dump or exit every/after <lim> bytes captured\n"
@@ -986,6 +987,9 @@ parse_args(int argc, char *argv[]) {
 		    }
 		    else if (!strcmp(optarg, "cbor")) {
 		        options.dump_format = cbor;
+		    }
+		    else if (!strcmp(optarg, "cds")) {
+		        options.dump_format = cds;
 		    }
 		    else {
 		        usage("invalid output format for -F");
@@ -1244,6 +1248,13 @@ parse_args(int argc, char *argv[]) {
             usage("no built in cbor support");
         }
         cbor_set_size(options.cbor_chunk_size);
+    }
+    else if (options.dump_format == cds) {
+        if (!have_cds_support()) {
+            usage("no built in cds support");
+        }
+        cds_set_cbor_size(options.cds_cbor_size);
+        cds_set_message_size(options.cds_message_size);
     }
 }
 
@@ -2465,6 +2476,24 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
                 exit(1);
             }
         }
+        else if (options.dump_format == cds) {
+            int ret = output_cds(from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+
+            if (ret == DUMP_CDS_FLUSH) {
+                if (dumper_close(ts)) {
+                    fprintf(stderr, "%s: dumper_close() failed\n", ProgramName);
+                    exit(1);
+                }
+                if (dumper_open(ts)) {
+                    fprintf(stderr, "%s: dumper_open() failed\n", ProgramName);
+                    exit(1);
+                }
+            }
+            else if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+            }
+        }
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
@@ -2623,6 +2652,32 @@ dumper_close(my_bpftimeval ts) {
     	    fclose(fp);
     	}
 	}
+	else if (options.dump_format == cds) {
+	    int ret;
+
+    	if (dump_type == to_stdout) {
+    	    ret = dump_cds(stdout);
+
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	}
+    	else if (dump_type == to_file) {
+    	    FILE * fp;
+
+    	    if (!(fp = fopen(dumpnamepart, "w"))) {
+                fprintf(stderr, "%s: fopen(%s) failed: %s\n", ProgramName, dumpnamepart, strerror(errno));
+                exit(1);
+    	    }
+    	    ret = dump_cds(fp);
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	    fclose(fp);
+    	}
+	}
 
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
@@ -2653,7 +2708,7 @@ dumper_close(my_bpftimeval ts) {
 			    logerr("system: \"%s\" returned %d", cmd, x);
 			free(cmd);
 		}
-		if (kick_cmd == NULL)
+		if (kick_cmd == NULL && options.dump_format != cbor && options.dump_format != cds)
 			ret = TRUE;
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {

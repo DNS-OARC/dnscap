@@ -75,6 +75,20 @@ int option_parse(options_t * options, const char * option) {
             return 0;
         }
     }
+    else if (have("cds_cbor_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_cbor_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_message_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_message_size = s;
+            return 0;
+        }
+    }
     else if (have("dump_format")) {
         if (!strcmp(argument, "pcap")) {
             options->dump_format = pcap;
@@ -82,6 +96,10 @@ int option_parse(options_t * options, const char * option) {
         }
         else if (!strcmp(argument, "cbor")) {
             options->dump_format = cbor;
+            return 0;
+        }
+        else if (!strcmp(argument, "cds")) {
+            options->dump_format = cds;
             return 0;
         }
     }

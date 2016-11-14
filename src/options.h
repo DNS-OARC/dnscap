@@ -40,11 +40,14 @@
 typedef enum dump_format dump_format_t;
 enum dump_format {
     pcap,
-    cbor
+    cbor,
+    cds
 };
 
 #define OPTIONS_T_DEFAULTS { \
     1024 * 1024, \
+    1024 * 1024, \
+    64 * 1024, \
     pcap, \
     0, \
     0 \
@@ -53,6 +56,8 @@ enum dump_format {
 typedef struct options options_t;
 struct options {
     size_t          cbor_chunk_size;
+    size_t          cds_cbor_size;
+    size_t          cds_message_size;
     dump_format_t   dump_format;
     char *          user;
     char *          group;
