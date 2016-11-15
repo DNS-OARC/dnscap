@@ -64,6 +64,9 @@ except:
 
 class LastValues(object):
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.ts = None
         self.src_addr4 = None
         self.src_port4 = None
@@ -648,6 +651,36 @@ def main():
     for f in args:
         log.debug('file: %s', f)
         with open(f, 'rb') as fp:
+            obj = None
+            try:
+                obj = decoder.decode(fp)
+            except Exception as e:
+                if e.__str__().find("index out of range") == -1:
+                    raise
+            if not isinstance(obj, list):
+                raise Exception("Invalid element, expected an array but found: {}".format(type(obj)))
+
+            version = obj.pop(0)
+            if version != "CDSv1":
+                raise Exception("Invalid version, expected CDSv1 but got: {}".format(version))
+
+            while len(obj):
+                opt = obj.pop(0)
+                if not isinstance(opt, int):
+                    raise Exception("Invalid option, expected int but got: {}".format(type(opt)))
+                if opt == 0:
+                    MAX_RLABELS = obj.pop(0)
+                    if not isinstance(MAX_RLABELS, int) or MAX_RLABELS < 1:
+                        raise Exception("Invalid option for maximum rlabels, got: {}".format(MAX_RLABELS))
+                    log.debug("Using maximum rlabels {}".format(MAX_RLABELS))
+                elif opt == 1:
+                    MIN_RLABEL_SIZE = obj.pop(0)
+                    if not isinstance(MIN_RLABEL_SIZE, int) or MIN_RLABEL_SIZE < 1:
+                        raise Exception("Invalid option for minimum rlabel size, got: {}".format(MIN_RLABEL_SIZE))
+                    log.debug("Using minimum rlabel size {}".format(MIN_RLABEL_SIZE))
+                else:
+                    raise Exception("Unknown option: {}".format(opt))
+
             while True:
                 obj = None
                 try:
@@ -659,12 +692,9 @@ def main():
                     break
                 if not isinstance(obj, list):
                     raise Exception("Invalid element, expected an array but found: {}".format(type(obj)))
-                if not version:
-                    version = obj[0]
-                    if version != "CDSv1":
-                        raise Exception("Invalid version, expected CDSv1 but got: {}".format(version))
-                    continue
                 parse(obj)
+
+            last.reset()
 
 if __name__ == '__main__':
     main()

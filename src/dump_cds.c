@@ -1037,8 +1037,12 @@ int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned spo
         memset(&last, 0, sizeof(last));
 
         cbor_encoder_init(&cbor, message_buf, message_size, 0);
-        cbor_err = cbor_encoder_create_array(&cbor, &message, 1);
+        cbor_err = cbor_encoder_create_array(&cbor, &message, 5);
         if (cbor_err == CborNoError) cbor_err = cbor_encode_text_stringz(&message, "CDSv1");
+        if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RLABELS);
+        if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, MAX_RLABELS);
+        if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RLABEL_MIN_SIZE);
+        if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, MIN_RLABEL_SIZE);
         if (cbor_err == CborNoError) cbor_err = cbor_encoder_close_container_checked(&cbor, &message);
         if (cbor_err != CborNoError) {
             fprintf(stderr, "cbor error[%d]: %s\n", cbor_err, cbor_error_string(cbor_err));

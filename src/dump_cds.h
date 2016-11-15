@@ -51,6 +51,9 @@
 #define DUMP_CDS_ENOSUP     7
 #define DUMP_CDS_EBUF       8
 
+#define CDS_OPTION_RLABELS              0
+#define CDS_OPTION_RLABEL_MIN_SIZE      1
+
 typedef struct ip_header ip_header_t;
 struct ip_header {
     unsigned short is_v6 : 1;
