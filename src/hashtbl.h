@@ -32,60 +32,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+typedef struct _hashitem {
+	const void *key;
+	void *data;
+	struct _hashitem *next;
+} hashitem;
 
-#include "dump_cds.h"
+typedef unsigned int hashfunc(const void *key);
+typedef int hashkeycmp(const void *a, const void *b);
+typedef void hashfree(void *);
 
-#ifndef __dnscap_options_h
-#define __dnscap_options_h
+typedef struct {
+	unsigned int modulus;
+	hashitem **items;
+	hashfunc *hasher;
+	hashkeycmp *keycmp;
+	hashfree *datafree;
+	struct {
+		hashitem *next;
+		unsigned int slot;
+	} iter;
+} hashtbl;
 
-typedef enum dump_format dump_format_t;
-enum dump_format {
-    pcap,
-    cbor,
-    cds
-};
-
-#define OPTIONS_T_DEFAULTS { \
-    1024 * 1024, \
-\
-    1024 * 1024, \
-    64 * 1024, \
-    CDS_DEFAULT_MAX_RLABELS, \
-    CDS_DEFAULT_MIN_RLABEL_SIZE, \
-    0, \
-    CDS_DEFAULT_RDATA_INDEX_MIN_SIZE, \
-    0, \
-    CDS_DEFAULT_RDATA_RINDEX_SIZE, \
-    CDS_DEFAULT_RDATA_RINDEX_MIN_SIZE, \
-\
-    pcap, \
-\
-    0, \
-    0 \
-}
-
-typedef struct options options_t;
-struct options {
-    size_t          cbor_chunk_size;
-
-    size_t          cds_cbor_size;
-    size_t          cds_message_size;
-    size_t          cds_max_rlabels;
-    size_t          cds_min_rlabel_size;
-    int             cds_use_rdata_index;
-    size_t          cds_rdata_index_min_size;
-    int             cds_use_rdata_rindex;
-    size_t          cds_rdata_rindex_size;
-    size_t          cds_rdata_rindex_min_size;
-
-    dump_format_t   dump_format;
-
-    char *          user;
-    char *          group;
-};
-
-int option_parse(options_t * options, const char * option);
-void options_free(options_t * options);
-
-#endif /* __dnscap_options_h */
+hashtbl *hash_create(int N, hashfunc *, hashkeycmp *, hashfree *);
+int hash_add(const void *key, void *data, hashtbl *);
+void hash_remove(const void *key, hashtbl * tbl);
+void *hash_find(const void *key, hashtbl *);
+void hash_iter_init(hashtbl *);
+void *hash_iterate(hashtbl *);
+int hash_count(hashtbl *);
+void hash_free(hashtbl *);
+void hash_destroy(hashtbl *);

@@ -89,6 +89,53 @@ int option_parse(options_t * options, const char * option) {
             return 0;
         }
     }
+    else if (have("cds_max_rlabels")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_max_rlabels = s;
+            return 0;
+        }
+    }
+    else if (have("cds_min_rlabel_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_min_rlabel_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_use_rdata_index")) {
+        if (!strcmp(argument, "yes")) {
+            options->cds_use_rdata_index = 1;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_index_min_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_index_min_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_use_rdata_rindex")) {
+        if (!strcmp(argument, "yes")) {
+            options->cds_use_rdata_rindex = 1;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_rindex_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_rindex_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_rindex_min_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_rindex_min_size = s;
+            return 0;
+        }
+    }
     else if (have("dump_format")) {
         if (!strcmp(argument, "pcap")) {
             options->dump_format = pcap;

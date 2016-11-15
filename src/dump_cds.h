@@ -51,8 +51,18 @@
 #define DUMP_CDS_ENOSUP     7
 #define DUMP_CDS_EBUF       8
 
-#define CDS_OPTION_RLABELS              0
-#define CDS_OPTION_RLABEL_MIN_SIZE      1
+#define CDS_OPTION_RLABELS                  0
+#define CDS_OPTION_RLABEL_MIN_SIZE          1
+#define CDS_OPTION_RDATA_RINDEX_SIZE        2
+#define CDS_OPTION_RDATA_RINDEX_MIN_SIZE    3
+#define CDS_OPTION_USE_RDATA_INDEX          4
+#define CDS_OPTION_RDATA_INDEX_MIN_SIZE     5
+
+#define CDS_DEFAULT_MAX_RLABELS             255
+#define CDS_DEFAULT_MIN_RLABEL_SIZE         3
+#define CDS_DEFAULT_RDATA_INDEX_MIN_SIZE    5
+#define CDS_DEFAULT_RDATA_RINDEX_SIZE       255
+#define CDS_DEFAULT_RDATA_RINDEX_MIN_SIZE   5
 
 typedef struct ip_header ip_header_t;
 struct ip_header {
@@ -139,6 +149,8 @@ struct dns_rr {
     unsigned short have_rdlength : 1;
     unsigned short have_rdata : 1;
     unsigned short have_mixed_rdata : 1;
+    unsigned short have_rdata_index : 1;
+    unsigned short have_rdata_rindex : 1;
 
     size_t          labels;
     dns_label_t*    label;
@@ -151,6 +163,8 @@ struct dns_rr {
     uint8_t*        rdata;
     size_t          mixed_rdatas;
     dns_rdata_t*    mixed_rdata;
+    size_t          rdata_index;
+    size_t          rdata_rindex;
 };
 
 typedef struct dns dns_t;
@@ -189,6 +203,13 @@ struct dns {
 
 int cds_set_cbor_size(size_t size);
 int cds_set_message_size(size_t size);
+int cds_set_max_rlabels(size_t size);
+int cds_set_min_rlabel_size(size_t size);
+int cds_set_use_rdata_index(int use);
+int cds_set_use_rdata_rindex(int use);
+int cds_set_rdata_index_min_size(size_t size);
+int cds_set_rdata_rindex_min_size(size_t size);
+int cds_set_rdata_rindex_size(size_t size);
 int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char *pkt_copy, size_t olen, const u_char *payload, size_t payloadlen);
 int dump_cds();
 int have_cds_support();

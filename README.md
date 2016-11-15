@@ -107,6 +107,33 @@ Also note that we have observed significant memory leaks on FreeBSD
 1. reinstall the libbind port
 1. recompile and install dnscap
 
+## CBOR DNS Stream Format
+
+This is an experimental format for representing DNS information in CBOR
+with the goals to:
+- Be able to stream the information
+- Support incomplete, broken and/or invalid DNS
+- Have close to no data quality and signature degradation
+- Support additional non-DNS meta data (such as ICMP/TCP attributes)
+
+Read [CBOR_DNS_STREAM.md](https://github.com/DNS-OARC/dnscap/blob/develop/CBOR_DNS_STREAM.md) for more information.
+
+To enable this output please follow the instructions below for Enabling
+CBOR Output, note that this only requires Tinycbor.
+
+### Outputting to CBOR DNS Stream (CDS)
+
+To output to the CDS format you tell `dnscap` to write to a file and set
+the format to CDS.  CDS is a stream of CBOR objects and you can control how
+many objects are kept in memory until flushed to the file by setting
+`cds_cbor_size`, note that this is bytes of memory and not number of objects.
+When it reaches this limit it will write the output and start on a new file.
+Read `dnscap`'s man page for all CDS extended options.
+
+```
+src/dnscap [...] -w <file> -F cds [ -o cds_cbor_size=<bytes> ]
+```
+
 ## CBOR
 
 There is experimental support for CBOR output using LDNS and Tinycbor with
@@ -114,7 +141,7 @@ a data structure described in the DNS-in-JSON draft.
 
 https://datatracker.ietf.org/doc/draft-hoffman-dns-in-json/
 
-### Enabling CBOR output
+### Enabling CBOR Output
 
 To enable the CBOR output support you will need to install it's dependencies
 before running `configure`, LDNS exists for most distributions but Tinycbor
@@ -151,7 +178,7 @@ new file.  You can control the number of bytes with the extended option
 `cbor_chunk_size`.
 
 ```
-src/dnscap -w <file> -F cbor [ -o cbor_chunk_size=<bytes>]
+src/dnscap [...] -w <file> -F cbor [ -o cbor_chunk_size=<bytes> ]
 ```
 
 ### Additional attributes

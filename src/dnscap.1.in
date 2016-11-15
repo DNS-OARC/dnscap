@@ -432,6 +432,24 @@ as a short option.
 .It cbor_chunk_size=<bytes>
 Specify the number of bytes of CBOR to construct before flushing the output,
 must be a non zero positive number.
+.It cds_cbor_size=<bytes>
+Number of bytes of memory to use before flushing to file.
+.It cds_message_size=<bytes>
+Number of bytes of memory to use for each DNS packet.
+.It cds_max_rlabels=<num>
+Number of labels to keep in the reverse label index.
+.It cds_min_rlabel_size=<num>
+The minimum size of a label to be able to use the reverse label index.
+.It cds_use_rdata_index=yes
+Use the resource data index, default no.
+.It cds_rdata_index_min_size=<num>
+The minimum size of the data to be able to use the resource data index.
+.It cds_use_rdata_rindex=yes
+Use the resource data reverse index, default no.
+.It cds_rdata_rindex_size=<num>
+Number of resource data to keep in the resource data reverse index.
+.It cds_rdata_rindex_min_size=<num>
+The minimum size of the data to be able to use the resource data reverse index.
 .It dump_format=<format>
 Specify the output format to use, see OUTPUT FORMATS.
 .It user=<user>
@@ -445,6 +463,8 @@ The following output format are supported:
 .It cbor
 Uses tinycbor library to write CBOR objects that are based on DNS-in-JSON
 draft by Paul Hoffman.
+.It cds
+CBOR DNS Stream format.
 .It pcap
 This uses the pcap library to output the captured DNS packets.
 .El
