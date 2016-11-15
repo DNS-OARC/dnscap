@@ -108,7 +108,7 @@ how it should be decoded, see `Stream Options` for more information.
 ```
 [
     uint option_type,
-    any option_value
+    optional any option_value
 ]
 ```
 
@@ -370,7 +370,11 @@ An array mixed with resource data and compressed names.
 
 ## Stream Options
 
-TODO
+Each option is specified here as OptionName(OptionNumber) and optional
+OptionValue type.
+
+- `RLABELS(0) uint`: Indicates how many labels should be stored in the reverse index before discarding them
+- `RLABEL_MIN_SIZE(1) uint`: The minimum size a label must be to be put in the reverse label index
 
 ## Deduplication
 
