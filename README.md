@@ -1,6 +1,58 @@
-# dnscap README
+# dnscap
 
 [![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
+
+`dnscap` is a network capture utility designed specifically for DNS traffic.
+It produces binary data in `pcap(3)` and other format. This utility is similar
+to `tcpdump(1)`, but has a number of features tailored to DNS transactions
+and protocol options. DNS-OARC uses `dnscap` for DITL data collections.
+
+Some of its features include:
+- Understands both IPv4 and IPv6
+- Captures UDP, TCP, and IP fragments.
+- Collect only queries, responses, or both (`-s` option)
+- Collect for only certain source/destination addresses (`-a` `-z` `-A` `-Z` options)
+- Periodically creates new pcap files (`-t` option)
+- Spawns an upload script after closing a pcap file (`-k` option)
+- Will start and stop collecting at specific times (`-B` `-E` options)
+
+More information may be found here:
+- https://www.dns-oarc.net/tools/dnscap
+- https://www.dns-oarc.net/oarc/data/ditl
+
+Issues should be reported here:
+- https://github.com/DNS-OARC/dnscap/issues
+
+Mailinglist:
+- https://lists.dns-oarc.net/mailman/listinfo/dnscap-users
+
+## Dependencies
+
+`dnscap` has a non-optional dependency on the PCAP library and optional
+dependencies on LDNS and BIND library (see also Linking with libbind).
+
+To install the dependencies under Debian/Ubuntu:
+```
+apt-get install -y libpcap-dev libldns-dev libbind-dev
+```
+
+To install the dependencies under CentOS (with EPEL enabled):
+```
+yum install -y libpcap-devel ldns-devel bind-devel
+```
+
+For the following OS you will need to install some of the dependencies
+from source or Ports, these instructions are not included.
+
+To install some of the dependencies under FreeBSD 10+ (see also FreeBSD (and other BSDs?)):
+```
+pkg install -y libpcap ldns
+```
+
+To install some of the dependencies under OpenBSD 5+ (see also FreeBSD (and other BSDs?)):
+```
+pkg_add libldns
+```
 
 ## Building from Git repository
 
@@ -72,6 +124,7 @@ install it as shown in the example below.
 ```sh
 git clone https://github.com/DNS-OARC/dnscap.git
 cd dnscap
+git submodule update --init
 git clone https://github.com/01org/tinycbor.git
 cd tinycbor
 git checkout v0.4
