@@ -36,6 +36,7 @@
 
 #include "dump_cds.h"
 #include "dnscap.h"
+#include "hashtbl.h"
 
 #if HAVE_LIBTINYCBOR
 
@@ -103,10 +104,27 @@
 
 static uint8_t *cbor_buf = 0;
 static uint8_t *cbor_buf_p = 0;
-static size_t cbor_size = 128*1024;
+static size_t cbor_size = 1024*1024;
 static uint8_t *message_buf = 0;
 static size_t message_size = 64*1024;
 static int cbor_flushed = 1;
+static hashtbl* rdata_tbl = 0;
+static size_t MAX_RLABELS = CDS_DEFAULT_MAX_RLABELS;
+static size_t MIN_RLABEL_SIZE = CDS_DEFAULT_MIN_RLABEL_SIZE;
+static int use_rdata_index = 0;
+static int use_rdata_rindex = 0;
+static size_t RDATA_RINDEX_SIZE = CDS_DEFAULT_RDATA_RINDEX_SIZE;
+static size_t RDATA_RINDEX_MIN_SIZE = CDS_DEFAULT_RDATA_RINDEX_MIN_SIZE;
+static size_t RDATA_INDEX_MIN_SIZE = CDS_DEFAULT_RDATA_INDEX_MIN_SIZE;
+
+struct rdata;
+struct rdata {
+    struct rdata* prev;
+    struct rdata* next;
+    uint8_t* data;
+    size_t len;
+    size_t idx;
+};
 
 struct last {
     my_bpftimeval       ts;
@@ -119,11 +137,13 @@ struct last {
     dns_rlabel_t*       dns_rlabel;
     dns_rlabel_t*       dns_rlabel_last;
     size_t              dns_rlabels;
+
+    size_t              rdata_index;
+    size_t              rdata_num;
+    struct rdata*       rdata;
+    struct rdata*       rdata_last;
 };
 static struct last last;
-
-#define MAX_RLABELS 255
-#define MIN_RLABEL_SIZE 3
 
 /*
  * Set/Get
@@ -151,6 +171,68 @@ int cds_set_message_size(size_t size) {
     if (message_size > cbor_size) {
         message_size = cbor_size;
     }
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_max_rlabels(size_t size) {
+    if (!size) {
+        return DUMP_CDS_EINVAL;
+    }
+
+    MAX_RLABELS = size;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_min_rlabel_size(size_t size) {
+    if (!size) {
+        return DUMP_CDS_EINVAL;
+    }
+
+    MIN_RLABEL_SIZE = size;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_use_rdata_index(int use) {
+    use_rdata_index = use ? 1 : 0;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_use_rdata_rindex(int use) {
+    use_rdata_rindex = use ? 1 : 0;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_rdata_index_min_size(size_t size) {
+    if (!size) {
+        return DUMP_CDS_EINVAL;
+    }
+
+    RDATA_INDEX_MIN_SIZE = size;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_rdata_rindex_min_size(size_t size) {
+    if (!size) {
+        return DUMP_CDS_EINVAL;
+    }
+
+    RDATA_RINDEX_MIN_SIZE = size;
+
+    return DUMP_CDS_OK;
+}
+
+int cds_set_rdata_rindex_size(size_t size) {
+    if (!size) {
+        return DUMP_CDS_EINVAL;
+    }
+
+    RDATA_RINDEX_SIZE = size;
 
     return DUMP_CDS_OK;
 }
@@ -184,10 +266,214 @@ static int check_dns_label(size_t * labels, uint8_t ** p, size_t * l) {
     return 0;
 }
 
+static unsigned int rdata_hash(const struct rdata* item) {
+    size_t n, o, p;
+    unsigned int key = 0;
+
+    for (n = 0, o = 0, p = 0; n < item->len; n++) {
+        p |= item->data[n] << (o * 8);
+        o++;
+        if (o > 3) {
+            key ^= p;
+            p = 0;
+            o = 0;
+        }
+    }
+    if (o) {
+        key ^= p;
+    }
+
+    return key;
+}
+
+static unsigned int rdata_cmp(const struct rdata* a, const struct rdata* b) {
+    if (a->len == b->len) {
+        return memcmp(a->data, b->data, a->len);
+    }
+    else if (a->len < b->len)
+        return -1;
+    return 1;
+}
+
+static void rdata_free(struct rdata* item) {
+    if (item) {
+        if (item->data) {
+            free(item->data);
+        }
+        free(item);
+    }
+}
+
+static int rdata_add(uint8_t * p, size_t len) {
+    struct rdata* key;
+
+    if (len < RDATA_INDEX_MIN_SIZE)
+        return 1;
+
+    if (!(key = calloc(1, sizeof(struct rdata)))) {
+        return 0;
+    }
+    if (!(key->data = calloc(1, len))) {
+        free(key);
+        return 0;
+    }
+
+    key->len = len;
+    memcpy(key->data, p, len);
+    key->idx = last.rdata_index++;
+
+/*    printf("rdata_add  %u: ", rdata_hash(key));*/
+/*    {*/
+/*        size_t n = len;*/
+/*        uint8_t* x = p;*/
+/*        while (n--) {*/
+/*            printf("%02x", *x);*/
+/*            x++;*/
+/*        }*/
+/*    }*/
+/*    printf("\n");*/
+    hash_add(key, key, rdata_tbl);
+
+    return 0;
+}
+
+static size_t rdata_find(uint8_t * p, size_t len, size_t* found) {
+    struct rdata key;
+    struct rdata* r;
+
+    if (len < RDATA_INDEX_MIN_SIZE)
+        return 1;
+
+    key.data = p;
+    key.len = len;
+
+/*    printf("rdata_find %u: ", rdata_hash(&key));*/
+/*    {*/
+/*        size_t n = len;*/
+/*        uint8_t* x = p;*/
+/*        while (n--) {*/
+/*            printf("%02x", *x);*/
+/*            x++;*/
+/*        }*/
+/*    }*/
+/*    printf("\n");*/
+
+    if ((r = hash_find(&key, rdata_tbl))) {
+/*        printf("rdata found %lu at %lu\n", len, found->idx);*/
+        *found = r->idx;
+        return 0;
+    }
+
+    return 1;
+}
+
+
+int rdata_find2(uint8_t * p, size_t len, size_t* found) {
+    struct rdata* r = last.rdata;
+    size_t n = 0;
+
+    if (len < RDATA_RINDEX_MIN_SIZE)
+        return 1;
+
+    while (r) {
+        if (r->len == len && !memcmp(p, r->data, len)) {
+            break;
+        }
+        r = r->next;
+        n++;
+    }
+    if (r) {
+/*        printf("rdata found at %lu: ", n);*/
+/*        {*/
+/*            size_t n = len;*/
+/*            uint8_t* x = p;*/
+/*            while (n--) {*/
+/*                printf("%02x", *x);*/
+/*                x++;*/
+/*            }*/
+/*        }*/
+/*        printf("\n");*/
+
+        if (last.rdata != r) {
+            struct rdata* prev = r->prev, *next = r->next;
+
+            if (prev) {
+                prev->next = next;
+            }
+            if (next) {
+                next->prev = prev;
+            }
+
+            r->prev = 0;
+            r->next = last.rdata;
+            last.rdata->prev = r;
+            last.rdata = r;
+        }
+
+        *found = n;
+        return 0;
+    }
+
+    return 1;
+}
+
+int rdata_add2(uint8_t* p, size_t len) {
+    struct rdata* r;
+
+    if (len < RDATA_RINDEX_MIN_SIZE)
+        return 1;
+
+    if (!(r = calloc(1, sizeof(struct rdata)))) {
+        return -1;
+    }
+    if (!(r->data = calloc(1, len))) {
+        free(r);
+        return -1;
+    }
+
+    r->len = len;
+    memcpy(r->data, p, len);
+
+/*    printf("rdata_add: ");*/
+/*    {*/
+/*        size_t n = len;*/
+/*        uint8_t* x = p;*/
+/*        while (n--) {*/
+/*            printf("%02x", *x);*/
+/*            x++;*/
+/*        }*/
+/*    }*/
+/*    printf("\n");*/
+
+    if (last.rdata) {
+        last.rdata->prev = r;
+    }
+    r->next = last.rdata;
+    last.rdata = r;
+    last.rdata_num++;
+
+    if (last.rdata_last) {
+        if (last.rdata_num >= RDATA_RINDEX_SIZE) {
+            r = last.rdata_last;
+
+            last.rdata_last = r->prev;
+            last.rdata_last->next = 0;
+            last.rdata_num--;
+            free(r->data);
+            free(r);
+        }
+    }
+    else {
+        last.rdata_last = r;
+    }
+
+    return 0;
+}
+
 static int parse_dns_rr(char is_q, dns_rr_t* rr, size_t expected_rrs, size_t * actual_rrs, uint8_t ** p, size_t * l) {
     uint8_t len;
     uint8_t * p2;
-    size_t l2;
+    size_t l2, idx;
     dns_label_t* label;
     size_t num_labels, offset;
 
@@ -261,6 +547,23 @@ static int parse_dns_rr(char is_q, dns_rr_t* rr, size_t expected_rrs, size_t * a
             rr->rdata = *p;
             advancexb(rr->rdlength, *p, *l, "rdata");
 
+            if (use_rdata_index) {
+                if (!rdata_find(rr->rdata, rr->rdlength, &(rr->rdata_index))) {
+                    rr->have_rdata_index = 1;
+                }
+                else {
+                    rdata_add(rr->rdata, rr->rdlength);
+                }
+            }
+            else if (use_rdata_rindex) {
+                if (!rdata_find2(rr->rdata, rr->rdlength, &(rr->rdata_rindex))) {
+                    rr->have_rdata_rindex = 1;
+                }
+                else {
+                    rdata_add2(rr->rdata, rr->rdlength);
+                }
+            }
+
             num_labels = offset = 0;
             switch (rr->type) {
                 case 2: /* NS */
@@ -322,7 +625,7 @@ static int parse_dns_rr(char is_q, dns_rr_t* rr, size_t expected_rrs, size_t * a
                     need8(len, p2, l2, "naptr str len #2");
                     advancexb(len, p2, l2, "naptr str #2");
                     need8(len, p2, l2, "naptr str len #3");
-                    advancexb(len, p2, l2, "naptr str #4");
+                    advancexb(len, p2, l2, "naptr str #3");
                     offset = p2 - *p;
                     break;
 
@@ -716,7 +1019,7 @@ static size_t dns_rlabel_find(dns_label_t* label, size_t labels, size_t * rlabel
             }
 
             if (n2 == labels) {
-/*printf("found at %lu\n", n);*/
+/*printf("found at %lu: ", n); print_rlabel(rlabel); printf("\n");*/
                 break;
             }
         }
@@ -952,7 +1255,13 @@ CborError dns_build_rrs(CborEncoder* message, dns_rr_t* rr_list, size_t count) {
         if (rr->have_class && cbor_err == CborNoError) cbor_err = cbor_encode_uint(&item, rr->class);
         if (rr->have_ttl && cbor_err == CborNoError) cbor_err = cbor_encode_uint(&item, rr->ttl);
         if (rr->have_rdlength && cbor_err == CborNoError) cbor_err = cbor_encode_uint(&item, rr->rdlength);
-        if (rr->have_mixed_rdata) {
+        if (rr->have_rdata_index) {
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&item, rr->rdata_index);
+        }
+        else if (rr->have_rdata_rindex) {
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_negative_int(&item, rr->rdata_rindex);
+        }
+        else if (rr->have_mixed_rdata) {
             CborEncoder rdatas;
             size_t n2 = rr->mixed_rdatas;
             dns_rdata_t* rdata = rr->mixed_rdata;
@@ -1028,21 +1337,44 @@ int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned spo
     }
     if (cbor_flushed) {
         dns_rlabel_t* rlabel;
+        struct rdata* r;
 
         cbor_buf_p = cbor_buf;
-        if ((rlabel = last.dns_rlabel)) {
+        while ((rlabel = last.dns_rlabel)) {
             last.dns_rlabel = rlabel->next;
             free(rlabel);
         }
+        while ((r = last.rdata)) {
+            last.rdata = r->next;
+            rdata_free(r);
+        }
         memset(&last, 0, sizeof(last));
+        if (rdata_tbl) {
+            hash_free(rdata_tbl);
+            rdata_tbl = 0;
+        }
 
         cbor_encoder_init(&cbor, message_buf, message_size, 0);
-        cbor_err = cbor_encoder_create_array(&cbor, &message, 5);
+        cbor_err = cbor_encoder_create_array(&cbor, &message, 5
+            + ( use_rdata_index ? 3 : 0 )
+            + ( use_rdata_rindex ? 4 : 0 )
+        );
         if (cbor_err == CborNoError) cbor_err = cbor_encode_text_stringz(&message, "CDSv1");
         if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RLABELS);
         if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, MAX_RLABELS);
         if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RLABEL_MIN_SIZE);
         if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, MIN_RLABEL_SIZE);
+        if (use_rdata_index) {
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_USE_RDATA_INDEX);
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RDATA_INDEX_MIN_SIZE);
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, RDATA_INDEX_MIN_SIZE);
+        }
+        else if (use_rdata_rindex) {
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RDATA_RINDEX_SIZE);
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, RDATA_RINDEX_SIZE);
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, CDS_OPTION_RDATA_RINDEX_MIN_SIZE);
+            if (cbor_err == CborNoError) cbor_err = cbor_encode_uint(&message, RDATA_RINDEX_MIN_SIZE);
+        }
         if (cbor_err == CborNoError) cbor_err = cbor_encoder_close_container_checked(&cbor, &message);
         if (cbor_err != CborNoError) {
             fprintf(stderr, "cbor error[%d]: %s\n", cbor_err, cbor_error_string(cbor_err));
@@ -1059,6 +1391,9 @@ int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned spo
         cbor_buf_p += cbor_encoder_get_buffer_size(&cbor, message_buf);
 
         cbor_flushed = 0;
+    }
+    if (!rdata_tbl) {
+        rdata_tbl = hash_create(64*1024, (hashfunc*)rdata_hash, (hashkeycmp*)rdata_cmp, (hashfree*)rdata_free);
     }
 
     /*
@@ -1501,6 +1836,34 @@ int cds_set_cbor_size(size_t size) {
 }
 
 int cds_set_message_size(size_t size) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_max_rlabels(size_t size) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_min_rlabel_size(size_t size) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_use_rdata_index(int use) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_use_rdata_rindex(int use) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_rdata_index_min_size(size_t size) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_rdata_rindex_min_size(size_t size) {
+    return DUMP_CDS_ENOSUP;
+}
+
+int cds_set_rdata_rindex_size(size_t size) {
     return DUMP_CDS_ENOSUP;
 }
 

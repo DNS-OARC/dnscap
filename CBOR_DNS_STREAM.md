@@ -373,8 +373,12 @@ An array mixed with resource data and compressed names.
 Each option is specified here as OptionName(OptionNumber) and optional
 OptionValue type.
 
-- `RLABELS(0) uint`: Indicates how many labels should be stored in the reverse index before discarding them
+- `RLABELS(0) uint`: Indicates how many labels should be stored in the reverse label index before discarding them
 - `RLABEL_MIN_SIZE(1) uint`: The minimum size a label must be to be put in the reverse label index
+- `RDATA_RINDEX_SIZE(2) uint`: Indicates how many rdata should be stored in the reverse rdata index before discarding them
+- `RDATA_RINDEX_MIN_SIZE(3) uint`: The minimum size a rdata must be to be put in the reverse rdata index
+- `USE_RDATA_INDEX(4)`: If present then the stream uses rdata indexing
+- `RDATA_INDEX_MIN_SIZE(5) uint`: The minimum size a rdata must be to be put in the rdata index
 
 ## Deduplication
 

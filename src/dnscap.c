@@ -1255,6 +1255,16 @@ parse_args(int argc, char *argv[]) {
         }
         cds_set_cbor_size(options.cds_cbor_size);
         cds_set_message_size(options.cds_message_size);
+        cds_set_max_rlabels(options.cds_max_rlabels);
+        cds_set_min_rlabel_size(options.cds_min_rlabel_size);
+        if (options.cds_use_rdata_index && options.cds_use_rdata_rindex) {
+            usage("can't use both CDS rdata index and rindex");
+        }
+        cds_set_use_rdata_index(options.cds_use_rdata_index);
+        cds_set_use_rdata_rindex(options.cds_use_rdata_rindex);
+        cds_set_rdata_index_min_size(options.cds_rdata_index_min_size);
+        cds_set_rdata_rindex_min_size(options.cds_rdata_rindex_min_size);
+        cds_set_rdata_rindex_size(options.cds_rdata_rindex_size);
     }
 }
 
