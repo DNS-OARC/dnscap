@@ -360,6 +360,7 @@ static endpoint_list initiators, not_initiators;
 static endpoint_list responders, not_responders;
 static endpoint_list drop_responders;		/* drops only responses from these hosts */
 static myregex_list myregexes;
+static int only_neg_regex = TRUE;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
@@ -1119,7 +1120,12 @@ parse_args(int argc, char *argv[]) {
 					 	errbuf, sizeof errbuf);
 					usage(errbuf);
 				}
-				myregex->not = (ch == 'X');
+				if (ch == 'X') {
+					myregex->not = TRUE;
+				} else {
+					myregex->not = FALSE;
+					only_neg_regex = FALSE;
+				}
 				APPEND(myregexes, myregex, link);
 			}
 #else
@@ -2461,12 +2467,16 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			discard(tcpstate, "failed parse");
 			return;
 		}
+		// Look at each section of the message:
+		//     question, answer, authority, additional
 		for (s = ns_s_qd; s < ns_s_max && !match; s++) {
 			char pres[SNAPLEN*4];
 			const char *look;
 			int count, n;
 			ns_rr rr;
 
+			// Look at each RR in the section (or each QNAME in
+			// the question section).
 			count = ns_msg_count(msg, s);
 			for (n = 0; n < count && !negmatch; n++) {
 				myregex_ptr myregex;
@@ -2508,6 +2518,11 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 					}
 				}
 			}
+		}
+		// If we only have negative regular expressions, and we have
+		// not matched any of them, then consider this a match.
+		if (only_neg_regex && !negmatch) {
+			match = TRUE;
 		}
 		if (!match) {
 			discard(tcpstate, "failed regex match");

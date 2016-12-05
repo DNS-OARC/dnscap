@@ -302,19 +302,6 @@ options are provided, then DNS messages matching these patterns will not
 be selected.  See the description of
 .Fl x
 above.
-.Pp
-NOTE: for reasons lost to the mists of time, it seems that
-.Fl X
-only takes effect when
-.Fl x
-is also used.  If you use
-.Fl X
-alone, you'll get no output.  Thus, you should at least use "-x ."
-to initially match all queries and then exclude certain patterns with
-.Fl X.
-Users of the
-.Fl X
-option should be advised that this behavior could change in future versions.
 .It Fl y
 Enable Linux seccomp-bpf sandbox if available (compile option).
 .It Fl S
