@@ -360,7 +360,6 @@ static endpoint_list initiators, not_initiators;
 static endpoint_list responders, not_responders;
 static endpoint_list drop_responders;		/* drops only responses from these hosts */
 static myregex_list myregexes;
-static int only_neg_regex = TRUE;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
@@ -1120,12 +1119,7 @@ parse_args(int argc, char *argv[]) {
 					 	errbuf, sizeof errbuf);
 					usage(errbuf);
 				}
-				if (ch == 'X') {
-					myregex->not = TRUE;
-				} else {
-					myregex->not = FALSE;
-					only_neg_regex = FALSE;
-				}
+				myregex->not = (ch == 'X');
 				APPEND(myregexes, myregex, link);
 			}
 #else
@@ -2461,24 +2455,24 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		ns_msg msg;
 		ns_sect s;
 
-		match = FALSE;
-		negmatch = FALSE;
+		match = -1;
+		negmatch = -1;
 		if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
 			discard(tcpstate, "failed parse");
 			return;
 		}
-		// Look at each section of the message:
-		//     question, answer, authority, additional
-		for (s = ns_s_qd; s < ns_s_max && !match; s++) {
+		/* Look at each section of the message:
+		     question, answer, authority, additional */
+		for (s = ns_s_qd; s < ns_s_max; s++) {
 			char pres[SNAPLEN*4];
 			const char *look;
 			int count, n;
 			ns_rr rr;
 
-			// Look at each RR in the section (or each QNAME in
-			// the question section).
+			/* Look at each RR in the section (or each QNAME in
+			   the question section). */
 			count = ns_msg_count(msg, s);
-			for (n = 0; n < count && !negmatch; n++) {
+			for (n = 0; n < count; n++) {
 				myregex_ptr myregex;
 
 				if (ns_parserr(&msg, s, n, &rr) < 0) {
@@ -2497,21 +2491,28 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 					look = pres;
 				}
 				for (myregex = HEAD(myregexes);
-				     myregex != NULL && !negmatch;
+				     myregex != NULL;
 				     myregex = NEXT(myregex, link)) {
-					if (((!match) || myregex->not) &&
-					    regexec(&myregex->reg, look,
-						    0, NULL, 0) == 0)
-					{
-						if (myregex->not) {
-							negmatch = TRUE;
-							match = FALSE;
-						} else
-							match = TRUE;
+				    if (myregex->not) {
+				        if (negmatch < 0)
+				            negmatch = 0;
+				    }
+				    else {
+				        if (match < 0)
+				            match = 0;
+				    }
+
+					if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
+						if (myregex->not)
+							negmatch++;
+						else
+							match++;
+
 						if (dumptrace >= 2)
 							fprintf(stderr,
-						   "; \"%s\" ~ /%s/ %d %d\n",
+						   "; \"%s\" %s~ /%s/ %d %d\n",
 								look,
+								myregex->not ? "!" : "",
 								myregex->str,
 								match,
 								negmatch);
@@ -2519,12 +2520,11 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 				}
 			}
 		}
-		// If we only have negative regular expressions, and we have
-		// not matched any of them, then consider this a match.
-		if (only_neg_regex && !negmatch) {
-			match = TRUE;
-		}
-		if (!match) {
+		/*
+		 * Fail if any negative matching or if no match, match can be -1 which
+		 * indicates that there are only negative matching
+		 */
+		if (negmatch > 0 || match == 0) {
 			discard(tcpstate, "failed regex match");
 			return;
 		}

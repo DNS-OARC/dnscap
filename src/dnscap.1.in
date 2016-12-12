@@ -290,7 +290,9 @@ options are provided, then DNS messages will only be selected if the
 printable representation of the QNAME or any RR matches at least one of the
 provided
 .Ar pat
-patterns.  See
+patterns.  For negative matching see
+.Fl X
+below.  See
 .Xr regex 3
 and
 .Xr re_format 7
@@ -299,9 +301,13 @@ for more information about extended regular expression syntax.
 If one or more
 .Fl X
 options are provided, then DNS messages matching these patterns will not
-be selected.  See the description of
+be selected.  See also the description of
 .Fl x
-above.
+above.  If both options are used then the message must first be matched by
+.Fl x
+and then not matched by all
+.Fl X
+regex.
 .It Fl y
 Enable Linux seccomp-bpf sandbox if available (compile option).
 .It Fl S
