@@ -1,0 +1,55 @@
+Name:           dnscap
+Version:        1.2.0
+Release:        1%{?dist}
+Summary:        Network capture utility designed specifically for DNS traffic
+
+License:        BSD-3-Clause
+URL:            https://www.dns-oarc.net/tools/dnscap
+# Using same naming as to build debs, get the source (and rename it) at
+# https://www.dns-oarc.net/tools/dnscap and change %setup
+Source0:        %{name}_%{version}.orig.tar.gz
+
+BuildRequires:  libpcap-devel
+BuildRequires:  ldns-devel
+BuildRequires:  openssl-devel
+BuildRequires:  autoconf
+BuildRequires:  automake
+BuildRequires:  libtool
+
+%description
+dnscap is a network capture utility designed specifically for DNS
+traffic. It produces binary data in pcap(3) format. This utility
+is similar to tcpdump(1), but has a number of features tailored
+to DNS transactions and protocol options.
+
+
+%prep
+%setup -q -n %{name}_%{version}
+
+
+%build
+sh autogen.sh
+%configure
+make %{?_smp_mflags}
+
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root)
+%{_bindir}/*
+%{_datadir}/doc/*
+%{_mandir}/man1/*
+%{_libdir}/*
+
+
+%changelog
+* Thu Dec 15 2016 Jerry Lundström <lundstrom.jerry@gmail.com> 1.2.0-1
+- Initial package
