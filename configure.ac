@@ -43,7 +43,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_CANONICAL_HOST
-AM_PROG_AR
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([disable-static])
 
 # pcap_thread
@@ -91,33 +91,33 @@ AC_CHECK_FUNCS([snprintf])
 AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid])
 AC_CHECK_FUNC([ns_initparse],
     [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
-    AC_CHECK_FUNC(__ns_initparse,
+    [AC_CHECK_FUNC(__ns_initparse,
         [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])]
-    )
+    )]
 )
 AC_CHECK_FUNC([ns_parserr],
     [AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])],
-    AC_CHECK_FUNC(__ns_parserr,
+    [AC_CHECK_FUNC(__ns_parserr,
         [AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])]
-    )
+    )]
 )
 AC_CHECK_FUNC([ns_sprintrr],
     [AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])],
-    AC_CHECK_FUNC(__ns_sprintrr,
+    [AC_CHECK_FUNC(__ns_sprintrr,
         [AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]
-    )
+    )]
 )
 AC_CHECK_FUNC([ns_name_uncompress],
     [AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])],
-    AC_CHECK_FUNC(__ns_name_uncompress,
+    [AC_CHECK_FUNC(__ns_name_uncompress,
         [AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])]
-    )
+    )]
 )
 AC_CHECK_FUNC([p_rcode],
     [AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])],
-    AC_CHECK_FUNC(__p_rcode,
+    [AC_CHECK_FUNC(__p_rcode,
         [AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])]
-    )
+    )]
 )
 AC_CHECK_FUNCS([__assertion_failed])
 
