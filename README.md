@@ -44,21 +44,34 @@ yum install -y libpcap-devel ldns-devel bind-devel
 For the following OS you will need to install some of the dependencies
 from source or Ports, these instructions are not included.
 
-To install some of the dependencies under FreeBSD 10+ (see also FreeBSD (and other BSDs?)):
+To install some of the dependencies under FreeBSD 10+ using `pkg`:
 ```
 pkg install -y libpcap ldns
 ```
 
-To install some of the dependencies under OpenBSD 5+ (see also FreeBSD (and other BSDs?)):
+To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
 pkg_add libldns
+```
+
+## Building from source tarball
+
+The source tarball from DNS-OARC comes prepared with `configure`:
+
+```
+tar zxvf dnscap-version.tar.gz
+cd dnscap-version
+./configure [optiona]
+make
+make install
 ```
 
 ## Building from Git repository
 
 If you are building `dnscap` from it's Git repository you will first need
 to initiate the Git submodules that exists and later create autoconf/automake
-files.
+files, this will require a build environment with Autoconf, Automake and
+Libtool to be installed.
 
 ```
 git clone https://github.com/DNS-OARC/dnscap.git
@@ -66,6 +79,8 @@ cd dnscap
 git submodule update --init
 ./autogen.sh
 ./configure [options]
+make
+make install
 ```
 
 ## Linking with libbind
