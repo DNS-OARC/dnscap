@@ -223,7 +223,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define FALSE		0
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 #define MAX_TCP_WINDOW	(0xFFFF << 14)
-#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
+#define MEM_MAX		20000000000		/* SETTING MAX MEMORY USAGE TO 2GB */
 
 /* Data structures. */
 
@@ -389,8 +389,8 @@ static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 static uint64_t pcap_drops = 0;
 static my_bpftimeval last_ts = {0,0};
-static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
-static int mem_limit_set = 1; // Should be configurable
+static unsigned long long mem_limit = (unsigned) MEM_MAX; /* process memory limit */
+static int mem_limit_set = 1; /* TODO: Should be configurable */
 const char DROPTOUSER[] = "nobody";
 static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
 static int only_offline_pcaps = TRUE;
@@ -474,7 +474,9 @@ drop_privileges(void)
 	const char * user;
 	struct group * grp = 0;
 
-	// Security: getting UID and GUID for nobody
+	/*
+	 * Security: getting UID and GUID for nobody
+	 */
 	pwdBufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
 	if (pwdBufSize == -1)
 		pwdBufSize = 16384;
@@ -514,7 +516,9 @@ drop_privileges(void)
 	memset(pwdBuf, 0, pwdBufSize);
 	free(pwdBuf);
 
-	// Security section: setting memory limit and dropping privileges to nobody
+	/*
+	 * Security section: setting memory limit and dropping privileges to nobody
+	 */
 	getrlimit(RLIMIT_DATA, &rss);
 	if (mem_limit_set){
 		rss.rlim_cur = mem_limit;
@@ -559,7 +563,9 @@ drop_privileges(void)
 	}
 #endif
 
-	// Testing if privileges are dropped
+	/*
+	 * Testing if privileges are dropped
+	 */
 	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
 		fprintf(stderr, "Able to restore back to root, exiting.\n");
 		fprintf(stderr, "currentUID:%u currentGID:%u\n", getuid(), getgid());
@@ -576,14 +582,20 @@ drop_privileges(void)
 		return;
 	}
 
-	// Setting SCMP_ACT_TRAP means the process will get
-	// a SIGSYS signal when a bad syscall is executed
-	// This is for debugging and should be monitored.
-	//scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+	/*
+	 * Setting SCMP_ACT_TRAP means the process will get
+	 * a SIGSYS signal when a bad syscall is executed
+	 * This is for debugging and should be monitored.
+	 */
+#if 0
+	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+#endif
 
-	// SCMP_ACT_KILL tells the kernel to kill the process
-	// when a syscall we did not filter on is called.
-	// This should be uncommented in production.
+	/*
+	 * SCMP_ACT_KILL tells the kernel to kill the process
+	 * when a syscall we did not filter on is called.
+	 * This should be uncommented in production.
+	 */
 	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
 
 	if(ctx == NULL) {
@@ -1790,7 +1802,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const cha
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, skip it
+        /*
+         * If there is no VLAN matching the packet, skip it
+         */
 		if (vl == NULL)
 			return;
 	}
@@ -1802,8 +1816,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const cha
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, and the packet is
-        // tagged, skip it
+        /*
+         * If there is no VLAN matching the packet, and the packet is tagged, skip it
+         */
 		if (vl == NULL && vlan != MAX_VLAN)
 			return;
 	}
