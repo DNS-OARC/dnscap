@@ -32,6 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include "options.h"
 
 #include <string.h>
@@ -73,6 +75,67 @@ int option_parse(options_t * options, const char * option) {
             return 0;
         }
     }
+    else if (have("cds_cbor_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_cbor_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_message_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_message_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_max_rlabels")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_max_rlabels = s;
+            return 0;
+        }
+    }
+    else if (have("cds_min_rlabel_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_min_rlabel_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_use_rdata_index")) {
+        if (!strcmp(argument, "yes")) {
+            options->cds_use_rdata_index = 1;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_index_min_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_index_min_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_use_rdata_rindex")) {
+        if (!strcmp(argument, "yes")) {
+            options->cds_use_rdata_rindex = 1;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_rindex_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_rindex_size = s;
+            return 0;
+        }
+    }
+    else if (have("cds_rdata_rindex_min_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->cds_rdata_rindex_min_size = s;
+            return 0;
+        }
+    }
     else if (have("dump_format")) {
         if (!strcmp(argument, "pcap")) {
             options->dump_format = pcap;
@@ -82,7 +145,40 @@ int option_parse(options_t * options, const char * option) {
             options->dump_format = cbor;
             return 0;
         }
+        else if (!strcmp(argument, "cds")) {
+            options->dump_format = cds;
+            return 0;
+        }
+    }
+    else if (have("user")) {
+        if (options->user) {
+            free(options->user);
+        }
+        if ((options->user = strdup(argument))) {
+            return 0;
+        }
+    }
+    else if (have("group")) {
+        if (options->group) {
+            free(options->group);
+        }
+        if ((options->group = strdup(argument))) {
+            return 0;
+        }
     }
 
     return 1;
+}
+
+void options_free(options_t * options) {
+    if (options) {
+        if (options->user) {
+            free(options->user);
+            options->user = 0;
+        }
+        if (options->group) {
+            free(options->group);
+            options->group = 0;
+        }
+    }
 }

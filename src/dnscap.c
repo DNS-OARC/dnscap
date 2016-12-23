@@ -50,6 +50,9 @@
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#if HAVE_PTHREAD
+#include <pthread.h>
+#endif
 
 #ifdef __linux__
 # define __FAVOR_BSD
@@ -132,16 +135,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <grp.h>
+
+#include "dnscap_common.h"
+#include "dnscap.h"
+#define ISC_CHECK_NONE 1
+#include "isc/list.h"
+#include "isc/assertions.h"
+#include "dump_dns.h"
+#include "dump_cbor.h"
+#include "dump_cds.h"
+#include "options.h"
+#include "pcap-thread/pcap_thread.h"
 
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
 #endif
-
-#include "dnscap_common.h"
-#include "dnscap.h"
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -152,16 +163,6 @@ extern char *strptime(const char *, const char *, struct tm *);
 	    ; \
 	(cp) += NS_INT32SZ; \
 } while (0)
-
-#define ISC_CHECK_NONE 1
-
-#include "isc/list.h"
-#include "isc/assertions.h"
-#include "dump_dns.h"
-#include "dump_cbor.h"
-#include "options.h"
-
-#include "pcap-thread/pcap_thread.h"
 
 /* Constants. */
 
@@ -225,7 +226,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define FALSE		0
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 #define MAX_TCP_WINDOW	(0xFFFF << 14)
-#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
+#define MEM_MAX		20000000000		/* SETTING MAX MEMORY USAGE TO 2GB */
 
 /* Data structures. */
 
@@ -323,6 +324,9 @@ static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
 static void sigclose(int);
 static void sigbreak(int);
+#if HAVE_PTHREAD
+static void *sigthread(void * arg);
+#endif
 static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
 static void drop_privileges(void);
@@ -391,8 +395,8 @@ static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
 static uint64_t pcap_drops = 0;
 static my_bpftimeval last_ts = {0,0};
-static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
-static int mem_limit_set = 1; // Should be configurable
+static unsigned long long mem_limit = (unsigned) MEM_MAX; /* process memory limit */
+static int mem_limit_set = 1; /* TODO: Should be configurable */
 const char DROPTOUSER[] = "nobody";
 static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
 static int only_offline_pcaps = TRUE;
@@ -424,10 +428,6 @@ main(int argc, char *argv[]) {
 	if (dump_type == to_stdout)
 		dumper_open(now);
 	INIT_LIST(tcpstates);
-	setsig(SIGHUP, TRUE);
-	setsig(SIGINT, TRUE);
-	setsig(SIGALRM, FALSE);
-	setsig(SIGTERM, TRUE);
 
     if (!dont_drop_privileges && !only_offline_pcaps) {
         drop_privileges();
@@ -444,6 +444,60 @@ main(int argc, char *argv[]) {
 		dumpstart = time(NULL);
 	if (background)
 		daemonize();
+
+    /*
+     * Defer signal setup until we have dropped privileges and daemonized,
+     * otherwise signals might not reach us because different threads
+     * are running under different users/access
+     */
+#if HAVE_PTHREAD
+    {
+        sigset_t set;
+        int err;
+        pthread_t thread;
+
+        sigfillset(&set);
+        if ((err = pthread_sigmask(SIG_BLOCK, &set, 0))) {
+            logerr("pthread_sigmask: %s", strerror(err));
+            exit(1);
+        }
+
+        sigemptyset(&set);
+        sigaddset(&set, SIGHUP);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGALRM);
+        sigaddset(&set, SIGTERM);
+        sigaddset(&set, SIGQUIT);
+
+        if ((err = pthread_create(&thread, 0, &sigthread, (void*)&set))) {
+            logerr("pthread_create: %s", strerror(err));
+            exit(1);
+        }
+    }
+#else
+    {
+        sigset_t set;
+
+        sigfillset(&set);
+        sigdelset(&set, SIGHUP);
+        sigdelset(&set, SIGINT);
+        sigdelset(&set, SIGALRM);
+        sigdelset(&set, SIGTERM);
+        sigdelset(&set, SIGQUIT);
+
+        if (sigprocmask(SIG_BLOCK, &set, 0)) {
+            logerr("sigprocmask: %s", strerror(errno));
+            exit(1);
+        }
+    }
+
+	setsig(SIGHUP, TRUE);
+	setsig(SIGINT, TRUE);
+	setsig(SIGALRM, FALSE);
+	setsig(SIGTERM, TRUE);
+	setsig(SIGQUIT, TRUE);
+#endif
+
 	while (!main_exit)
 		poll_pcaps();
 	/* close PCAPs after dumper_close() to have statistics still available during dumper_close() */
@@ -454,6 +508,7 @@ main(int argc, char *argv[]) {
 		if (p->stop)
 			(*p->stop)();
 	}
+	options_free(&options);
 	exit(0);
 }
 
@@ -472,8 +527,12 @@ drop_privileges(void)
 	uid_t oldGID = getgid();
 	uid_t dropUID;
 	gid_t dropGID;
+	const char * user;
+	struct group * grp = 0;
 
-	// Security: getting UID and GUID for nobody
+	/*
+	 * Security: getting UID and GUID for nobody
+	 */
 	pwdBufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
 	if (pwdBufSize == -1)
 		pwdBufSize = 16384;
@@ -484,10 +543,23 @@ drop_privileges(void)
 		exit(1);
 	}
 
-	s = getpwnam_r(DROPTOUSER, &pwd, pwdBuf, pwdBufSize, &result);
+    user = options.user ? options.user : DROPTOUSER;
+    if (options.group) {
+        if (!(grp = getgrnam(options.group))) {
+            if (errno) {
+                fprintf(stderr, "Unable to get group %s: %s\n", options.group, strerror(errno));
+            }
+            else {
+                fprintf(stderr, "Group %s not found, existing.\n", options.group);
+            }
+            exit(1);
+        }
+    }
+
+	s = getpwnam_r(user, &pwd, pwdBuf, pwdBufSize, &result);
 	if (result == NULL) {
 		if (s == 0) {
-			fprintf(stderr, "User %s not found, exiting.\n", DROPTOUSER);
+			fprintf(stderr, "User %s not found, exiting.\n", user);
 			exit(1);
 		}else {
 			fprintf(stderr, "issue with getpwnnam_r call, exiting.\n");
@@ -496,11 +568,13 @@ drop_privileges(void)
 	}
 
 	dropUID = pwd.pw_uid;
-	dropGID = pwd.pw_gid;
+	dropGID = grp ? grp->gr_gid : pwd.pw_gid;
 	memset(pwdBuf, 0, pwdBufSize);
 	free(pwdBuf);
 
-	// Security section: setting memory limit and dropping privilleges to nobody
+	/*
+	 * Security section: setting memory limit and dropping privileges to nobody
+	 */
 	getrlimit(RLIMIT_DATA, &rss);
 	if (mem_limit_set){
 		rss.rlim_cur = mem_limit;
@@ -513,39 +587,41 @@ drop_privileges(void)
 
 #if HAVE_SETRESGID
 	if (setresgid(dropGID, dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETREGID
 	if (setregid(dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETEGID
 	if (setegid(dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #endif
 
 #if HAVE_SETRESUID
 	if (setresuid(dropUID, dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETREUID
 	if (setreuid(dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETEUID
 	if (seteuid(dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #endif
 
-	// Testing if privileges are dropped
+	/*
+	 * Testing if privileges are dropped
+	 */
 	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
 		fprintf(stderr, "Able to restore back to root, exiting.\n");
 		fprintf(stderr, "currentUID:%u currentGID:%u\n", getuid(), getgid());
@@ -562,14 +638,20 @@ drop_privileges(void)
 		return;
 	}
 
-	// Setting SCMP_ACT_TRAP means the process will get
-	// a SIGSYS signal when a bad syscall is executed
-	// This is for debugging and should be monitored.
-	//scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+	/*
+	 * Setting SCMP_ACT_TRAP means the process will get
+	 * a SIGSYS signal when a bad syscall is executed
+	 * This is for debugging and should be monitored.
+	 */
+#if 0
+	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+#endif
 
-	// SCMP_ACT_KILL tells the kernel to kill the process
-	// when a syscall we did not filter on is called.
-	// This should be uncommented in production.
+	/*
+	 * SCMP_ACT_KILL tells the kernel to kill the process
+	 * when a syscall we did not filter on is called.
+	 * This should be uncommented in production.
+	 */
 	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
 
 	if(ctx == NULL) {
@@ -738,7 +820,7 @@ help_2(void) {
 		"  -w <base>  dump to <base>.<timesec>.<timeusec>\n"
 		"  -W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
 		"  -k <cmd>   kick off <cmd> when each dump closes\n"
-		"  -F <format> dump format: pcap (default), cbor\n"
+		"  -F <format> dump format: pcap (default), cbor, cds\n"
 		"  -t <lim>   close dump or exit every/after <lim> secs\n"
 		"  -c <lim>   close dump or exit every/after <lim> pkts\n"
 		"  -C <lim>   close dump or exit every/after <lim> bytes captured\n"
@@ -973,6 +1055,9 @@ parse_args(int argc, char *argv[]) {
 		    }
 		    else if (!strcmp(optarg, "cbor")) {
 		        options.dump_format = cbor;
+		    }
+		    else if (!strcmp(optarg, "cds")) {
+		        options.dump_format = cds;
 		    }
 		    else {
 		        usage("invalid output format for -F");
@@ -1231,6 +1316,23 @@ parse_args(int argc, char *argv[]) {
             usage("no built in cbor support");
         }
         cbor_set_size(options.cbor_chunk_size);
+    }
+    else if (options.dump_format == cds) {
+        if (!have_cds_support()) {
+            usage("no built in cds support");
+        }
+        cds_set_cbor_size(options.cds_cbor_size);
+        cds_set_message_size(options.cds_message_size);
+        cds_set_max_rlabels(options.cds_max_rlabels);
+        cds_set_min_rlabel_size(options.cds_min_rlabel_size);
+        if (options.cds_use_rdata_index && options.cds_use_rdata_rindex) {
+            usage("can't use both CDS rdata index and rindex");
+        }
+        cds_set_use_rdata_index(options.cds_use_rdata_index);
+        cds_set_use_rdata_rindex(options.cds_use_rdata_rindex);
+        cds_set_rdata_index_min_size(options.cds_rdata_index_min_size);
+        cds_set_rdata_rindex_min_size(options.cds_rdata_rindex_min_size);
+        cds_set_rdata_rindex_size(options.cds_rdata_rindex_size);
     }
 }
 
@@ -1756,7 +1858,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const cha
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, skip it
+        /*
+         * If there is no VLAN matching the packet, skip it
+         */
 		if (vl == NULL)
 			return;
 	}
@@ -1768,8 +1872,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const cha
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, and the packet is
-        // tagged, skip it
+        /*
+         * If there is no VLAN matching the packet, and the packet is tagged, skip it
+         */
 		if (vl == NULL && vlan != MAX_VLAN)
 			return;
 	}
@@ -2452,6 +2557,24 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
                 exit(1);
             }
         }
+        else if (options.dump_format == cds) {
+            int ret = output_cds(from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+
+            if (ret == DUMP_CDS_FLUSH) {
+                if (dumper_close(ts)) {
+                    fprintf(stderr, "%s: dumper_close() failed\n", ProgramName);
+                    exit(1);
+                }
+                if (dumper_open(ts)) {
+                    fprintf(stderr, "%s: dumper_open() failed\n", ProgramName);
+                    exit(1);
+                }
+            }
+            else if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+            }
+        }
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
@@ -2610,6 +2733,32 @@ dumper_close(my_bpftimeval ts) {
     	    fclose(fp);
     	}
 	}
+	else if (options.dump_format == cds) {
+	    int ret;
+
+    	if (dump_type == to_stdout) {
+    	    ret = dump_cds(stdout);
+
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	}
+    	else if (dump_type == to_file) {
+    	    FILE * fp;
+
+    	    if (!(fp = fopen(dumpnamepart, "w"))) {
+                fprintf(stderr, "%s: fopen(%s) failed: %s\n", ProgramName, dumpnamepart, strerror(errno));
+                exit(1);
+    	    }
+    	    ret = dump_cds(fp);
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	    fclose(fp);
+    	}
+	}
 
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
@@ -2640,7 +2789,7 @@ dumper_close(my_bpftimeval ts) {
 			    logerr("system: \"%s\" returned %d", cmd, x);
 			free(cmd);
 		}
-		if (kick_cmd == NULL)
+		if (kick_cmd == NULL && options.dump_format != cbor && options.dump_format != cds)
 			ret = TRUE;
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
@@ -2671,6 +2820,33 @@ sigbreak(int signum __attribute__((unused))) {
 	main_exit = TRUE;
 	breakloop_pcaps();
 }
+
+#if HAVE_PTHREAD
+static void *
+sigthread(void * arg) {
+    sigset_t *set = (sigset_t*)arg;
+    int sig, err;
+
+    while (1) {
+        if ((err = sigwait(set, &sig))) {
+            logerr("sigwait: %s", strerror(err));
+            return 0;
+        }
+
+        switch (sig) {
+            case SIGALRM:
+                sigclose(sig);
+                break;
+
+            default:
+                sigbreak(sig);
+                break;
+        }
+    }
+
+    return 0;
+}
+#endif
 
 static uint16_t
 in_checksum(const u_char *ptr, size_t len) {

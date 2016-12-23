@@ -38,6 +38,9 @@
  */
 
 #include "config.h"
+
+#include "dnscap_common.h"
+
 #include <sys/types.h>
 #include <stdio.h>
 #include "dump_dns.h"
@@ -57,7 +60,6 @@
 #endif
 
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -74,7 +76,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
 #ifdef p_rcode
