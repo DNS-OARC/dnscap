@@ -50,6 +50,9 @@
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#if HAVE_PTHREAD
+#include <pthread.h>
+#endif
 
 #ifdef __linux__
 # define __FAVOR_BSD
@@ -321,6 +324,9 @@ static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
 static void sigclose(int);
 static void sigbreak(int);
+#if HAVE_PTHREAD
+static void *sigthread(void * arg);
+#endif
 static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
 static void drop_privileges(void);
@@ -422,10 +428,6 @@ main(int argc, char *argv[]) {
 	if (dump_type == to_stdout)
 		dumper_open(now);
 	INIT_LIST(tcpstates);
-	setsig(SIGHUP, TRUE);
-	setsig(SIGINT, TRUE);
-	setsig(SIGALRM, FALSE);
-	setsig(SIGTERM, TRUE);
 
     if (!dont_drop_privileges && !only_offline_pcaps) {
         drop_privileges();
@@ -442,6 +444,60 @@ main(int argc, char *argv[]) {
 		dumpstart = time(NULL);
 	if (background)
 		daemonize();
+
+    /*
+     * Defer signal setup until we have dropped privileges and daemonized,
+     * otherwise signals might not reach us because different threads
+     * are running under different users/access
+     */
+#if HAVE_PTHREAD
+    {
+        sigset_t set;
+        int err;
+        pthread_t thread;
+
+        sigfillset(&set);
+        if ((err = pthread_sigmask(SIG_BLOCK, &set, 0))) {
+            logerr("pthread_sigmask: %s", strerror(err));
+            exit(1);
+        }
+
+        sigemptyset(&set);
+        sigaddset(&set, SIGHUP);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGALRM);
+        sigaddset(&set, SIGTERM);
+        sigaddset(&set, SIGQUIT);
+
+        if ((err = pthread_create(&thread, 0, &sigthread, (void*)&set))) {
+            logerr("pthread_create: %s", strerror(err));
+            exit(1);
+        }
+    }
+#else
+    {
+        sigset_t set;
+
+        sigfillset(&set);
+        sigdelset(&set, SIGHUP);
+        sigdelset(&set, SIGINT);
+        sigdelset(&set, SIGALRM);
+        sigdelset(&set, SIGTERM);
+        sigdelset(&set, SIGQUIT);
+
+        if (sigprocmask(SIG_BLOCK, &set, 0)) {
+            logerr("sigprocmask: %s", strerror(errno));
+            exit(1);
+        }
+    }
+
+	setsig(SIGHUP, TRUE);
+	setsig(SIGINT, TRUE);
+	setsig(SIGALRM, FALSE);
+	setsig(SIGTERM, TRUE);
+	setsig(SIGQUIT, TRUE);
+#endif
+
 	while (!main_exit)
 		poll_pcaps();
 	/* close PCAPs after dumper_close() to have statistics still available during dumper_close() */
@@ -2764,6 +2820,33 @@ sigbreak(int signum __attribute__((unused))) {
 	main_exit = TRUE;
 	breakloop_pcaps();
 }
+
+#if HAVE_PTHREAD
+static void *
+sigthread(void * arg) {
+    sigset_t *set = (sigset_t*)arg;
+    int sig, err;
+
+    while (1) {
+        if ((err = sigwait(set, &sig))) {
+            logerr("sigwait: %s", strerror(err));
+            return 0;
+        }
+
+        switch (sig) {
+            case SIGALRM:
+                sigclose(sig);
+                break;
+
+            default:
+                sigbreak(sig);
+                break;
+        }
+    }
+
+    return 0;
+}
+#endif
 
 static uint16_t
 in_checksum(const u_char *ptr, size_t len) {
