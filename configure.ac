@@ -139,6 +139,7 @@ AC_SUBST(SECCOMPFLAGS, ["$SECCOMPFLAGS"])
 AC_CONFIG_FILES([
     Makefile
     src/Makefile
+	src/test/Makefile
     plugins/Makefile
     plugins/pcapdump/Makefile
     plugins/rssm/Makefile

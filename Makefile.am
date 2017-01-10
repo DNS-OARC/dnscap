@@ -10,5 +10,4 @@ dist_doc_DATA = README.md LICENSE CONTRIBUTORS
 
 EXTRA_DIST = isc m4
 
-test:
-	@true
+test: check
