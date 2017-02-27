@@ -47,7 +47,11 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([disable-static])
 
 # pcap_thread
-AX_PCAP_THREAD
+AC_ARG_ENABLE(threads,
+    [AS_HELP_STRING([--enable-threads],
+        [enable the usage of threads (default disabled)])],
+    [AX_PCAP_THREAD],
+    [AX_PCAP_THREAD_PCAP])
 
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])

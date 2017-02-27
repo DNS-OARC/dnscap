@@ -62,6 +62,8 @@ enum dump_format {
     pcap, \
 \
     0, \
+    0, \
+\
     0 \
 }
 
@@ -83,6 +85,8 @@ struct options {
 
     char *          user;
     char *          group;
+
+    size_t          pcap_buffer_size;
 };
 
 int option_parse(options_t * options, const char * option);
