@@ -1,6 +1,8 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
 CLEANFILES = dnscap.1
 
+SUBDIRS = test
+
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir) \
     $(SECCOMPFLAGS) \

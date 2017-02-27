@@ -456,6 +456,11 @@ Specify the output format to use, see OUTPUT FORMATS.
 Specify the user to drop privileges to (default nobody).
 .It group=<group>
 Specify the group to drop privileges to (default nobody).
+.It pcap_buffer_size=<num>
+Set the
+.Xr pcap 3pcap
+buffer size to use when capturing packets, can be used too not miss packets
+during processing.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:
@@ -516,7 +521,7 @@ doesn't necessarily work without an "enclosing"
 .Fl x
 option.
 .Sh LICENSE
-Copyright (c) 2016, OARC, Inc.
+Copyright (c) 2016-2017, OARC, Inc.
 All rights reserved.
 .Pp
 Redistribution and use in source and binary forms, with or without

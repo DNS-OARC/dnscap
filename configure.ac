@@ -1,4 +1,4 @@
-# Copyright (c) 2016, OARC, Inc.
+# Copyright (c) 2016-2017, OARC, Inc.
 # Copyright (c) 2007, The Measurement Factory, Inc.
 # Copyright (c) 2007, Internet Systems Consortium, Inc.
 # All rights reserved.
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ(2.61)
-AC_INIT([dnscap], [1.3.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_INIT([dnscap], [1.4.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
 AC_CONFIG_HEADER([src/config.h])
@@ -47,7 +47,11 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([disable-static])
 
 # pcap_thread
-AX_PCAP_THREAD
+AC_ARG_ENABLE(threads,
+    [AS_HELP_STRING([--enable-threads],
+        [enable the usage of threads (default disabled)])],
+    [AX_PCAP_THREAD],
+    [AX_PCAP_THREAD_PCAP])
 
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
@@ -139,6 +143,7 @@ AC_SUBST(SECCOMPFLAGS, ["$SECCOMPFLAGS"])
 AC_CONFIG_FILES([
     Makefile
     src/Makefile
+	src/test/Makefile
     plugins/Makefile
     plugins/pcapdump/Makefile
     plugins/rssm/Makefile

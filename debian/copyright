@@ -3,7 +3,7 @@ Upstream-Name: dnscap
 Source: https://github.com/DNS-OARC/dnscap
 
 Files: *
-Copyright: 2016 OARC, Inc.
+Copyright: 2016-2017 OARC, Inc.
 License: BSD-3-Clause
 
 Files: isc/*
@@ -11,7 +11,7 @@ Copyright: 2008 Internet Systems Consortium, Inc.
 License: ISC
 
 Files: debian/*
-Copyright: 2016 Jerry Lundström <lundstrom.jerry@gmail.com>
+Copyright: 2017 Jerry Lundström <lundstrom.jerry@gmail.com>
 License: BSD-3-Clause
 
 Files: src/pcap_layers/*
@@ -20,7 +20,7 @@ Copyright: 2016 Duane Wessels
 License: MIT
 
 Files: src/pcap-thread/*
-Copyright: 2016 OARC, Inc.
+Copyright: 2016-2017 OARC, Inc.
 License: BSD-3-Clause
 
 Files: m4/*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, OARC, Inc.
+ * Copyright (c) 2016-2017, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -163,6 +163,13 @@ int option_parse(options_t * options, const char * option) {
             free(options->group);
         }
         if ((options->group = strdup(argument))) {
+            return 0;
+        }
+    }
+    else if (have("pcap_buffer_size")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->pcap_buffer_size = s;
             return 0;
         }
     }
