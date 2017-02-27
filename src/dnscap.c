@@ -402,6 +402,7 @@ static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
 static int only_offline_pcaps = TRUE;
 static int dont_drop_privileges = FALSE;
 static options_t options = OPTIONS_T_DEFAULTS;
+static size_t pcap_buffer_size = 0;
 
 /* Public. */
 
@@ -1622,17 +1623,63 @@ drop_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const c
 }
 
 static void
+print_pcap_thread_error(const char* func, int err) {
+	if (err == PCAP_THREAD_EPCAP) {
+		fprintf(stderr, "%s: pcap_thread libpcap error [%d] %s: %s (%s)\n",
+			ProgramName,
+			pcap_thread_status(&pcap_thread),
+			func,
+			pcap_statustostr(pcap_thread_status(&pcap_thread)),
+			pcap_thread_errbuf(&pcap_thread)
+		);
+	}
+	else if (err != PCAP_THREAD_OK) {
+		fprintf(stderr, "%s: pcap_thread error [%d] %s: %s\n",
+			ProgramName,
+			err,
+			func,
+			pcap_thread_strerr(err)
+		);
+	}
+}
+
+static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
 	int err;
 
-    pcap_thread_set_snaplen(&pcap_thread, SNAPLEN);
-    pcap_thread_set_promiscuous(&pcap_thread, promisc);
-    pcap_thread_set_monitor(&pcap_thread, monitor_mode);
-    pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode);
-    pcap_thread_set_callback(&pcap_thread, dl_pkt);
-    pcap_thread_set_dropback(&pcap_thread, drop_pkt);
-    pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft));
+    if ((err = pcap_thread_set_snaplen(&pcap_thread, SNAPLEN)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_snaplen()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_promiscuous(&pcap_thread, promisc)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_promiscuous()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_monitor(&pcap_thread, monitor_mode)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_monitor()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_immediate_mode()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_callback()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_dropback(&pcap_thread, drop_pkt)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_dropback()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft))) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_filter()", err);
+		exit(1);
+	}
+	if (options.pcap_buffer_size && (err = pcap_thread_set_buffer_size(&pcap_thread, options.pcap_buffer_size)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_buffer_size()", err);
+		exit(1);
+	}
 
 	assert(!EMPTY(mypcaps));
 	for (mypcap = HEAD(mypcaps);

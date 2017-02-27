@@ -81,6 +81,9 @@
 /* Define to 1 if you have the `ns_sprintrr' function. */
 #undef HAVE_NS_SPRINTRR
 
+/* Define to 1 if you have the `pcap_activate' function. */
+#undef HAVE_PCAP_ACTIVATE
+
 /* Define to 1 if you have the `pcap_create' function. */
 #undef HAVE_PCAP_CREATE
 
