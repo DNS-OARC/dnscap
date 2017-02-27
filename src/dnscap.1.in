@@ -521,7 +521,7 @@ doesn't necessarily work without an "enclosing"
 .Fl x
 option.
 .Sh LICENSE
-Copyright (c) 2016, OARC, Inc.
+Copyright (c) 2016-2017, OARC, Inc.
 All rights reserved.
 .Pp
 Redistribution and use in source and binary forms, with or without
