@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.3.0
+Version:        1.4.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 
@@ -51,6 +51,20 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Feb 27 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.4.0-1
+- Release 1.4.0
+  * Until it can be confirmed that the threaded code works as well as the
+    non-threaded code it has been made optional and requires a configuration
+    option to enable it during compilation.
+  * New extended option:
+    - `-o pcap_buffer_size=<bytes>` can be used to increase the capture
+      buffer within pcap-thread/libpcap, this can help mitigate dropped
+      packets by the kernel during breaks (like when closing dump file).
+  * Commits:
+    1c6fbb2 Update copyright year
+    63ef665 Suppress OpenBSD warnings about symbols
+    2c99946 pcap-thread v2.0.0, disable threads, errors handling
+    4cade97 Fix #56: Update pcap-thread to v1.2.2 and add test
 * Fri Dec 23 2016 Jerry Lundström <lundstrom.jerry@gmail.com> 1.3.0-1
 - Release 1.3.0
   * Rare lockup has been fixed that could happen if a signal was received
