@@ -61,7 +61,7 @@ The source tarball from DNS-OARC comes prepared with `configure`:
 ```
 tar zxvf dnscap-version.tar.gz
 cd dnscap-version
-./configure [optiona]
+./configure [options]
 make
 make install
 ```

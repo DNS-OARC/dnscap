@@ -365,8 +365,6 @@ static unsigned limit_seconds = 0U;
 static time_t next_interval = 0;
 static unsigned limit_packets = 0U;
 static size_t limit_pcapfilesize = 0U;
-static fd_set mypcap_fdset;
-static int pcap_maxfd;
 static pcap_t *pcap_dead;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
@@ -402,7 +400,6 @@ static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
 static int only_offline_pcaps = TRUE;
 static int dont_drop_privileges = FALSE;
 static options_t options = OPTIONS_T_DEFAULTS;
-static size_t pcap_buffer_size = 0;
 
 /* Public. */
 
