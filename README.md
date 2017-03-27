@@ -38,7 +38,7 @@ apt-get install -y libpcap-dev libldns-dev libbind-dev
 
 To install the dependencies under CentOS (with EPEL enabled):
 ```
-yum install -y libpcap-devel ldns-devel bind-devel
+yum install -y libpcap-devel ldns-devel openssl-devel bind-devel
 ```
 
 For the following OS you will need to install some of the dependencies
