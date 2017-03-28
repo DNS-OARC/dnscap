@@ -43,6 +43,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include <arpa/nameser.h>
@@ -213,8 +214,8 @@ rssm_save_counts(const char *sbuf)
 		logerr("%s: %s", sbuf, strerror(errno));
 		return;
 	}
-	fprintf(fp, "first-packet-time %lu\n", open_ts.tv_sec);
-	fprintf(fp, "last-packet-time %lu\n", clos_ts.tv_sec);
+	fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
+	fprintf(fp, "last-packet-time %ld\n", (long)clos_ts.tv_sec);
 	fprintf(fp, "dns-udp-queries-received-ipv4 %"PRIu64"\n", counts.dns_udp_queries_received_ipv4);
 	fprintf(fp, "dns-udp-queries-received-ipv6 %"PRIu64"\n", counts.dns_udp_queries_received_ipv6);
 	fprintf(fp, "dns-tcp-queries-received-ipv4 %"PRIu64"\n", counts.dns_tcp_queries_received_ipv4);
