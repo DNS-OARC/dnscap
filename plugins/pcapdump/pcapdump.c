@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
