@@ -1,22 +1,44 @@
+dnscap (1.4.1-1~unstable+1) unstable; urgency=low
+
+  * Release 1.4.1
+
+    Fixed an issue that when compiled with libpcap that had a specific
+    feature enabled it would result in a runtime error which could not be
+    worked around.
+
+    Also fixed various compatibility issues and updated dependency
+    documentation for CentOS.
+
+    Commits:
+
+    785d4c4 Fix compiler warnings
+    2d4df8d Fix #65: Update pcap-thread to v2.1.2
+    26d3fbc Fix #64: Add missing dependency
+    55e6741 Update pcap-thread to v2.1.1, fix issue with libpcap timestamp
+            type
+    c6fdb7a Fix typo and remove unused variables
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Wed, 29 Mar 2017 13:14:59 +0200
+
 dnscap (1.4.0-1~unstable+1) unstable; urgency=low
 
-  *   Release 1.4.0
+  * Release 1.4.0
 
-      Until it can be confirmed that the threaded code works as well as the
-      non-threaded code it has been made optional and requires a configuration
-      option to enable it during compilation.
+    Until it can be confirmed that the threaded code works as well as the
+    non-threaded code it has been made optional and requires a configuration
+    option to enable it during compilation.
 
-      New extended option:
-      - `-o pcap_buffer_size=<bytes>` can be used to increase the capture
-        buffer within pcap-thread/libpcap, this can help mitigate dropped
-        packets by the kernel during breaks (like when closing dump file).
+    New extended option:
+    - `-o pcap_buffer_size=<bytes>` can be used to increase the capture
+      buffer within pcap-thread/libpcap, this can help mitigate dropped
+      packets by the kernel during breaks (like when closing dump file).
 
-      Commits:
+    Commits:
 
-      1c6fbb2 Update copyright year
-      63ef665 Suppress OpenBSD warnings about symbols
-      2c99946 pcap-thread v2.0.0, disable threads, errors handling
-      4cade97 Fix #56: Update pcap-thread to v1.2.2 and add test
+    1c6fbb2 Update copyright year
+    63ef665 Suppress OpenBSD warnings about symbols
+    2c99946 pcap-thread v2.0.0, disable threads, errors handling
+    4cade97 Fix #56: Update pcap-thread to v1.2.2 and add test
 
  -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 27 Feb 2017 17:00:38 +0100
 

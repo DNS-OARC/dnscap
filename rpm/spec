@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.4.0
+Version:        1.4.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 
@@ -51,6 +51,20 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Mar 29 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.4.1-1
+- Release 1.4.1
+  * Fixed an issue that when compiled with libpcap that had a specific
+    feature enabled it would result in a runtime error which could not be
+    worked around.
+  * Also fixed various compatibility issues and updated dependency
+    documentation for CentOS.
+  * Commits:
+    785d4c4 Fix compiler warnings
+    2d4df8d Fix #65: Update pcap-thread to v2.1.2
+    26d3fbc Fix #64: Add missing dependency
+    55e6741 Update pcap-thread to v2.1.1, fix issue with libpcap timestamp
+            type
+    c6fdb7a Fix typo and remove unused variables
 * Mon Feb 27 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.4.0-1
 - Release 1.4.0
   * Until it can be confirmed that the threaded code works as well as the
