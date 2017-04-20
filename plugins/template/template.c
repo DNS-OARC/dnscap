@@ -99,7 +99,7 @@ void
 template_stop()
 {
 	/*
-	 * The "start" function is called once, when the program
+	 * The "stop" function is called once, when the program
 	 * is exiting normally.  It might be used to clean up state,
 	 * free memory, etc.
 	 */
