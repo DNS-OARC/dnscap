@@ -164,7 +164,7 @@ is new so you need to download and compile it, you do not necessary need to
 install it as shown in the example below.
 
 ```sh
-git clone https://github.com/DNS-OARC/dnscap.git
+git clone --recursive https://github.com/DNS-OARC/dnscap.git
 cd dnscap
 git submodule update --init
 git clone https://github.com/01org/tinycbor.git
