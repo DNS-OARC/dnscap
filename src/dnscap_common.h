@@ -85,7 +85,7 @@ typedef struct {
 /*
  * Prototype for the plugin "output" function
  */
-typedef void output_t(const char *descr,
+typedef void plugin_output_t(const char *descr,
         iaddr from,
         iaddr to,
         uint8_t proto,
@@ -103,7 +103,6 @@ typedef int plugin_start_t(plugin_callbacks *);
 typedef void plugin_stop_t(void);
 typedef int plugin_open_t(my_bpftimeval);
 typedef int plugin_close_t(my_bpftimeval);
-typedef output_t plugin_output_t;
 typedef void plugin_getopt_t(int *, char **[]);
 typedef void plugin_usage_t(void);
 

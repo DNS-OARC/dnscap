@@ -319,7 +319,7 @@ static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const char*, const int);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
-static output_t output;
+static plugin_output_t output;
 static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
 static void sigclose(int);

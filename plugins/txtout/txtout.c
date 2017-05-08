@@ -52,7 +52,13 @@ static int opt_f = 0;
 static char *opt_o = 0;
 static FILE *out = 0;
 
-output_t txtout_output;
+plugin_start_t txtout_start;
+plugin_stop_t txtout_stop;
+plugin_open_t txtout_open;
+plugin_close_t txtout_close;
+plugin_output_t txtout_output;
+plugin_getopt_t txtout_getopt;
+plugin_usage_t txtout_usage;
 
 void
 txtout_usage()
@@ -90,7 +96,7 @@ txtout_getopt(int *argc, char **argv[])
 }
 
 int
-txtout_start(logerr_t *a_logerr)
+txtout_start(plugin_callbacks * the_callbacks)
 {
 	/*
 	 * The "start" function is called once, when the program
@@ -99,7 +105,7 @@ txtout_start(logerr_t *a_logerr)
 	 * it should save the a_logerr pointer passed from the
 	 * parent code.
 	 */
-	logerr = a_logerr;
+	logerr = the_callbacks->logerr;
 	if (opt_o) {
 		out = fopen(opt_o, "w");
 		if (0 == out) {

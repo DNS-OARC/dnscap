@@ -46,7 +46,13 @@ static logerr_t *logerr;
 static int opt_f = 0;
 static const char *opt_x = 0;
 
-output_t template_output;
+plugin_start_t template_start;
+plugin_stop_t template_stop;
+plugin_open_t template_open;
+plugin_close_t template_close;
+plugin_output_t template_output;
+plugin_getopt_t template_getopt;
+plugin_usage_t template_usage;
 
 void
 template_usage()

@@ -58,8 +58,6 @@
 #define THOUSAND        1000
 #define MILLION         (THOUSAND*THOUSAND)
 
-output_t pcapdump_output;
-
 static logerr_t *logerr = 0;
 char *dump_base = 0;
 static int to_stdout = 0;
@@ -71,6 +69,14 @@ static pcap_dumper_t *dumper = 0;
 static char *kick_cmd = 0;
 static int flush = 0;
 static int dir_wanted = DIR_INITIATE|DIR_RESPONSE;
+
+plugin_start_t pcapdump_start;
+plugin_stop_t pcapdump_stop;
+plugin_open_t pcapdump_open;
+plugin_close_t pcapdump_close;
+plugin_output_t pcapdump_output;
+plugin_getopt_t pcapdump_getopt;
+plugin_usage_t pcapdump_usage;
 
 void
 pcapdump_usage()
@@ -141,9 +147,9 @@ pcapdump_getopt(int *argc, char **argv[])
 }
 
 int
-pcapdump_start(logerr_t * a_logerr)
+pcapdump_start(plugin_callbacks * the_callbacks)
 {
-    logerr = a_logerr;
+    logerr = the_callbacks->logerr;
     pcap_dead = pcap_open_dead(DLT_RAW, SNAPLEN);
     return 0;
 }
