@@ -7,4 +7,4 @@ AM_CFLAGS = -I$(srcdir) \
 
 pkglib_LTLIBRARIES = pcapdump.la
 pcapdump_la_SOURCES = pcapdump.c
-pcapdump_la_LDFLAGS = -module -version-info $(LIBRARY_VERSION)
+pcapdump_la_LDFLAGS = -module -avoid-version

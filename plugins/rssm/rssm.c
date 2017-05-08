@@ -1,14 +1,49 @@
+/*
+ * Copyright (c) 2016-2017, OARC, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "config.h"
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
-#include <time.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <assert.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include <arpa/nameser.h>
@@ -30,8 +65,9 @@
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval clos_ts;
-static const char *counts_prefix = "rssm";
-static const char *sources_prefix = 0;
+#define COUNTS_PREFIX_DEFAULT "rssm"
+static char *counts_prefix = 0;
+static char *sources_prefix = 0;
 
 output_t rssm_output;
 
@@ -123,9 +159,13 @@ rssm_getopt(int *argc, char **argv[])
 	while ((c = getopt(*argc, *argv, "w:s:")) != EOF) {
 		switch(c) {
 		case 'w':
+		    if (counts_prefix)
+		        free(counts_prefix);
 			counts_prefix = strdup(optarg);
 			break;
 		case 's':
+		    if (sources_prefix)
+		        free(sources_prefix);
 			sources_prefix = strdup(optarg);
 			break;
 		default:
@@ -164,7 +204,7 @@ rssm_save_counts(const char *sbuf)
 	FILE *fp;
 	int i;
 	char *tbuf = 0;
-	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix, sbuf, (u_long) open_ts.tv_usec);
+	i = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix ? counts_prefix : COUNTS_PREFIX_DEFAULT, sbuf, (u_long) open_ts.tv_usec);
 	if (i < 1 || !tbuf) {
 		logerr("asprintf: out of memory");
 		return;
@@ -174,8 +214,8 @@ rssm_save_counts(const char *sbuf)
 		logerr("%s: %s", sbuf, strerror(errno));
 		return;
 	}
-	fprintf(fp, "first-packet-time %lu\n", open_ts.tv_sec);
-	fprintf(fp, "last-packet-time %lu\n", clos_ts.tv_sec);
+	fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
+	fprintf(fp, "last-packet-time %ld\n", (long)clos_ts.tv_sec);
 	fprintf(fp, "dns-udp-queries-received-ipv4 %"PRIu64"\n", counts.dns_udp_queries_received_ipv4);
 	fprintf(fp, "dns-udp-queries-received-ipv6 %"PRIu64"\n", counts.dns_udp_queries_received_ipv6);
 	fprintf(fp, "dns-tcp-queries-received-ipv4 %"PRIu64"\n", counts.dns_tcp_queries_received_ipv4);
@@ -270,8 +310,7 @@ rssm_close(my_bpftimeval ts)
 	/* grandchild (2nd gen) continues */
 	strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t *) &open_ts.tv_sec));
 	clos_ts = ts;
-	if (counts_prefix)
-		rssm_save_counts(sbuf);
+	rssm_save_counts(sbuf);
 	if (sources_prefix)
 		rssm_save_sources(sbuf);
 	exit(0);

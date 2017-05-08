@@ -7,4 +7,4 @@ AM_CFLAGS = -I$(srcdir) \
 
 pkglib_LTLIBRARIES = template.la
 template_la_SOURCES = template.c
-template_la_LDFLAGS = -module -version-info $(LIBRARY_VERSION)
+template_la_LDFLAGS = -module -avoid-version

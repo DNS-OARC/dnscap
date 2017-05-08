@@ -7,4 +7,4 @@ AM_CFLAGS = -I$(srcdir) \
 
 pkglib_LTLIBRARIES = txtout.la
 txtout_la_SOURCES = txtout.c
-txtout_la_LDFLAGS = -module -version-info $(LIBRARY_VERSION)
+txtout_la_LDFLAGS = -module -avoid-version

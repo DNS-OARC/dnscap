@@ -3,32 +3,39 @@
  * By Paul Vixie (ISC) and Duane Wessels (Measurement Factory), 2007.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id$";
 /*
-static const char copyright[] =
-	"Copyright (c) 2007 by Internet Systems Consortium, Inc. (\"ISC\")";
-*/
-static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
-#endif
-
-/*
- * Copyright (c) 2007 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2016-2017, OARC, Inc.
+ * All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* Import. */
 
 #include "config.h"
 
@@ -43,6 +50,9 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#if HAVE_PTHREAD
+#include <pthread.h>
+#endif
 
 #ifdef __linux__
 # define __FAVOR_BSD
@@ -125,15 +135,24 @@ static const char version_fmt[] = "V1.0-OARC-r%d (%s)";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <grp.h>
+
+#include "dnscap_common.h"
+#include "dnscap.h"
+#define ISC_CHECK_NONE 1
+#include "isc/list.h"
+#include "isc/assertions.h"
+#include "dump_dns.h"
+#include "dump_cbor.h"
+#include "dump_cds.h"
+#include "options.h"
+#include "pcap-thread/pcap_thread.h"
 
 #ifdef __linux__
 extern char *strptime(const char *, const char *, struct tm *);
 #endif
-
-#include "dnscap_common.h"
 
 #define MY_GET32(l, cp) do { \
 	register const u_char *t_cp = (const u_char *)(cp); \
@@ -144,12 +163,6 @@ extern char *strptime(const char *, const char *, struct tm *);
 	    ; \
 	(cp) += NS_INT32SZ; \
 } while (0)
-
-#define ISC_CHECK_NONE 1
-
-#include "isc/list.h"
-#include "isc/assertions.h"
-#include "dump_dns.h"
 
 /* Constants. */
 
@@ -213,7 +226,7 @@ extern char *strptime(const char *, const char *, struct tm *);
 #define FALSE		0
 #define REGEX_CFLAGS	(REG_EXTENDED|REG_ICASE|REG_NOSUB|REG_NEWLINE)
 #define MAX_TCP_WINDOW	(0xFFFF << 14)
-#define MEM_MAX		20000000000		// SETTING MAX MEMORY USAGE TO 2GB
+#define MEM_MAX		20000000000		/* SETTING MAX MEMORY USAGE TO 2GB */
 
 /* Data structures. */
 
@@ -227,10 +240,8 @@ typedef LIST(struct endpoint) endpoint_list;
 struct mypcap {
 	LINK(struct mypcap)	link;
 	const char *		name;
-	int			fdes;
-	pcap_t *		pcap;
-	int			dlt;
 	struct pcap_stat	ps0, ps1;
+	uint64_t            drops;
 };
 typedef struct mypcap *mypcap_ptr;
 typedef LIST(struct mypcap) mypcap_list;
@@ -298,7 +309,6 @@ static void parse_args(int, char *[]);
 static void endpoint_arg(endpoint_list *, const char *);
 static void endpoint_add(endpoint_list *, iaddr);
 static void prepare_bpft(void);
-static const char *ia_str(iaddr);
 static int ep_present(const endpoint_list *, iaddr);
 static size_t text_add(text_list *, const char *, ...);
 static void text_free(text_list *);
@@ -306,7 +316,7 @@ static void open_pcaps(void);
 static void poll_pcaps(void);
 static void breakloop_pcaps(void);
 static void close_pcaps(void);
-static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *);
+static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const char*, const int);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
 static output_t output;
@@ -314,6 +324,9 @@ static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
 static void sigclose(int);
 static void sigbreak(int);
+#if HAVE_PTHREAD
+static void *sigthread(void * arg);
+#endif
 static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
 static void drop_privileges(void);
@@ -344,23 +357,26 @@ static myregex_list myregexes;
 static mypcap_list mypcaps;
 static mypcap_ptr pcap_offline = NULL;
 static const char *dump_base = NULL;
-static const char *extra_bpf = NULL;
+static char *dump_suffix = NULL;
+static char *extra_bpf = NULL;
 static enum {nowhere, to_stdout, to_file} dump_type = nowhere;
 static enum {dumper_opened, dumper_closed} dump_state = dumper_closed;
 static const char *kick_cmd = NULL;
 static unsigned limit_seconds = 0U;
 static time_t next_interval = 0;
 static unsigned limit_packets = 0U;
-static fd_set mypcap_fdset;
-static int pcap_maxfd;
+static size_t limit_pcapfilesize = 0U;
 static pcap_t *pcap_dead;
 static pcap_dumper_t *dumper;
 static time_t dumpstart;
 static unsigned msgcount;
+static size_t capturedbytes = 0;
 static char *dumpname, *dumpnamepart;
 static char *bpft;
 static unsigned dns_port = DNS_PORT;
 static int promisc = TRUE;
+static int monitor_mode = FALSE;
+static int immediate_mode = FALSE;
 static int background = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
@@ -376,10 +392,15 @@ static int alarm_set = FALSE;
 static time_t start_time = 0;
 static time_t stop_time = 0;
 static int print_pcap_stats = FALSE;
+static uint64_t pcap_drops = 0;
 static my_bpftimeval last_ts = {0,0};
-static unsigned long long mem_limit = (unsigned) MEM_MAX;			// process memory limit
-static int mem_limit_set = 1; // Should be configurable
+static unsigned long long mem_limit = (unsigned) MEM_MAX; /* process memory limit */
+static int mem_limit_set = 1; /* TODO: Should be configurable */
 const char DROPTOUSER[] = "nobody";
+static pcap_thread_t pcap_thread = PCAP_THREAD_T_INIT;
+static int only_offline_pcaps = TRUE;
+static int dont_drop_privileges = FALSE;
+static options_t options = OPTIONS_T_DEFAULTS;
 
 /* Public. */
 
@@ -407,12 +428,10 @@ main(int argc, char *argv[]) {
 	if (dump_type == to_stdout)
 		dumper_open(now);
 	INIT_LIST(tcpstates);
-	setsig(SIGHUP, TRUE);
-	setsig(SIGINT, TRUE);
-	setsig(SIGALRM, FALSE);
-	setsig(SIGTERM, TRUE);
 
-	drop_privileges();
+    if (!dont_drop_privileges && !only_offline_pcaps) {
+        drop_privileges();
+    }
 
 	callbacks.logerr = logerr;
 	callbacks.is_responder = is_responder;
@@ -427,15 +446,71 @@ main(int argc, char *argv[]) {
 		dumpstart = time(NULL);
 	if (background)
 		daemonize();
+
+    /*
+     * Defer signal setup until we have dropped privileges and daemonized,
+     * otherwise signals might not reach us because different threads
+     * are running under different users/access
+     */
+#if HAVE_PTHREAD
+    {
+        sigset_t set;
+        int err;
+        pthread_t thread;
+
+        sigfillset(&set);
+        if ((err = pthread_sigmask(SIG_BLOCK, &set, 0))) {
+            logerr("pthread_sigmask: %s", strerror(err));
+            exit(1);
+        }
+
+        sigemptyset(&set);
+        sigaddset(&set, SIGHUP);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGALRM);
+        sigaddset(&set, SIGTERM);
+        sigaddset(&set, SIGQUIT);
+
+        if ((err = pthread_create(&thread, 0, &sigthread, (void*)&set))) {
+            logerr("pthread_create: %s", strerror(err));
+            exit(1);
+        }
+    }
+#else
+    {
+        sigset_t set;
+
+        sigfillset(&set);
+        sigdelset(&set, SIGHUP);
+        sigdelset(&set, SIGINT);
+        sigdelset(&set, SIGALRM);
+        sigdelset(&set, SIGTERM);
+        sigdelset(&set, SIGQUIT);
+
+        if (sigprocmask(SIG_BLOCK, &set, 0)) {
+            logerr("sigprocmask: %s", strerror(errno));
+            exit(1);
+        }
+    }
+
+	setsig(SIGHUP, TRUE);
+	setsig(SIGINT, TRUE);
+	setsig(SIGALRM, FALSE);
+	setsig(SIGTERM, TRUE);
+	setsig(SIGQUIT, TRUE);
+#endif
+
 	while (!main_exit)
 		poll_pcaps();
-	close_pcaps();
+	/* close PCAPs after dumper_close() to have statistics still available during dumper_close() */
 	if (dumper_opened == dump_state)
 		(void) dumper_close(last_ts);
+	close_pcaps();
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->stop)
 			(*p->stop)();
 	}
+	options_free(&options);
 	exit(0);
 }
 
@@ -454,22 +529,39 @@ drop_privileges(void)
 	uid_t oldGID = getgid();
 	uid_t dropUID;
 	gid_t dropGID;
+	const char * user;
+	struct group * grp = 0;
 
-	// Security: getting UID and GUID for nobody
+	/*
+	 * Security: getting UID and GUID for nobody
+	 */
 	pwdBufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
 	if (pwdBufSize == -1)
 		pwdBufSize = 16384;
 
-	pwdBuf = malloc(pwdBufSize * sizeof(char));
+	pwdBuf = calloc(pwdBufSize, sizeof(char));
 	if (pwdBuf == NULL) {
 		fprintf(stderr, "unable to allocate buffer for pwdBuf\n");
 		exit(1);
 	}
 
-	s = getpwnam_r(DROPTOUSER, &pwd, pwdBuf, pwdBufSize, &result);
+    user = options.user ? options.user : DROPTOUSER;
+    if (options.group) {
+        if (!(grp = getgrnam(options.group))) {
+            if (errno) {
+                fprintf(stderr, "Unable to get group %s: %s\n", options.group, strerror(errno));
+            }
+            else {
+                fprintf(stderr, "Group %s not found, existing.\n", options.group);
+            }
+            exit(1);
+        }
+    }
+
+	s = getpwnam_r(user, &pwd, pwdBuf, pwdBufSize, &result);
 	if (result == NULL) {
 		if (s == 0) {
-			fprintf(stderr, "User %s not found, exiting.\n", DROPTOUSER);
+			fprintf(stderr, "User %s not found, exiting.\n", user);
 			exit(1);
 		}else {
 			fprintf(stderr, "issue with getpwnnam_r call, exiting.\n");
@@ -478,11 +570,13 @@ drop_privileges(void)
 	}
 
 	dropUID = pwd.pw_uid;
-	dropGID = pwd.pw_gid;
+	dropGID = grp ? grp->gr_gid : pwd.pw_gid;
 	memset(pwdBuf, 0, pwdBufSize);
 	free(pwdBuf);
 
-	// Security section: setting memory limit and dropping privilleges to nobody
+	/*
+	 * Security section: setting memory limit and dropping privileges to nobody
+	 */
 	getrlimit(RLIMIT_DATA, &rss);
 	if (mem_limit_set){
 		rss.rlim_cur = mem_limit;
@@ -495,39 +589,41 @@ drop_privileges(void)
 
 #if HAVE_SETRESGID
 	if (setresgid(dropGID, dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETREGID
 	if (setregid(dropGID, dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #elif HAVE_SETEGID
 	if (setegid(dropGID) < 0) {
-		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
 		exit(1);
 	}
 #endif
 
 #if HAVE_SETRESUID
 	if (setresuid(dropUID, dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETREUID
 	if (setreuid(dropUID, dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #elif HAVE_SETEUID
 	if (seteuid(dropUID) < 0) {
-		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", DROPTOUSER);
+		fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
 		exit(1);
 	}
 #endif
 
-	// Testing if privileges are dropped
+	/*
+	 * Testing if privileges are dropped
+	 */
 	if (oldGID != getgid() && (setgid(oldGID) == 1 && setegid(oldGID) != 1)) {
 		fprintf(stderr, "Able to restore back to root, exiting.\n");
 		fprintf(stderr, "currentUID:%u currentGID:%u\n", getuid(), getgid());
@@ -544,14 +640,20 @@ drop_privileges(void)
 		return;
 	}
 
-	// Setting SCMP_ACT_TRAP means the process will get
-	// a SIGSYS signal when a bad syscall is executed
-	// This is for debugging and should be monitored.
-	//scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+	/*
+	 * Setting SCMP_ACT_TRAP means the process will get
+	 * a SIGSYS signal when a bad syscall is executed
+	 * This is for debugging and should be monitored.
+	 */
+#if 0
+	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
+#endif
 
-	// SCMP_ACT_KILL tells the kernel to kill the process
-	// when a syscall we did not filter on is called.
-	// This should be uncommented in production.
+	/*
+	 * SCMP_ACT_KILL tells the kernel to kill the process
+	 * when a syscall we did not filter on is called.
+	 * This should be uncommented in production.
+	 */
 	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
 
 	if(ctx == NULL) {
@@ -605,26 +707,7 @@ assertion_failure_callback __assertion_failed = my_assertion_failed;
 static const char *
 version(void)
 {
-	int revnum;
-	char scandate[32];
-	static char vbuf[128];
-	const char *sep = " \t";
-	char *copy = strdup(rcsid);
-	char *t;
-	if (NULL == (t = strtok(copy, sep)))
-		return version_fmt;
-	if (NULL == (t = strtok(NULL, sep)))
-		return version_fmt;
-	if (NULL == (t = strtok(NULL, sep)))
-		return version_fmt;
-	revnum = atoi(t);
-	if (NULL == (t = strtok(NULL, sep)))
-		return version_fmt;
-	strncpy(scandate, t, 32);
-	snprintf(vbuf, 128, version_fmt, revnum, scandate);
-	free(copy);
-	return vbuf;
-
+    return PACKAGE_VERSION;
 }
 
 static void
@@ -676,14 +759,19 @@ help_1(void) {
 	fprintf(stderr, "%s: version %s\n\n", ProgramName, version());
 	fprintf(stderr,
 		"usage: %s\n"
-		"\t[-?bpd1g6fTI] [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
-		"\t[-u <port>] [-m [qun]] [-e [nytfsxir]]\n"
-		"\t[-h [ir]] [-s [ir]]\n"
-		"\t[-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+\n"
-		"\t[-w <base> [-k <cmd>]] [-t <lim>] [-c <lim>]\n"
-		"\t[-x <pat>]+ [-X <pat>]+\n"
-		"\t[-B <datetime>]+ [-E <datetime>]+\n"
-		"\t[-P plugin.so] [-U <str>]\n",
+		"  [-?VbNpd1g6fTI"
+#ifdef USE_SECCOMP
+		"y"
+#endif
+		"SMD] [-o option=value]+\n"
+		"  [-i <if>]+ [-r <file>]+ [-l <vlan>]+ [-L <vlan>]+\n"
+		"  [-u <port>] [-m [qun]] [-e [nytfsxir]] [-h [ir]] [-s [ir]]\n"
+		"  [-a <host>]+ [-z <host>]+ [-A <host>]+ [-Z <host>]+ [-Y <host>]+\n"
+		"  [-w <base> [-W <suffix>] [-k <cmd>] -F <format>]\n"
+		"  [-t <lim>] [-c <lim>] [-C <lim>]\n"
+		"  [-x <pat>]+ [-X <pat>]+\n"
+		"  [-B <datetime>] [-E <datetime>]\n"
+		"  [-U <str>] [-P plugin.so <plugin options...>]\n",
 		ProgramName);
 }
 
@@ -692,52 +780,64 @@ help_2(void) {
 	help_1();
 	fprintf(stderr,
 		"\noptions:\n"
-		"\t-? or -\\?  print these instructions and exit\n"
-		"\t-b         run in background as daemon\n"
-		"\t-p         do not put interface in promiscuous mode\n"
-		"\t-d         dump verbose trace information to stderr\n"
-		"\t-1         flush output on every packet\n"
-		"\t-g         dump packets dig-style on stderr\n"
-		"\t-6         compensate for PCAP/BPF IPv6 bug\n"
-		"\t-f         include fragmented packets\n"
-		"\t-T         include TCP packets (DNS header filters will inspect only the\n"
-		"\t           first DNS header, and the result will apply to all messages\n"
-		"\t           in the TCP stream; DNS payload filters will not be applied.)\n"
-		"\t-I         include ICMP and ICMPv6 packets\n"
-		"\t-i <if>    select this live interface(s)\n"
-		"\t-r <file>  read this pcap file\n"
-		"\t-l <vlan>  select only these vlan(s) (4095 for all)\n"
-		"\t-L <vlan>  select these vlan(s) and non-VLAN frames (4095 for all)\n"
-		"\t-u <port>  dns port (default: 53)\n"
-		"\t-m [qun]   select messages: query, update, notify\n"
-		"\t-s [ir]    select sides: initiations, responses\n"
-		"\t-h [ir]    hide initiators and/or responders\n"
-		"\t-e [nytfsxir] select error/response code\n"
-		"\t               n = no error\n"
-		"\t               y = any error\n"
-		"\t               t = truncated response\n"
-		"\t               f = format error (rcode 1)\n"
-		"\t               s = server failure (rcode 2)\n"
-		"\t               x = nxdomain (rcode 3)\n"
-		"\t               i = not implemented (rcode 4)\n"
-		"\t               r = refused (rcode 5)\n"
-		"\t-a <host>  want messages from these initiator(s)\n"
-		"\t-z <host>  want messages from these responder(s)\n"
-		"\t-A <host>  want messages NOT to/from these initiator(s)\n"
-		"\t-Z <host>  want messages NOT to/from these responder(s)\n"
-		"\t-Y <host>  drop responses from these responder(s)\n"
-		"\t-w <base>  dump to <base>.<timesec>.<timeusec>\n"
-		"\t-k <cmd>   kick off <cmd> when each dump closes\n"
-		"\t-t <lim>   close dump or exit every/after <lim> secs\n"
-		"\t-c <lim>   close dump or exit every/after <lim> pkts\n"
-		"\t-x <pat>   select messages matching regex <pat>\n"
-		"\t-X <pat>   select messages not matching regex <pat>\n"
+		"  -? or -\\?  print these instructions and exit\n"
+		"  -V         print version and exit\n"
+		"  -o opt=val extended options, see man page for list of options\n"
+		"  -b         run in background as daemon\n"
+		"  -N         do not attempt to drop privileges, this is implicit\n"
+		"             if only reading offline pcap files\n"
+		"  -p         do not put interface in promiscuous mode\n"
+		"  -d         dump verbose trace information to stderr, specify multiple\n"
+		"             times to increase debugging\n"
+		"  -1         flush output on every packet\n"
+		"  -g         dump packets dig-style on stderr\n"
+		"  -6         compensate for PCAP/BPF IPv6 bug\n"
+		"  -f         include fragmented packets\n"
+		"  -T         include TCP packets (DNS header filters will inspect only the\n"
+		"             first DNS header, and the result will apply to all messages\n"
+		"             in the TCP stream; DNS payload filters will not be applied.)\n"
+		"  -I         include ICMP and ICMPv6 packets\n"
+		"  -i <if>    select this live interface(s)\n"
+		"  -r <file>  read this pcap file\n"
+		"  -l <vlan>  select only these vlan(s) (4095 for all)\n"
+		"  -L <vlan>  select these vlan(s) and non-VLAN frames (4095 for all)\n"
+		"  -u <port>  dns port (default: 53)\n"
+		"  -m [qun]   select messages: query, update, notify\n"
+		"  -e [nytfsxir] select error/response code\n"
+		"                 n = no error\n"
+		"                 y = any error\n"
+		"                 t = truncated response\n"
+		"                 f = format error (rcode 1)\n"
+		"                 s = server failure (rcode 2)\n"
+		"                 x = nxdomain (rcode 3)\n"
+		"                 i = not implemented (rcode 4)\n"
+		"                 r = refused (rcode 5)\n"
+		"  -h [ir]    hide initiators and/or responders\n"
+		"  -s [ir]    select sides: initiations, responses\n"
+		"  -a <host>  want messages from these initiator(s)\n"
+		"  -z <host>  want messages from these responder(s)\n"
+		"  -A <host>  want messages NOT to/from these initiator(s)\n"
+		"  -Z <host>  want messages NOT to/from these responder(s)\n"
+		"  -Y <host>  drop responses from these responder(s)\n"
+		"  -w <base>  dump to <base>.<timesec>.<timeusec>\n"
+		"  -W <suffix> add suffix to dump file name, e.g. '.pcap'\n"
+		"  -k <cmd>   kick off <cmd> when each dump closes\n"
+		"  -F <format> dump format: pcap (default), cbor, cds\n"
+		"  -t <lim>   close dump or exit every/after <lim> secs\n"
+		"  -c <lim>   close dump or exit every/after <lim> pkts\n"
+		"  -C <lim>   close dump or exit every/after <lim> bytes captured\n"
+		"  -x <pat>   select messages matching regex <pat>\n"
+		"  -X <pat>   select messages not matching regex <pat>\n"
 #ifdef USE_SECCOMP
-		"\t-y         enable seccomp-bpf\n"
+		"  -y         enable seccomp-bpf\n"
 #endif
-		"\t-U <str>   append 'and <str>' to the pcap filter\n"
-                "\t-B <datetime> begin collecting at this date and time\n"
-                "\t-E <datetime> end collecting at this date and time\n"
+        "  -S         show summarized statistics\n"
+        "  -B <datetime> begin collecting at this date and time\n"
+        "  -E <datetime> end collecting at this date and time\n"
+		"  -M         set monitor mode on interfaces\n"
+		"  -D         set immediate mode on interfaces\n"
+		"  -U <str>   append 'and <str>' to the pcap filter\n"
+        "  -P <plugin.so> load plugin, any argument after this is sent to the plugin!\n"
 		);
 }
 
@@ -765,17 +865,23 @@ parse_args(int argc, char *argv[]) {
 	INIT_LIST(myregexes);
 	INIT_LIST(plugins);
 	while ((ch = getopt(argc, argv,
-			"a:bc:de:fgh:i:k:l:m:pr:s:t:u:w:x:"
-#ifdef USE_SECCOMP
-			"y"
-#endif
-			"z:A:B:E:IL:P:STU:X:Y:Z:16?")
+			"a:bc:de:fgh:i:k:l:m:o:pr:s:t:u:w:x:yz:"
+			"A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:16?")
 		) != EOF)
 	{
 		switch (ch) {
+		case 'o':
+		    if (option_parse(&options, optarg)) {
+		        fprintf(stderr, "%s: unknown or invalid extended option: %s\n", ProgramName, optarg);
+		        exit(1);
+		    }
+		    break;
 		case 'b':
 			background = TRUE;
 			break;
+		case 'N':
+		    dont_drop_privileges = TRUE;
+		    break;
 		case 'p':
 			promisc = FALSE;
 			break;
@@ -801,35 +907,36 @@ parse_args(int argc, char *argv[]) {
 			help_2();
 			exit(0);
 			break;
+		case 'V':
+			printf("%s version %s\n", ProgramName, version());
+			exit(0);
+			break;
 		case 'i':
 			if (pcap_offline != NULL)
 				usage("-i makes no sense after -r");
-			mypcap = malloc(sizeof *mypcap);
+			mypcap = calloc(1, sizeof *mypcap);
 			assert(mypcap != NULL);
 			INIT_LINK(mypcap, link);
 			mypcap->name = strdup(optarg);
 			assert(mypcap->name != NULL);
-			mypcap->fdes = -1;
-			memset(&mypcap->ps0, 0, sizeof(mypcap->ps0));
-			memset(&mypcap->ps1, 0, sizeof(mypcap->ps1));
 			APPEND(mypcaps, mypcap, link);
+			only_offline_pcaps = FALSE;
 			break;
 		case 'r':
 			if (!EMPTY(mypcaps))
 				usage("-r makes no sense after -i");
-			pcap_offline = malloc(sizeof *pcap_offline);
+			pcap_offline = calloc(1, sizeof *pcap_offline);
 			assert(pcap_offline != NULL);
 			INIT_LINK(pcap_offline, link);
 			pcap_offline->name = strdup(optarg);
 			assert(pcap_offline->name != NULL);
-			pcap_offline->fdes = -1;
 			APPEND(mypcaps, pcap_offline, link);
 			break;
 		case 'l':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
 				usage("vlan must be an integer 0..4095");
-			vlan = malloc(sizeof *vlan);
+			vlan = calloc(1, sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
@@ -844,7 +951,7 @@ parse_args(int argc, char *argv[]) {
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0' || ul > MAX_VLAN)
 				usage("vlan must be an integer 0..4095");
-			vlan = malloc(sizeof *vlan);
+			vlan = calloc(1, sizeof *vlan);
 			assert(vlan != NULL);
 			INIT_LINK(vlan, link);
 			vlan->vlan = (unsigned) ul;
@@ -933,12 +1040,31 @@ parse_args(int argc, char *argv[]) {
 			else
 				dump_type = to_file;
 			break;
+		case 'W':
+		    if (dump_suffix)
+		        free(dump_suffix);
+			dump_suffix = strdup(optarg);
+			break;
 		case 'k':
 			if (dump_type != to_file)
 				usage("-k depends on -w"
 				      " (note: can't be stdout)");
 			kick_cmd = optarg;
 			break;
+		case 'F':
+		    if (!strcmp(optarg, "pcap")) {
+		        options.dump_format = pcap;
+		    }
+		    else if (!strcmp(optarg, "cbor")) {
+		        options.dump_format = cbor;
+		    }
+		    else if (!strcmp(optarg, "cds")) {
+		        options.dump_format = cds;
+		    }
+		    else {
+		        usage("invalid output format for -F");
+		    }
+		    break;
 		case 't':
 			ul = strtoul(optarg, &p, 0);
 			if (*p != '\0')
@@ -951,13 +1077,19 @@ parse_args(int argc, char *argv[]) {
 				usage("argument to -c must be an integer");
 			limit_packets = (unsigned) ul;
 			break;
+		case 'C':
+			ul = strtoul(optarg, &p, 0);
+			if (*p != '\0')
+				usage("argument to -C must be an integer");
+			limit_pcapfilesize = (unsigned) ul;
+			break;
 		case 'x':
 			/* FALLTHROUGH */
 		case 'X':
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
 			{
 				int i;
-				myregex_ptr myregex = malloc(sizeof *myregex);
+				myregex_ptr myregex = calloc(1, sizeof *myregex);
 				assert(myregex != NULL);
 				INIT_LINK(myregex, link);
 				myregex->str = strdup(optarg);
@@ -1042,16 +1174,27 @@ parse_args(int argc, char *argv[]) {
 				APPEND(plugins, p, link);
 				if (dumptrace)
 					fprintf(stderr, "Plugin '%s' loaded\n", p->name);
+			    free(fn);
 			}
 			break;
 		case 'U':
+		    if (extra_bpf)
+		        free(extra_bpf);
 			extra_bpf = strdup(optarg);
 			break;
-#ifdef USE_SECCOMP
 		case 'y':
+#ifdef USE_SECCOMP
 			use_seccomp = TRUE;
-			break;
+#else
+			usage("seccomp-bpf not enabled");
 #endif
+			break;
+        case 'M':
+            monitor_mode = TRUE;
+            break;
+        case 'D':
+            immediate_mode = TRUE;
+            break;
 		default:
 			usage("unrecognized command line option");
 		}
@@ -1073,7 +1216,7 @@ parse_args(int argc, char *argv[]) {
 
 		fprintf(stderr, "%s: version %s\n", ProgramName, version());
 		fprintf(stderr,
-		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u\n",
+		"%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu\n",
 			ProgramName,
 			(msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
 			(msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -1090,7 +1233,7 @@ parse_args(int argc, char *argv[]) {
 			(err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
 			(err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
 			(err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
-			limit_seconds, limit_packets);
+			limit_seconds, limit_packets, limit_pcapfilesize);
 		sep = "\tinit";
 		for (ep = HEAD(initiators);
 		     ep != NULL;
@@ -1153,27 +1296,46 @@ parse_args(int argc, char *argv[]) {
 	}
 	if (EMPTY(mypcaps)) {
 		const char *name;
-#ifdef __linux__
-		name = NULL;	/* "all interfaces" */
-#else
 		name = pcap_lookupdev(errbuf);
 		if (name == NULL) {
 			fprintf(stderr, "%s: pcap_lookupdev: %s\n",
 				ProgramName, errbuf);
 			exit(1);
 		}
-#endif
-		mypcap = malloc(sizeof *mypcap);
+		mypcap = calloc(1, sizeof *mypcap);
 		assert(mypcap != NULL);
 		INIT_LINK(mypcap, link);
 		mypcap->name = (name == NULL) ? NULL : strdup(name);
-		mypcap->fdes = -1;
 		APPEND(mypcaps, mypcap, link);
 	}
 	if (start_time && stop_time && start_time >= stop_time)
 		usage("start time must be before stop time");
 	if ((start_time || stop_time) && NULL == dump_base)
 		usage("--B and --E require -w");
+
+    if (options.dump_format == cbor) {
+        if (!have_cbor_support()) {
+            usage("no built in cbor support");
+        }
+        cbor_set_size(options.cbor_chunk_size);
+    }
+    else if (options.dump_format == cds) {
+        if (!have_cds_support()) {
+            usage("no built in cds support");
+        }
+        cds_set_cbor_size(options.cds_cbor_size);
+        cds_set_message_size(options.cds_message_size);
+        cds_set_max_rlabels(options.cds_max_rlabels);
+        cds_set_min_rlabel_size(options.cds_min_rlabel_size);
+        if (options.cds_use_rdata_index && options.cds_use_rdata_rindex) {
+            usage("can't use both CDS rdata index and rindex");
+        }
+        cds_set_use_rdata_index(options.cds_use_rdata_index);
+        cds_set_use_rdata_rindex(options.cds_use_rdata_rindex);
+        cds_set_rdata_index_min_size(options.cds_rdata_index_min_size);
+        cds_set_rdata_rindex_min_size(options.cds_rdata_rindex_min_size);
+        cds_set_rdata_rindex_size(options.cds_rdata_rindex_size);
+    }
 }
 
 static void
@@ -1221,7 +1383,7 @@ static void
 endpoint_add(endpoint_list *list, iaddr ia) {
 	endpoint_ptr ep;
 
-	ep = malloc(sizeof *ep);
+	ep = calloc(1, sizeof *ep);
 	assert(ep != NULL);
 	INIT_LINK(ep, link);
 	ep->ia = ia;
@@ -1296,9 +1458,11 @@ prepare_bpft(void) {
 		if (udp11_mbc != 0)
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
 					udp11_mbc);
+/* Dead code, udp11_mbs never set
 		if (udp11_mbs != 0)
 			len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
 					udp11_mbs, udp11_mbs);
+*/
 
 		if (err_wanted != ERR_NO) {
 			len += text_add(&bpfl, " and (");
@@ -1367,30 +1531,29 @@ prepare_bpft(void) {
 	if (extra_bpf)
 		len += text_add(&bpfl, " and ( %s )", extra_bpf);
 
-	bpft = malloc(len + 1);
+	bpft = calloc(len + 1, sizeof(char));
 	assert(bpft != NULL);
-	bpft[0] = '\0';
 	for (text = HEAD(bpfl);
 	     text != NULL;
 	     text = NEXT(text, link))
 		strcat(bpft, text->text);
 	text_free(&bpfl);
-	if (!EMPTY(vlans_incl)) {
-        	static char *bpft_vlan;
-		len = 2*strlen(bpft) + strlen("() or (vlan and ())");
-        	bpft_vlan = malloc(len + 1);
-		assert(bpft_vlan != NULL);
-		sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
-		bpft = realloc(bpft, len + 1);
-		assert(bpft != NULL);
-		strcpy(bpft, bpft_vlan);
-		free(bpft_vlan);
-	}
+    if (!EMPTY(vlans_incl)) {
+        static char *bpft_vlan;
+        len = 2*strlen(bpft) + strlen("() or (vlan and ())");
+        bpft_vlan = calloc(len + 1, sizeof(char));
+        assert(bpft_vlan != NULL);
+        sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
+        bpft = realloc(bpft, len + 1);
+        assert(bpft != NULL);
+        strcpy(bpft, bpft_vlan);
+        free(bpft_vlan);
+    }
 	if (dumptrace >= 1)
 		fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
 }
 
-static const char *
+const char *
 ia_str(iaddr ia) {
 	static char ret[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
 
@@ -1439,7 +1602,7 @@ text_add(text_list *list, const char *fmt, ...) {
 	va_list ap;
 	int len;
 
-	text = malloc(sizeof *text);
+	text = calloc(1, sizeof *text);
 	assert(text != NULL);
 	INIT_LINK(text, link);
 	va_start(ap, fmt);
@@ -1461,112 +1624,119 @@ text_free(text_list *list) {
 }
 
 static void
+drop_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const char* name, const int dlt) {
+	mypcap_ptr mypcap = (mypcap_ptr) user;
+
+    pcap_drops++;
+    if (mypcap) {
+        mypcap->drops++;
+    }
+}
+
+static void
+print_pcap_thread_error(const char* func, int err) {
+	if (err == PCAP_THREAD_EPCAP) {
+		fprintf(stderr, "%s: pcap_thread libpcap error [%d] %s: %s (%s)\n",
+			ProgramName,
+			pcap_thread_status(&pcap_thread),
+			func,
+			pcap_statustostr(pcap_thread_status(&pcap_thread)),
+			pcap_thread_errbuf(&pcap_thread)
+		);
+	}
+	else if (err != PCAP_THREAD_OK) {
+		fprintf(stderr, "%s: pcap_thread error [%d] %s: %s\n",
+			ProgramName,
+			err,
+			func,
+			pcap_thread_strerr(err)
+		);
+	}
+}
+
+static void
 open_pcaps(void) {
 	mypcap_ptr mypcap;
+	int err;
+
+    if ((err = pcap_thread_set_snaplen(&pcap_thread, SNAPLEN)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_snaplen()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_promiscuous(&pcap_thread, promisc)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_promiscuous()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_monitor(&pcap_thread, monitor_mode)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_monitor()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_immediate_mode(&pcap_thread, immediate_mode)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_immediate_mode()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_callback()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_dropback(&pcap_thread, drop_pkt)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_dropback()", err);
+		exit(1);
+	}
+    if ((err = pcap_thread_set_filter(&pcap_thread, bpft, strlen(bpft))) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_filter()", err);
+		exit(1);
+	}
+	if (options.pcap_buffer_size && (err = pcap_thread_set_buffer_size(&pcap_thread, options.pcap_buffer_size)) != PCAP_THREAD_OK) {
+		print_pcap_thread_error("pcap_thread_set_buffer_size()", err);
+		exit(1);
+	}
 
 	assert(!EMPTY(mypcaps));
-	FD_ZERO(&mypcap_fdset);
-	pcap_maxfd = 0;
 	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
 	     mypcap = NEXT(mypcap, link))
 	{
-		struct bpf_program bpfp;
-#ifdef __APPLE__
-		unsigned int ioarg = 1;
-#endif
+        if (pcap_offline)
+            err = pcap_thread_open_offline(&pcap_thread, mypcap->name, (u_char*)mypcap);
+        else
+            err = pcap_thread_open(&pcap_thread, mypcap->name, (u_char*)mypcap);
 
-		errbuf[0] = '\0';
-		if (pcap_offline == NULL)
-			mypcap->pcap = pcap_open_live(mypcap->name, SNAPLEN,
-						      promisc, TO_MS, errbuf);
-		else
-			mypcap->pcap = pcap_open_offline(mypcap->name, errbuf);
-		if (mypcap->pcap == NULL) {
-			fprintf(stderr, "%s: pcap open: %s\n",
-				ProgramName, errbuf);
-			exit(1);
-		}
-		if (errbuf[0] != '\0')
-			fprintf(stderr, "%s: pcap warning: %s\n",
-				ProgramName, errbuf);
-		mypcap->dlt = pcap_datalink(mypcap->pcap);
-		mypcap->fdes = pcap_get_selectable_fd(mypcap->pcap);
-#ifdef __APPLE__
-		ioctl(mypcap->fdes, BIOCIMMEDIATE, &ioarg);
-#endif
-		if (pcap_offline == NULL)
-			if (pcap_setnonblock(mypcap->pcap, TRUE, errbuf) < 0) {
-				fprintf(stderr, "%s: pcap_setnonblock: %s\n",
-					ProgramName, errbuf);
-				exit(1);
-			}
-		FD_SET(mypcap->fdes, &mypcap_fdset);
-		if (mypcap->fdes > pcap_maxfd)
-			pcap_maxfd = mypcap->fdes;
-		if (pcap_compile(mypcap->pcap, &bpfp, bpft, TRUE, 0) < 0 ||
-		    pcap_setfilter(mypcap->pcap, &bpfp) < 0) {
-			fprintf(stderr, "%s: pcap error: %s\n",
-				ProgramName, pcap_geterr(mypcap->pcap));
-			exit(1);
-		}
-		pcap_freecode(&bpfp);
+        if (err == PCAP_THREAD_EPCAP) {
+            fprintf(stderr, "%s: pcap_thread libpcap error [%d]: %s (%s)\n",
+                ProgramName,
+                pcap_thread_status(&pcap_thread),
+                pcap_statustostr(pcap_thread_status(&pcap_thread)),
+                pcap_thread_errbuf(&pcap_thread)
+            );
+            exit(1);
+        }
+        if (err) {
+            fprintf(stderr, "%s: pcap_thread error [%d]: %s\n",
+                ProgramName,
+                err,
+                pcap_thread_strerr(err)
+            );
+            exit(1);
+        }
 	}
 	pcap_dead = pcap_open_dead(DLT_RAW, SNAPLEN);
 }
 
 static void
 poll_pcaps(void) {
-	mypcap_ptr mypcap;
-	fd_set readfds;
-	int n;
-
-	do {
-		memcpy(&readfds, &mypcap_fdset, sizeof(fd_set));
-		n = select(pcap_maxfd+1, &readfds, NULL, NULL, NULL);
-	} while (n < 0 && errno == EINTR && !main_exit);
-	if (n < 0) {
-		if (errno != EINTR)
-			logerr("select: %s", strerror(errno));
-		main_exit = TRUE;
-		return;
-	}
-	/* Poll them all. */
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-	{
-		n = pcap_dispatch(mypcap->pcap, -1, dl_pkt,
-				  (u_char *)mypcap);
-		if (n == -1)
-			logerr("%s: pcap_dispatch: %s",
-				ProgramName, errbuf);
-		if (n < 0 || pcap_offline != NULL) {
-			main_exit = TRUE;
-			return;
-		}
-	}
+    pcap_thread_run(&pcap_thread);
+    main_exit = TRUE;
 }
 
 static void
 breakloop_pcaps(void) {
-	mypcap_ptr mypcap;
-
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-		pcap_breakloop(mypcap->pcap);
+    pcap_thread_stop(&pcap_thread);
 }
 
 static void
 close_pcaps(void) {
-	mypcap_ptr mypcap;
-
-	for (mypcap = HEAD(mypcaps);
-	     mypcap != NULL;
-	     mypcap = NEXT(mypcap, link))
-		pcap_close(mypcap->pcap);
-	pcap_close(pcap_dead);
+    pcap_thread_close(&pcap_thread);
 }
 
 #define MAX_TCP_IDLE_TIME	600
@@ -1615,7 +1785,7 @@ tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t) {
 static tcpstate_ptr
 tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 
-	tcpstate_ptr tcpstate = malloc(sizeof *tcpstate);
+	tcpstate_ptr tcpstate = calloc(1, sizeof *tcpstate);
 	if (tcpstate == NULL) {
 	    /* Out of memory; recycle the least recently used */
 	    logerr("warning: out of memory, "
@@ -1635,7 +1805,7 @@ tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport) {
 }
 
 static void
-dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
+dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt, const char* name, const int dlt) {
 	mypcap_ptr mypcap = (mypcap_ptr) user;
 	size_t len = hdr->caplen;
 	unsigned etype, vlan, pf;
@@ -1656,7 +1826,7 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 
 	/* Data link. */
 	vlan = MAX_VLAN;	/* MAX_VLAN (0xFFF) is reserved and shouldn't appear on the wire */
-	switch (mypcap->dlt) {
+	switch (dlt) {
 	case DLT_NULL: {
 		uint32_t x;
 
@@ -1746,7 +1916,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, skip it
+        /*
+         * If there is no VLAN matching the packet, skip it
+         */
 		if (vl == NULL)
 			return;
 	}
@@ -1758,8 +1930,9 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 		     vl = NEXT(vl, link))
 			if (vl->vlan == vlan || vl->vlan == MAX_VLAN)
 				break;
-        // If there is no VLAN matching the packet, and the packet is
-        // tagged, skip it
+        /*
+         * If there is no VLAN matching the packet, and the packet is tagged, skip it
+         */
 		if (vl == NULL && vlan != MAX_VLAN)
 			return;
 	}
@@ -1809,6 +1982,17 @@ dl_pkt(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt) {
 			goto breakloop;
 		msgcount = 0;
 	}
+
+	if (limit_pcapfilesize != 0U && capturedbytes >= limit_pcapfilesize) {
+		if (preso) {
+			goto breakloop;
+		}
+		if (dumper_opened == dump_state && dumper_close(hdr->ts)) {
+			goto breakloop;
+		}
+		capturedbytes = 0;
+	}
+
 	return;
  breakloop:
 	breakloop_pcaps();
@@ -1821,7 +2005,7 @@ static void
 discard(tcpstate_ptr tcpstate, const char *msg)
 {
 	if (dumptrace >= 3 && msg)
-		fprintf(stderr, "%s\n", msg);
+		fprintf(stderr, "discarding packet: %s\n", msg);
 	if (tcpstate) {
 		UNLINK(tcpstates, tcpstate, link);
 		free(tcpstate);
@@ -1847,6 +2031,9 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	struct ip *ip;
 	size_t len, dnslen;
 	HEADER dns;
+
+	if (dumptrace >= 4)
+		fprintf(stderr, "processing %s packet: len=%zu\n", (pf==PF_INET?"IPv4":(pf==PF_INET6?"IPv6":"unknown")), olen);
 
 	/* Make a writable copy of the packet and use that copy from now on. */
 	memcpy(pkt, opkt, len = olen);
@@ -1968,7 +2155,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 	switch (proto) {
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
+		output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
 		return;
 	case IPPROTO_UDP: {
 		if (len < sizeof *udp)
@@ -2327,7 +2514,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			if ((end_hide & END_RESPONDER) != 0)
 				resp_addr->s_addr = HIDE_INET;
 			ip->ip_sum = ~in_checksum((u_char *)ip, sizeof *ip);
-			udp->uh_sum = 0U;
+			if (udp) udp->uh_sum = 0U;
 			break;
 		    }
 		case AF_INET6: {
@@ -2344,21 +2531,18 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 			    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
 			}
 			if ((end_hide & END_INITIATOR) != 0) {
-                    		memcpy(init_addr, HIDE_INET6,
-				       sizeof HIDE_INET6);
+                memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
 				*init_port = htons(HIDE_PORT);
 			}
 			if ((end_hide & END_RESPONDER) != 0)
-				memcpy(resp_addr, HIDE_INET6,
-				       sizeof HIDE_INET6);
-			udp->uh_sum = 0U;
+                memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
+			if (udp) udp->uh_sum = 0U;
 			break;
 		    }
 		default:
 			abort();
 		}
 	}
-	msgcount++;
 	output(descr, from, to, proto, flags, sport, dport, ts,
 	    pkt_copy, olen, dnspkt, dnslen);
 }
@@ -2373,6 +2557,21 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     const u_char *payload, const unsigned payloadlen)
 {
 	struct plugin *p;
+
+	msgcount++;
+	capturedbytes += olen;
+
+	if (dumptrace >= 3) {
+		fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
+			capturedbytes,
+			proto,
+			flags & DNSCAP_OUTPUT_ISFRAG ? "yes" : "no",
+			flags & DNSCAP_OUTPUT_ISDNS ? "yes" : "no",
+			olen,
+			payloadlen
+		);
+	}
+
 	/* Output stage. */
 	if (preso) {
 		fputs(descr, stderr);
@@ -2388,14 +2587,52 @@ output(const char *descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
 		putc('\n', stderr);
 	}
 	if (dump_type != nowhere) {
-		struct pcap_pkthdr h;
+	    if (options.dump_format == pcap) {
+		    struct pcap_pkthdr h;
 
-		memset(&h, 0, sizeof h);
-		h.ts = ts;
-		h.len = h.caplen = olen;
-		pcap_dump((u_char *)dumper, &h, pkt_copy);
-		if (flush)
-			pcap_dump_flush(dumper);
+		    memset(&h, 0, sizeof h);
+		    h.ts = ts;
+		    h.len = h.caplen = olen;
+		    pcap_dump((u_char *)dumper, &h, pkt_copy);
+		    if (flush)
+			    pcap_dump_flush(dumper);
+        }
+        else if (options.dump_format == cbor && (flags & DNSCAP_OUTPUT_ISDNS) && payload) {
+            int ret = output_cbor(from, to, proto, flags, sport, dport, ts, payload, payloadlen);
+
+            if (ret == DUMP_CBOR_FLUSH) {
+                if (dumper_close(ts)) {
+                    fprintf(stderr, "%s: dumper_close() failed\n", ProgramName);
+                    exit(1);
+                }
+                if (dumper_open(ts)) {
+                    fprintf(stderr, "%s: dumper_open() failed\n", ProgramName);
+                    exit(1);
+                }
+            }
+            else if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+            }
+        }
+        else if (options.dump_format == cds) {
+            int ret = output_cds(from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+
+            if (ret == DUMP_CDS_FLUSH) {
+                if (dumper_close(ts)) {
+                    fprintf(stderr, "%s: dumper_close() failed\n", ProgramName);
+                    exit(1);
+                }
+                if (dumper_open(ts)) {
+                    fprintf(stderr, "%s: dumper_open() failed\n", ProgramName);
+                    exit(1);
+                }
+            }
+            else if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+            }
+        }
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
 		if (p->output)
@@ -2407,6 +2644,8 @@ static int
 dumper_open(my_bpftimeval ts) {
 	const char *t = NULL;
 	struct plugin *p;
+
+    assert(dump_state == dumper_closed);
 
 	while (ts.tv_usec >= MILLION) {
 		ts.tv_sec++;
@@ -2423,9 +2662,9 @@ dumper_open(my_bpftimeval ts) {
 		char sbuf[64];
 
 		strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t *) &ts.tv_sec));
-		if (asprintf(&dumpname, "%s.%s.%06lu",
+		if (asprintf(&dumpname, "%s.%s.%06lu%s",
 			     dump_base, sbuf,
-			     (u_long) ts.tv_usec) < 0 ||
+			     (u_long) ts.tv_usec, dump_suffix ? dump_suffix : "") < 0 ||
 		    asprintf(&dumpnamepart, "%s.part", dumpname) < 0)
 		{
 			logerr("asprintf: %s", strerror(errno));
@@ -2434,12 +2673,14 @@ dumper_open(my_bpftimeval ts) {
 		t = dumpnamepart;
 	}
 	if (NULL != t) {
-		dumper = pcap_dump_open(pcap_dead, t);
-		if (dumper == NULL) {
-			logerr("pcap dump open: %s",
-				pcap_geterr(pcap_dead));
-			return (TRUE);
-		}
+	    if (options.dump_format == pcap) {
+		    dumper = pcap_dump_open(pcap_dead, t);
+		    if (dumper == NULL) {
+			    logerr("pcap dump open: %s",
+				    pcap_geterr(pcap_dead));
+			    return (TRUE);
+		    }
+	    }
 	}
 	dumpstart = ts.tv_sec;
 	if (limit_seconds != 0U) {
@@ -2474,27 +2715,41 @@ dumper_open(my_bpftimeval ts) {
 	return (FALSE);
 }
 
-static void
-do_pcap_stats()
-{
+void stat_callback(u_char* user, const struct pcap_stat* stats, const char* name, int dlt) {
 	mypcap_ptr mypcap;
 	for (mypcap = HEAD(mypcaps);
 	     mypcap != NULL;
 	     mypcap = NEXT(mypcap, link)) {
+	     if (!strcmp(name, mypcap->name))
+	        break;
+	}
+
+    if (mypcap) {
 		mypcap->ps0 = mypcap->ps1;
-		pcap_stats(mypcap->pcap, &mypcap->ps1);
-		logerr("%4s: %7u recv %7u drop %7u total",
+		mypcap->ps1 = *stats;
+		logerr("%s: %u recv %u drop %u total ptdrop %lu",
 			mypcap->name,
 			mypcap->ps1.ps_recv - mypcap->ps0.ps_recv,
 			mypcap->ps1.ps_drop - mypcap->ps0.ps_drop,
-			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop);
-	}
+			mypcap->ps1.ps_recv + mypcap->ps1.ps_drop - mypcap->ps0.ps_recv - mypcap->ps0.ps_drop,
+			mypcap->drops
+		);
+    }
+}
+
+static void
+do_pcap_stats()
+{
+    logerr("total drops: %lu", pcap_drops);
+    pcap_thread_stats(&pcap_thread, stat_callback, 0);
 }
 
 static int
 dumper_close(my_bpftimeval ts) {
 	int ret = FALSE;
 	struct plugin *p;
+
+    assert(dump_state == dumper_opened);
 
 	if (print_pcap_stats)
 		do_pcap_stats();
@@ -2503,10 +2758,66 @@ dumper_close(my_bpftimeval ts) {
 		alarm(0);
 		alarm_set = FALSE;
 	}
-	if (dumper) {
-		pcap_dump_close(dumper);
-		dumper = FALSE;
+
+    if (options.dump_format == pcap) {
+    	if (dumper) {
+    		pcap_dump_close(dumper);
+    		dumper = FALSE;
+    	}
 	}
+	else if (options.dump_format == cbor) {
+	    int ret;
+
+    	if (dump_type == to_stdout) {
+    	    ret = dump_cbor(stdout);
+
+    	    if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	}
+    	else if (dump_type == to_file) {
+    	    FILE * fp;
+
+    	    if (!(fp = fopen(dumpnamepart, "w"))) {
+                fprintf(stderr, "%s: fopen(%s) failed: %s\n", ProgramName, dumpnamepart, strerror(errno));
+                exit(1);
+    	    }
+    	    ret = dump_cbor(fp);
+    	    if (ret != DUMP_CBOR_OK) {
+                fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	    fclose(fp);
+    	}
+	}
+	else if (options.dump_format == cds) {
+	    int ret;
+
+    	if (dump_type == to_stdout) {
+    	    ret = dump_cds(stdout);
+
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	}
+    	else if (dump_type == to_file) {
+    	    FILE * fp;
+
+    	    if (!(fp = fopen(dumpnamepart, "w"))) {
+                fprintf(stderr, "%s: fopen(%s) failed: %s\n", ProgramName, dumpnamepart, strerror(errno));
+                exit(1);
+    	    }
+    	    ret = dump_cds(fp);
+    	    if (ret != DUMP_CDS_OK) {
+                fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
+                exit(1);
+    	    }
+    	    fclose(fp);
+    	}
+	}
+
 	if (dump_type == to_stdout) {
 		assert(dumpname == NULL);
 		assert(dumpnamepart == NULL);
@@ -2519,7 +2830,10 @@ dumper_close(my_bpftimeval ts) {
 		if (dumptrace >= 1)
 			fprintf(stderr, "%s: closing %s\n",
 				ProgramName, dumpname);
-		rename(dumpnamepart, dumpname);
+		if (rename(dumpnamepart, dumpname)) {
+		    logerr("rename: %s", strerror(errno));
+		    return ret;
+		}
 		if (kick_cmd != NULL)
 			if (asprintf(&cmd, "%s %s &", kick_cmd, dumpname) < 0){
 				logerr("asprintf: %s", strerror(errno));
@@ -2533,7 +2847,7 @@ dumper_close(my_bpftimeval ts) {
 			    logerr("system: \"%s\" returned %d", cmd, x);
 			free(cmd);
 		}
-		if (kick_cmd == NULL)
+		if (kick_cmd == NULL && options.dump_format != cbor && options.dump_format != cds)
 			ret = TRUE;
 	}
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
@@ -2562,7 +2876,35 @@ static void
 sigbreak(int signum __attribute__((unused))) {
 	logerr("%s: signalled break", ProgramName);
 	main_exit = TRUE;
+	breakloop_pcaps();
 }
+
+#if HAVE_PTHREAD
+static void *
+sigthread(void * arg) {
+    sigset_t *set = (sigset_t*)arg;
+    int sig, err;
+
+    while (1) {
+        if ((err = sigwait(set, &sig))) {
+            logerr("sigwait: %s", strerror(err));
+            return 0;
+        }
+
+        switch (sig) {
+            case SIGALRM:
+                sigclose(sig);
+                break;
+
+            default:
+                sigbreak(sig);
+                break;
+        }
+    }
+
+    return 0;
+}
+#endif
 
 static uint16_t
 in_checksum(const u_char *ptr, size_t len) {

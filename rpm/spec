@@ -1,0 +1,105 @@
+Name:           dnscap
+Version:        1.4.1
+Release:        1%{?dist}
+Summary:        Network capture utility designed specifically for DNS traffic
+
+License:        BSD-3-Clause
+URL:            https://www.dns-oarc.net/tools/dnscap
+# Using same naming as to build debs, get the source (and rename it) at
+# https://www.dns-oarc.net/tools/dnscap and change %setup
+Source0:        %{name}_%{version}.orig.tar.gz
+
+BuildRequires:  libpcap-devel
+BuildRequires:  ldns-devel
+BuildRequires:  openssl-devel
+BuildRequires:  autoconf
+BuildRequires:  automake
+BuildRequires:  libtool
+
+%description
+dnscap is a network capture utility designed specifically for DNS
+traffic. It produces binary data in pcap(3) format. This utility
+is similar to tcpdump(1), but has a number of features tailored
+to DNS transactions and protocol options.
+
+
+%prep
+%setup -q -n %{name}_%{version}
+
+
+%build
+sh autogen.sh
+%configure
+make %{?_smp_mflags}
+
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root)
+%{_bindir}/*
+%{_datadir}/doc/*
+%{_mandir}/man1/*
+%{_libdir}/*
+
+
+%changelog
+* Wed Mar 29 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.4.1-1
+- Release 1.4.1
+  * Fixed an issue that when compiled with libpcap that had a specific
+    feature enabled it would result in a runtime error which could not be
+    worked around.
+  * Also fixed various compatibility issues and updated dependency
+    documentation for CentOS.
+  * Commits:
+    785d4c4 Fix compiler warnings
+    2d4df8d Fix #65: Update pcap-thread to v2.1.2
+    26d3fbc Fix #64: Add missing dependency
+    55e6741 Update pcap-thread to v2.1.1, fix issue with libpcap timestamp
+            type
+    c6fdb7a Fix typo and remove unused variables
+* Mon Feb 27 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.4.0-1
+- Release 1.4.0
+  * Until it can be confirmed that the threaded code works as well as the
+    non-threaded code it has been made optional and requires a configuration
+    option to enable it during compilation.
+  * New extended option:
+    - `-o pcap_buffer_size=<bytes>` can be used to increase the capture
+      buffer within pcap-thread/libpcap, this can help mitigate dropped
+      packets by the kernel during breaks (like when closing dump file).
+  * Commits:
+    1c6fbb2 Update copyright year
+    63ef665 Suppress OpenBSD warnings about symbols
+    2c99946 pcap-thread v2.0.0, disable threads, errors handling
+    4cade97 Fix #56: Update pcap-thread to v1.2.2 and add test
+* Fri Dec 23 2016 Jerry Lundström <lundstrom.jerry@gmail.com> 1.3.0-1
+- Release 1.3.0
+  * Rare lockup has been fixed that could happen if a signal was received
+    in the wrong thread at the wrong time due to `pcap_thread_stop()`
+    canceling and waiting on threads to join again. The handling of signals
+    have been improved for threaded and non-threaded operations.
+  * New features:
+    - Experimental CBOR DNS Stream format output, see `CBOR_DNS_STREAM.md`
+    - Extended options to specify user and group to use when dropping
+      privileges, see EXTENDED OPTIONS in man-page
+  * Commits:
+    a5fa14e Signal and threads
+    3868104 Use old style C comments
+    7946be5 Clarify building
+    d5463b4 RPM spec and various automake fixes
+    df206bf Resource data indexing and documentation
+    0e2d0fe Fix #22, fix #43: Update README
+    5921d73 Add stream option RLABELS and RLABEL_MIN_SIZE
+    6dd6ec1 Implement experimental CBOR DNS Stream Format
+    4baf695 Fix #37: Extended options to specifty user/group to use when
+            dropping privileges
+    61d830a Fix #35: Use `AC_HEADER_TIME` and fix warning
+* Thu Dec 15 2016 Jerry Lundström <lundstrom.jerry@gmail.com> 1.2.0-1
+- Initial package

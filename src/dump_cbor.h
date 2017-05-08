@@ -32,34 +32,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-typedef struct _hashitem {
-	const void *key;
-	void *data;
-	struct _hashitem *next;
-} hashitem;
+#include "dnscap_common.h"
 
-typedef unsigned int hashfunc(const void *key);
-typedef int hashkeycmp(const void *a, const void *b);
-typedef void hashfree(void *);
+#ifndef __dnscap_dump_cbor_h
+#define __dnscap_dump_cbor_h
 
-typedef struct {
-	unsigned int modulus;
-	hashitem **items;
-	hashfunc *hasher;
-	hashkeycmp *keycmp;
-	hashfree *datafree;
-	struct {
-		hashitem *next;
-		unsigned int slot;
-	} iter;
-} hashtbl;
+#define DUMP_CBOR_OK        0
+#define DUMP_CBOR_EINVAL    1
+#define DUMP_CBOR_ENOMEM    2
+#define DUMP_CBOR_ECBOR     3
+#define DUMP_CBOR_ELDNS     4
+#define DUMP_CBOR_EWRITE    5
+#define DUMP_CBOR_FLUSH     6
+#define DUMP_CBOR_ENOSUP    7
 
-hashtbl *hash_create(int N, hashfunc *, hashkeycmp *, hashfree *);
-int hash_add(const void *key, void *data, hashtbl *);
-void hash_remove(const void *key, hashtbl * tbl);
-void *hash_find(const void *key, hashtbl *);
-void hash_iter_init(hashtbl *);
-void *hash_iterate(hashtbl *);
-int hash_count(hashtbl *);
-void hash_free(hashtbl *);
-void hash_destroy(hashtbl *);
+/*
+typedef struct cbor_stringref cbor_stringref_t;
+struct cbor_stringref {
+    char *string;
+    size_t ref;
+};
+*/
+
+int cbor_set_size(size_t size);
+int cbor_set_reserve(size_t reserve);
+int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char *payload, size_t payloadlen);
+int dump_cbor();
+int have_cbor_support();
+
+#endif /* __dnscap_dump_cbor_h */

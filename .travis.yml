@@ -1,4 +1,4 @@
-language: cpp
+language: c
 compiler:
   - clang
   - gcc
@@ -16,3 +16,4 @@ script:
   - ../configure
   - make
   - make test
+  - src/dnscap -h
