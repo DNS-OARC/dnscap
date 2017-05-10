@@ -54,6 +54,10 @@
 #include <pthread.h>
 #endif
 
+#if HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+
 #ifdef __linux__
 # define __FAVOR_BSD
 # define __USE_GNU
@@ -322,6 +326,7 @@ static void network_pkt(const char *, my_bpftimeval, unsigned,
 static output_t output;
 static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
+static pcap_dumper_t *dnscap_pcap_dump_open(pcap_t *, const char *);
 static void sigclose(int);
 static void sigbreak(int);
 #if HAVE_PTHREAD
@@ -2660,7 +2665,7 @@ dumper_open(my_bpftimeval ts) {
 	}
 	if (NULL != t) {
 	    if (options.dump_format == pcap) {
-		    dumper = pcap_dump_open(pcap_dead, t);
+		    dumper = dnscap_pcap_dump_open(pcap_dead, t);
 		    if (dumper == NULL) {
 			    logerr("pcap dump open: %s",
 				    pcap_geterr(pcap_dead));
@@ -2956,4 +2961,56 @@ daemonize(void)
   }
 #endif
   logerr("Backgrounded as pid %u", getpid());
+}
+
+static ssize_t
+gzip_cookie_write(void *cookie, const char *buf, size_t size) {
+	return gzwrite((gzFile)cookie, (const void *)buf, (unsigned) size);
+}
+
+static int
+gzip_cookie_close(void *cookie)
+{
+	return gzclose((gzFile)cookie);
+}
+
+static pcap_dumper_t *
+dnscap_pcap_dump_open(pcap_t *pcap, const char *path)
+{
+	static cookie_io_functions_t cookiefuncs = {
+		NULL, gzip_cookie_write, NULL, gzip_cookie_close
+	};
+
+	int compress = FALSE;
+	if (dump_suffix) {
+		char *dot = strrchr(dump_suffix, '.');
+		if (dot) {
+			compress = (strcmp(dot, ".gz") == 0) ? TRUE : FALSE;
+		}
+	}
+
+	if (compress) {
+#if defined(HAVE_GZOPEN) && defined (HAVE_FOPENCOOKIE)
+		FILE *fp = NULL;
+		gzFile z = gzopen(path, "w");
+
+		if (z == NULL) {
+			perror("gzopen");
+			return NULL;
+		}
+
+		fp = fopencookie(z, "w", cookiefuncs);
+		if (fp == NULL) {
+			perror("fopencookie");
+			return NULL;
+		}
+
+		return pcap_dump_fopen(pcap, fp);
+#else
+		fprintf(stderr, "warning: gzip compression requested but not supported");
+		/* falls-through */
+#endif
+	}
+
+	return pcap_dump_open(pcap, path);
 }
