@@ -95,7 +95,7 @@ AC_CHECK_HEADERS([zlib.h])
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
 AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid])
-AC_CHECK_FUNCS([fopencookie gzopen])
+AC_CHECK_FUNCS([funopen fopencookie gzopen])
 AC_CHECK_FUNC([ns_initparse],
     [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
     [AC_CHECK_FUNC(__ns_initparse,

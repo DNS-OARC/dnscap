@@ -228,7 +228,10 @@ and
 options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
 .It Fl W Ar suffix
-The provided suffix is added to the dump file name, e. g.: ".pcap"
+The provided suffix is added to the dump file name, e. g.: ".pcap".  If the
+suffix ends with ".gz" then files will be automatically gzip compressed.  If
+gzip compression is requested but not supported (i.e. because of lack of
+system support) an error will be generated.
 .It Fl k Ar cmd
 After each dump file specified by
 .Fl w

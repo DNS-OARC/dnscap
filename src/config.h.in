@@ -27,6 +27,9 @@
 /* Define to 1 if you have the `fopencookie' function. */
 #undef HAVE_FOPENCOOKIE
 
+/* Define to 1 if you have the `funopen' function. */
+#undef HAVE_FUNOPEN
+
 /* Define to 1 if you have the `gzopen' function. */
 #undef HAVE_GZOPEN
 
@@ -199,8 +202,7 @@
 /* Define to 1 if you have the `__assertion_failed' function. */
 #undef HAVE___ASSERTION_FAILED
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Name of package */
