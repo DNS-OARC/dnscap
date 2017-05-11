@@ -54,10 +54,6 @@
 #include <pthread.h>
 #endif
 
-#if HAVE_ZLIB_H
-#include <zlib.h>
-#endif
-
 #ifdef __linux__
 # define __FAVOR_BSD
 # define __USE_GNU
@@ -142,6 +138,10 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
+
+#if HAVE_ZLIB_H
+#include <zlib.h>
+#endif
 
 #include "dnscap_common.h"
 #include "dnscap.h"
@@ -2993,25 +2993,17 @@ gzip_cookie_write(void *cookie, const char *buf, size_t size) {
 }
 #endif
 
-#if HAVE_FUNOPEN || HAVE_FOPENCOOKIE
 static int
 gzip_cookie_close(void *cookie)
 {
 	return gzclose((gzFile)cookie);
 }
-#endif
-
-#if HAVE_FOPENCOOKIE
-static cookie_io_functions_t cookiefuncs = {
-	NULL, gzip_cookie_write, NULL, gzip_cookie_close
-};
-#endif
-
 #endif /* HAVE_ZLIB_H */
 
 static pcap_dumper_t *
 dnscap_pcap_dump_open(pcap_t *pcap, const char *path)
 {
+#if HAVE_ZLIB_H
 #if HAVE_GZOPEN
 	if (wantgzip) {
 		FILE *fp = NULL;
@@ -3028,15 +3020,22 @@ dnscap_pcap_dump_open(pcap_t *pcap, const char *path)
 			return NULL;
 		}
 #elif HAVE_FOPENCOOKIE
-		fp = fopencookie(z, "w", cookiefuncs);
-		if (fp == NULL) {
-			perror("fopencookie");
-			return NULL;
+		{
+			static cookie_io_functions_t cookiefuncs = {
+				NULL, gzip_cookie_write, NULL, gzip_cookie_close
+			};
+
+			fp = fopencookie(z, "w", cookiefuncs);
+			if (fp == NULL) {
+				perror("fopencookie");
+				return NULL;
+			}
 		}
 #endif
 		return pcap_dump_fopen(pcap, fp);
 	}
 #endif /* HAVE_GZOPEN */
+#endif /* HAVE_ZLIB_H */
 
 	return pcap_dump_open(pcap, path);
 }

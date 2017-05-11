@@ -12,6 +12,7 @@ Source0:        %{name}_%{version}.orig.tar.gz
 BuildRequires:  libpcap-devel
 BuildRequires:  ldns-devel
 BuildRequires:  openssl-devel
+BuildRequires:  zlib-devel
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  libtool
