@@ -139,6 +139,10 @@
 #include <pwd.h>
 #include <grp.h>
 
+#if HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+
 #include "dnscap_common.h"
 #include "dnscap.h"
 #define ISC_CHECK_NONE 1
@@ -322,6 +326,7 @@ static void network_pkt(const char *, my_bpftimeval, unsigned,
 static output_t output;
 static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
+static pcap_dumper_t *dnscap_pcap_dump_open(pcap_t *, const char *);
 static void sigclose(int);
 static void sigbreak(int);
 #if HAVE_PTHREAD
@@ -379,6 +384,7 @@ static int immediate_mode = FALSE;
 static int background = FALSE;
 static char errbuf[PCAP_ERRBUF_SIZE];
 static int v6bug = FALSE;
+static int wantgzip = FALSE;
 static int wantfrags = FALSE;
 static int wanticmp = FALSE;
 static int wanttcp = FALSE;
@@ -838,6 +844,21 @@ help_2(void) {
 }
 
 static void
+check_gzip() {
+	char *dot = strrchr(dump_suffix, '.');
+	if (dot) {
+		wantgzip = (strcmp(dot, ".gz") == 0) ? TRUE : FALSE;
+	}
+
+#if ! ( HAVE_GZOPEN && (HAVE_FUNOPEN || HAVE_FOPENCOOKIE ))
+	if (wantgzip) {
+		fprintf(stderr, "error: gzip compression requested but not supported\n");
+		exit(1);
+	}
+#endif
+}
+
+static void
 parse_args(int argc, char *argv[]) {
 	mypcap_ptr mypcap;
 	unsigned long ul;
@@ -1040,6 +1061,7 @@ parse_args(int argc, char *argv[]) {
 		    if (dump_suffix)
 		        free(dump_suffix);
 			dump_suffix = strdup(optarg);
+			check_gzip();
 			break;
 		case 'k':
 			if (dump_type != to_file)
@@ -2660,7 +2682,7 @@ dumper_open(my_bpftimeval ts) {
 	}
 	if (NULL != t) {
 	    if (options.dump_format == pcap) {
-		    dumper = pcap_dump_open(pcap_dead, t);
+		    dumper = dnscap_pcap_dump_open(pcap_dead, t);
 		    if (dumper == NULL) {
 			    logerr("pcap dump open: %s",
 				    pcap_geterr(pcap_dead));
@@ -2956,4 +2978,64 @@ daemonize(void)
   }
 #endif
   logerr("Backgrounded as pid %u", getpid());
+}
+
+#if HAVE_ZLIB_H
+#if HAVE_FUNOPEN
+static int
+gzip_cookie_write(void *cookie, const char *buf, int size) {
+	return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned) size);
+}
+#elif HAVE_FOPENCOOKIE
+static ssize_t
+gzip_cookie_write(void *cookie, const char *buf, size_t size) {
+	return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned) size);
+}
+#endif
+
+static int
+gzip_cookie_close(void *cookie)
+{
+	return gzclose((gzFile)cookie);
+}
+#endif /* HAVE_ZLIB_H */
+
+static pcap_dumper_t *
+dnscap_pcap_dump_open(pcap_t *pcap, const char *path)
+{
+#if HAVE_ZLIB_H
+#if HAVE_GZOPEN
+	if (wantgzip) {
+		FILE *fp = NULL;
+		gzFile z = gzopen(path, "w");
+		if (z == NULL) {
+			perror("gzopen");
+			return NULL;
+		}
+
+#if HAVE_FUNOPEN
+		fp = funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
+		if (fp == NULL) {
+			perror("funopen");
+			return NULL;
+		}
+#elif HAVE_FOPENCOOKIE
+		{
+			static cookie_io_functions_t cookiefuncs = {
+				NULL, gzip_cookie_write, NULL, gzip_cookie_close
+			};
+
+			fp = fopencookie(z, "w", cookiefuncs);
+			if (fp == NULL) {
+				perror("fopencookie");
+				return NULL;
+			}
+		}
+#endif
+		return pcap_dump_fopen(pcap, fp);
+	}
+#endif /* HAVE_GZOPEN */
+#endif /* HAVE_ZLIB_H */
+
+	return pcap_dump_open(pcap, path);
 }
