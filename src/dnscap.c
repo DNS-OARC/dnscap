@@ -300,6 +300,7 @@ struct plugin {
 	output_t		(*output);
 	void			(*getopt)(int *, char **[]);
 	void			(*usage)();
+	void (*extension)(int, void*);
 };
 LIST(struct plugin) plugins;
 
@@ -339,6 +340,7 @@ static logerr_t logerr;
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
+static int is_responder(iaddr ia);
 
 
 /* Private data. */
@@ -1185,6 +1187,11 @@ parse_args(int argc, char *argv[]) {
 				}
 				snprintf(sn, sizeof(sn), "%s_usage", p->name);
 				p->usage = dlsym(p->handle, sn);
+				snprintf(sn, sizeof(sn), "%s_extension", p->name);
+				p->extension = dlsym(p->handle, sn);
+				if (p->extension) {
+					(*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
+				}
 				snprintf(sn, sizeof(sn), "%s_getopt", p->name);
 				p->getopt = dlsym(p->handle, sn);
 				if (p->getopt)
@@ -1590,6 +1597,16 @@ ia_equal(iaddr x, iaddr y) {
 		return (memcmp(&x.u.a6, &y.u.a6, sizeof x.u.a6) == 0);
 	}
 	return FALSE;
+}
+
+static int
+is_responder(iaddr ia)
+{
+    if (EMPTY(responders))
+        return 1;
+    if (ep_present(&responders, ia))
+        return 1;
+    return 0;
 }
 
 static int

@@ -92,6 +92,9 @@ typedef void output_t(const char *descr,
         const u_char *payload,
         const unsigned payloadlen);
 
+#define DNSCAP_EXT_IS_RESPONDER 1
+typedef int (*is_responder_t)(iaddr ia);
+
 #define DNSCAP_OUTPUT_ISFRAG (1<<0)
 #define DNSCAP_OUTPUT_ISDNS (1<<1)
 
