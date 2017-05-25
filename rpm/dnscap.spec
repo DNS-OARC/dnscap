@@ -2,6 +2,7 @@ Name:           dnscap
 Version:        1.4.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
+Group:          Productivity/Networking/DNS/Utilities
 
 License:        BSD-3-Clause
 URL:            https://www.dns-oarc.net/tools/dnscap
