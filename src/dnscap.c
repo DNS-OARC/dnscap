@@ -293,13 +293,13 @@ struct plugin {
 	LINK(struct plugin)	link;
 	char			*name;
 	void			*handle;
-	int			(*start)(logerr_t *);
-	void			(*stop)();
-	int			(*open)(my_bpftimeval);
-	int			(*close)();
-	output_t		(*output);
-	void			(*getopt)(int *, char **[]);
-	void			(*usage)();
+	plugin_start_t		*start;
+	plugin_stop_t		*stop;
+	plugin_open_t		*open;
+	plugin_close_t		*close;
+	plugin_output_t		*output;
+	plugin_getopt_t		*getopt;
+	plugin_usage_t		*usage;
 };
 LIST(struct plugin) plugins;
 
@@ -323,7 +323,7 @@ static void close_pcaps(void);
 static void dl_pkt(u_char *, const struct pcap_pkthdr *, const u_char *, const char*, const int);
 static void network_pkt(const char *, my_bpftimeval, unsigned,
 			const u_char *, size_t);
-static output_t output;
+static plugin_output_t output;
 static int dumper_open(my_bpftimeval);
 static int dumper_close(my_bpftimeval);
 static pcap_dumper_t *dnscap_pcap_dump_open(pcap_t *, const char *);
@@ -336,6 +336,7 @@ static uint16_t in_checksum(const u_char *, size_t);
 static void daemonize(void);
 static void drop_privileges(void);
 static logerr_t logerr;
+static is_responder_t is_responder;
 #if !HAVE___ASSERTION_FAILED
 static void my_assertion_failed(const char *file, int line, assertion_type type, const char *msg, int something) __attribute__((noreturn));
 #endif
@@ -416,6 +417,7 @@ main(int argc, char *argv[]) {
 	res_init();
 	parse_args(argc, argv);
 	gettimeofday(&now, 0);
+	plugin_callbacks callbacks;
 	if (start_time) {
 		if (now.tv_sec < start_time) {
 			char when[100];
@@ -437,9 +439,11 @@ main(int argc, char *argv[]) {
         drop_privileges();
     }
 
+	callbacks.logerr = logerr;
+	callbacks.is_responder = is_responder;
 	for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
 		if (p->start)
-			if (0 != (*p->start)(logerr)) {
+			if (0 != (*p->start)(&callbacks)) {
 				logerr("%s_start returned non-zero", p->name);
 				exit(1);
 			}
@@ -1604,6 +1608,16 @@ ep_present(const endpoint_list *list, iaddr ia) {
 	return (FALSE);
 }
 
+static int
+is_responder(iaddr ia)
+{
+	if (EMPTY(responders))
+		return 1;
+	if (ep_present(&responders, ia))
+		return 1;
+	return 0;
+}
+
 static size_t
 text_add(text_list *list, const char *fmt, ...) {
 	text_ptr text;
@@ -2112,7 +2126,7 @@ network_pkt(const char *descr, my_bpftimeval ts, unsigned pf,
 		       nexthdr == IPPROTO_HOPOPTS ||	/* Hop-by-Hop opts */
 		       nexthdr == IPPROTO_FRAGMENT ||	/* fragmentation hdr */
 		       nexthdr == IPPROTO_DSTOPTS ||	/* destination opts */
-		       nexthdr == IPPROTO_AH ||		/* destination opts */
+		       nexthdr == IPPROTO_AH ||		/* authentication header */
 		       nexthdr == IPPROTO_ESP)		/* encap sec payload */
 		{
 			struct {

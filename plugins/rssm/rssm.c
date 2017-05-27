@@ -62,14 +62,20 @@
 
 #include "hashtbl.h"
 
+plugin_start_t rssm_start;
+plugin_stop_t rssm_stop;
+plugin_open_t rssm_open;
+plugin_close_t rssm_close;
+plugin_output_t rssm_output;
+plugin_getopt_t rssm_getopt;
+plugin_usage_t rssm_usage;
+
 static logerr_t *logerr;
 static my_bpftimeval open_ts;
 static my_bpftimeval clos_ts;
 #define COUNTS_PREFIX_DEFAULT "rssm"
 static char *counts_prefix = 0;
 static char *sources_prefix = 0;
-
-output_t rssm_output;
 
 #define MAX_SIZE_INDEX 4096
 #define MSG_SIZE_SHIFT 4
@@ -176,9 +182,9 @@ rssm_getopt(int *argc, char **argv[])
 }
 
 int
-rssm_start(logerr_t *a_logerr)
+rssm_start(plugin_callbacks * the_callbacks)
 {
-	logerr = a_logerr;
+	logerr = the_callbacks->logerr;
 	return 0;
 }
 
