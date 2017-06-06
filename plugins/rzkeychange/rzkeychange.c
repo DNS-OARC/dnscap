@@ -34,9 +34,9 @@
 static logerr_t *logerr = 0;
 static my_bpftimeval open_ts = {0,0};
 static my_bpftimeval clos_ts = {0,0};
-static const char *report_zone = 0;
-static const char *report_server = 0;
-static const char *report_node = 0;
+static char *report_zone = 0;
+static char *report_server = 0;
+static char *report_node = 0;
 static unsigned short resolver_port = 0;
 static unsigned int resolver_use_tcp = 0;
 static ldns_resolver *res;
@@ -134,13 +134,31 @@ rzkeychange_getopt(int *argc, char **argv[])
     while ((c = getopt(*argc, *argv, "a:n:p:s:tz:")) != EOF) {
 	switch (c) {
 	case 'n':
+        if (report_node)
+            free(report_node);
 	    report_node = strdup(optarg);
+        if (!report_node) {
+            fprintf(stderr, "strdup() out of memory\n");
+            exit(1);
+        }
 	    break;
 	case 's':
+        if (report_server)
+            free(report_server);
 	    report_server = strdup(optarg);
+        if (!report_server) {
+            fprintf(stderr, "strdup() out of memory\n");
+            exit(1);
+        }
 	    break;
 	case 'z':
+        if (report_zone)
+            free(report_zone);
 	    report_zone = strdup(optarg);
+        if (!report_zone) {
+            fprintf(stderr, "strdup() out of memory\n");
+            exit(1);
+        }
 	    break;
 	case 'a':
 	    if (num_ns_addrs < MAX_NAMESERVERS) {
