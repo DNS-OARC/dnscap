@@ -33,12 +33,12 @@ dependencies on LDNS and BIND library (see also Linking with libbind).
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev libbind-dev
+apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev
 ```
 
 To install the dependencies under CentOS (with EPEL enabled):
 ```
-yum install -y libpcap-devel ldns-devel openssl-devel bind-devel
+yum install -y libpcap-devel ldns-devel openssl-devel bind-devel zlib-devel
 ```
 
 For the following OS you will need to install some of the dependencies
