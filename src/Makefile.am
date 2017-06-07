@@ -1,4 +1,4 @@
-MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
+MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/config.h.in
 CLEANFILES = dnscap.1
 
 SUBDIRS = test

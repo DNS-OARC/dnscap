@@ -228,7 +228,10 @@ and
 options affect the total duration of the capture, and not merely the size and
 time limits of each individual dump file.
 .It Fl W Ar suffix
-The provided suffix is added to the dump file name, e. g.: ".pcap"
+The provided suffix is added to the dump file name, e. g.: ".pcap".  If the
+suffix ends with ".gz" then files will be automatically gzip compressed.  If
+gzip compression is requested but not supported (i.e. because of lack of
+system support) an error will be generated.
 .It Fl k Ar cmd
 After each dump file specified by
 .Fl w
@@ -287,7 +290,9 @@ options are provided, then DNS messages will only be selected if the
 printable representation of the QNAME or any RR matches at least one of the
 provided
 .Ar pat
-patterns.  See
+patterns.  For negative matching see
+.Fl X
+below.  See
 .Xr regex 3
 and
 .Xr re_format 7
@@ -296,22 +301,13 @@ for more information about extended regular expression syntax.
 If one or more
 .Fl X
 options are provided, then DNS messages matching these patterns will not
-be selected.  See the description of
+be selected.  See also the description of
 .Fl x
-above.
-.Pp
-NOTE: for reasons lost to the mists of time, it seems that
-.Fl X
-only takes effect when
+above.  If both options are used then the message must first be matched by
 .Fl x
-is also used.  If you use
+and then not matched by all
 .Fl X
-alone, you'll get no output.  Thus, you should at least use "-x ."
-to initially match all queries and then exclude certain patterns with
-.Fl X.
-Users of the
-.Fl X
-option should be advised that this behavior could change in future versions.
+regex.
 .It Fl y
 Enable Linux seccomp-bpf sandbox if available (compile option).
 .It Fl S
