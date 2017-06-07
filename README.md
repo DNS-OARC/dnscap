@@ -29,7 +29,9 @@ Mailinglist:
 ## Dependencies
 
 `dnscap` has a non-optional dependency on the PCAP library and optional
-dependencies on LDNS and BIND library (see also Linking with libbind).
+dependencies on LDNS. BIND library `libbind` is considered optional but it
+is needed under OpenBSD for various `arpa/nameser*` include headers (see
+also Linking with libbind).
 
 To install the dependencies under Debian/Ubuntu:
 ```
