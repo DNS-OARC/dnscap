@@ -29,7 +29,9 @@ Mailinglist:
 ## Dependencies
 
 `dnscap` has a non-optional dependency on the PCAP library and optional
-dependencies on LDNS and BIND library (see also Linking with libbind).
+dependencies on LDNS. BIND library `libbind` is considered optional but it
+is needed under OpenBSD for various `arpa/nameser*` include headers, see
+[Linking with libbind](#linking-with-libbind).
 
 To install the dependencies under Debian/Ubuntu:
 ```
@@ -91,27 +93,45 @@ as ns_parserr().  On some systems these functions will be found
 in libresolv.  If not, then you might need to install libbind.
 I suggest first building dnscap on your system as-is, then run
 
-```$ ./dnscap -x foo```
+```
+$ ./dnscap -x foo
+```
 
-If you see an error, install libbind either from your
-OS package system or by downloading the source from
-http://www.isc.org/downloads/current
+If you see an error, install libbind either from your OS package system
+or by downloading the source from http://www.isc.org/downloads/current .
 
-## 64-bit libraries
+### 64-bit libraries
 
 If you need to link against 64-bit libraries found in non-standard
 locations, provide the location by setting LDFLAGS before running
 configure:
 
-```$ env LDFLAGS=-L/usr/lib64 ./configure```
+```
+$ env LDFLAGS=-L/usr/lib64 ./configure
+```
 
+### OpenBSD
 
-## FreeBSD (and other BSDs?)
+For OpenBSD you probably installed libpcap and libbind in `/usr/local`
+so you will need to tell `configure` that and libbind might install it's
+libraries and header files in a subdirectory:
+
+```
+$ env CFLAGS="-I/usr/local/include -I/usr/local/include/bind" \
+  LDFLAGS="-L/usr/local/lib -L/usr/local/lib/bind" \
+  ./configure
+```
+
+### FreeBSD
 
 If you've installed libbind for -x/-X then it probably went into
 /usr/local and you'll need to tell configure how to find it:
 
-```$ env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./configure```
+```
+$ env CFLAGS="-I/usr/local/include -I/usr/local/include/bind" \
+  LDFLAGS="-L/usr/local/lib -L/usr/local/lib/bind" \
+  ./configure
+```
 
 Also note that we have observed significant memory leaks on FreeBSD
 (7.2) when using -x/-X.  To rectify:
