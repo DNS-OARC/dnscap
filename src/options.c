@@ -43,11 +43,12 @@
 
 #define have(a) option_length == (sizeof(a) - 1) && !strncmp(option, a, (sizeof(a) - 1))
 
-int option_parse(options_t * options, const char * option) {
-    const char * argument;
-    int option_length;
-    char * p;
-    size_t s;
+int option_parse(options_t* options, const char* option)
+{
+    const char* argument;
+    int         option_length;
+    char*       p;
+    size_t      s;
 
     if (!options) {
         return -1;
@@ -74,99 +75,84 @@ int option_parse(options_t * options, const char * option) {
             options->cbor_chunk_size = s;
             return 0;
         }
-    }
-    else if (have("cds_cbor_size")) {
+    } else if (have("cds_cbor_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_cbor_size = s;
             return 0;
         }
-    }
-    else if (have("cds_message_size")) {
+    } else if (have("cds_message_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_message_size = s;
             return 0;
         }
-    }
-    else if (have("cds_max_rlabels")) {
+    } else if (have("cds_max_rlabels")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_max_rlabels = s;
             return 0;
         }
-    }
-    else if (have("cds_min_rlabel_size")) {
+    } else if (have("cds_min_rlabel_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_min_rlabel_size = s;
             return 0;
         }
-    }
-    else if (have("cds_use_rdata_index")) {
+    } else if (have("cds_use_rdata_index")) {
         if (!strcmp(argument, "yes")) {
             options->cds_use_rdata_index = 1;
             return 0;
         }
-    }
-    else if (have("cds_rdata_index_min_size")) {
+    } else if (have("cds_rdata_index_min_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_rdata_index_min_size = s;
             return 0;
         }
-    }
-    else if (have("cds_use_rdata_rindex")) {
+    } else if (have("cds_use_rdata_rindex")) {
         if (!strcmp(argument, "yes")) {
             options->cds_use_rdata_rindex = 1;
             return 0;
         }
-    }
-    else if (have("cds_rdata_rindex_size")) {
+    } else if (have("cds_rdata_rindex_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_rdata_rindex_size = s;
             return 0;
         }
-    }
-    else if (have("cds_rdata_rindex_min_size")) {
+    } else if (have("cds_rdata_rindex_min_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->cds_rdata_rindex_min_size = s;
             return 0;
         }
-    }
-    else if (have("dump_format")) {
+    } else if (have("dump_format")) {
         if (!strcmp(argument, "pcap")) {
             options->dump_format = pcap;
             return 0;
-        }
-        else if (!strcmp(argument, "cbor")) {
+        } else if (!strcmp(argument, "cbor")) {
             options->dump_format = cbor;
             return 0;
-        }
-        else if (!strcmp(argument, "cds")) {
+        } else if (!strcmp(argument, "cds")) {
             options->dump_format = cds;
             return 0;
         }
-    }
-    else if (have("user")) {
+    } else if (have("user")) {
         if (options->user) {
             free(options->user);
         }
         if ((options->user = strdup(argument))) {
             return 0;
         }
-    }
-    else if (have("group")) {
+    } else if (have("group")) {
         if (options->group) {
             free(options->group);
         }
         if ((options->group = strdup(argument))) {
             return 0;
         }
-    }
-    else if (have("pcap_buffer_size")) {
+    } else if (have("pcap_buffer_size")) {
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->pcap_buffer_size = s;
@@ -177,7 +163,8 @@ int option_parse(options_t * options, const char * option) {
     return 1;
 }
 
-void options_free(options_t * options) {
+void options_free(options_t* options)
+{
     if (options) {
         if (options->user) {
             free(options->user);

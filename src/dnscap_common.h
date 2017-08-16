@@ -36,14 +36,14 @@
 #include <sys/types.h>
 
 #ifdef TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
+#include <sys/time.h>
+#include <time.h>
 #else
-# ifdef HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif
 #endif
 
 #ifndef __dnscap_dnscap_common_h
@@ -54,51 +54,50 @@
  * will be assoicated with packets from libpcap
  */
 #ifndef MY_BPFTIMEVAL
-# define MY_BPFTIMEVAL timeval
+#define MY_BPFTIMEVAL timeval
 #endif
 typedef struct MY_BPFTIMEVAL my_bpftimeval;
-
 
 /*
  * Structure to contain IP addresses
  */
 typedef struct {
-        int                     af;
-        union {
-                struct in_addr          a4;
-                struct in6_addr         a6;
-        } u;
+    int af;
+    union {
+        struct in_addr  a4;
+        struct in6_addr a6;
+    } u;
 } iaddr;
 
 /*
  * plugins can call the logerr() function in the main dnscap
  * process.
  */
-typedef int logerr_t(const char *fmt, ...);
+typedef int logerr_t(const char* fmt, ...);
 
 /*
  * Prototype for the plugin "output" function
  */
-typedef void output_t(const char *descr,
-        iaddr from,
-        iaddr to,
-        uint8_t proto,
-        unsigned flags,
-        unsigned sport,
-        unsigned dport,
-        my_bpftimeval ts,
-        const u_char *pkt_copy,
-        const unsigned olen,
-        const u_char *payload,
-        const unsigned payloadlen);
+typedef void output_t(const char* descr,
+    iaddr                         from,
+    iaddr                         to,
+    uint8_t                       proto,
+    unsigned                      flags,
+    unsigned                      sport,
+    unsigned                      dport,
+    my_bpftimeval                 ts,
+    const u_char*                 pkt_copy,
+    const unsigned                olen,
+    const u_char*                 payload,
+    const unsigned                payloadlen);
 
 #define DNSCAP_EXT_IS_RESPONDER 1
 typedef int (*is_responder_t)(iaddr ia);
 
-#define DNSCAP_OUTPUT_ISFRAG (1<<0)
-#define DNSCAP_OUTPUT_ISDNS (1<<1)
+#define DNSCAP_OUTPUT_ISFRAG (1 << 0)
+#define DNSCAP_OUTPUT_ISDNS (1 << 1)
 
-#define DIR_INITIATE	0x0001
-#define DIR_RESPONSE	0x0002
+#define DIR_INITIATE 0x0001
+#define DIR_RESPONSE 0x0002
 
 #endif /* __dnscap_dnscap_common_h */

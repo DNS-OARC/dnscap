@@ -46,6 +46,8 @@ enum dump_format {
     cds
 };
 
+/* clang-format off */
+
 #define OPTIONS_T_DEFAULTS { \
     1024 * 1024, \
 \
@@ -67,29 +69,31 @@ enum dump_format {
     0 \
 }
 
+/* clang-format on */
+
 typedef struct options options_t;
 struct options {
-    size_t          cbor_chunk_size;
+    size_t cbor_chunk_size;
 
-    size_t          cds_cbor_size;
-    size_t          cds_message_size;
-    size_t          cds_max_rlabels;
-    size_t          cds_min_rlabel_size;
-    int             cds_use_rdata_index;
-    size_t          cds_rdata_index_min_size;
-    int             cds_use_rdata_rindex;
-    size_t          cds_rdata_rindex_size;
-    size_t          cds_rdata_rindex_min_size;
+    size_t cds_cbor_size;
+    size_t cds_message_size;
+    size_t cds_max_rlabels;
+    size_t cds_min_rlabel_size;
+    int    cds_use_rdata_index;
+    size_t cds_rdata_index_min_size;
+    int    cds_use_rdata_rindex;
+    size_t cds_rdata_rindex_size;
+    size_t cds_rdata_rindex_min_size;
 
-    dump_format_t   dump_format;
+    dump_format_t dump_format;
 
-    char *          user;
-    char *          group;
+    char* user;
+    char* group;
 
-    size_t          pcap_buffer_size;
+    size_t pcap_buffer_size;
 };
 
-int option_parse(options_t * options, const char * option);
-void options_free(options_t * options);
+int option_parse(options_t* options, const char* option);
+void options_free(options_t* options);
 
 #endif /* __dnscap_options_h */
