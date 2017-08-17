@@ -37,6 +37,6 @@
 #ifndef __dnscap_dnscap_h
 #define __dnscap_dnscap_h
 
-const char *ia_str(iaddr);
+const char* ia_str(iaddr);
 
 #endif /* __dnscap_dnscap_h */
