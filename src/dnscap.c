@@ -208,7 +208,7 @@ extern char* strptime(const char*, const char*, struct tm*);
 #define END_INITIATOR 0x0001
 #define END_RESPONDER 0x0002
 
-#define HIDE_INET 0x7f7f7f7f
+#define HIDE_INET "\177\177\177\177"
 #define HIDE_INET6 "\177\177\177\177\177\177\177\177" \
                    "\177\177\177\177\177\177\177\177"
 #define HIDE_PORT 54321
@@ -2552,48 +2552,52 @@ network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     if (end_hide != 0) {
         switch (from.af) {
         case AF_INET: {
-            struct in_addr *init_addr, *resp_addr;
-            uint16_t*       init_port;
+            void *    init_addr, *resp_addr;
+            uint16_t* init_port;
 
             if (dns.qr == 0) {
-                init_addr = &ip->ip_src;
-                resp_addr = &ip->ip_dst;
+                init_addr = (void*)&ip->ip_src;
+                resp_addr = (void*)&ip->ip_dst;
                 init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
             } else {
-                init_addr = &ip->ip_dst;
-                resp_addr = &ip->ip_src;
+                init_addr = (void*)&ip->ip_dst;
+                resp_addr = (void*)&ip->ip_src;
                 init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
             }
+
             if ((end_hide & END_INITIATOR) != 0) {
-                init_addr->s_addr = HIDE_INET;
-                *init_port        = htons(HIDE_PORT);
+                memcpy(init_addr, HIDE_INET, sizeof(struct in_addr));
+                *init_port = htons(HIDE_PORT);
             }
             if ((end_hide & END_RESPONDER) != 0)
-                resp_addr->s_addr = HIDE_INET;
-            ip->ip_sum            = ~in_checksum((u_char*)ip, sizeof *ip);
+                memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
+
+            ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
             if (udp)
                 udp->uh_sum = 0U;
             break;
         }
         case AF_INET6: {
-            struct in6_addr *init_addr, *resp_addr;
-            uint16_t*        init_port;
+            void *    init_addr, *resp_addr;
+            uint16_t* init_port;
 
             if (dns.qr == 0) {
-                init_addr = &ipv6->ip6_src;
-                resp_addr = &ipv6->ip6_dst;
+                init_addr = (void*)&ipv6->ip6_src;
+                resp_addr = (void*)&ipv6->ip6_dst;
                 init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
             } else {
-                init_addr = &ipv6->ip6_dst;
-                resp_addr = &ipv6->ip6_src;
+                init_addr = (void*)&ipv6->ip6_dst;
+                resp_addr = (void*)&ipv6->ip6_src;
                 init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
             }
+
             if ((end_hide & END_INITIATOR) != 0) {
                 memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
                 *init_port = htons(HIDE_PORT);
             }
             if ((end_hide & END_RESPONDER) != 0)
                 memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
+
             if (udp)
                 udp->uh_sum = 0U;
             break;
