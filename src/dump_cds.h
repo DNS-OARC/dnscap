@@ -41,28 +41,28 @@
 #ifndef __dnscap_dump_cds_h
 #define __dnscap_dump_cds_h
 
-#define DUMP_CDS_OK         0
-#define DUMP_CDS_EINVAL     1
-#define DUMP_CDS_ENOMEM     2
-#define DUMP_CDS_ECBOR      3
-#define DUMP_CDS_ELDNS      4
-#define DUMP_CDS_EWRITE     5
-#define DUMP_CDS_FLUSH      6
-#define DUMP_CDS_ENOSUP     7
-#define DUMP_CDS_EBUF       8
+#define DUMP_CDS_OK 0
+#define DUMP_CDS_EINVAL 1
+#define DUMP_CDS_ENOMEM 2
+#define DUMP_CDS_ECBOR 3
+#define DUMP_CDS_ELDNS 4
+#define DUMP_CDS_EWRITE 5
+#define DUMP_CDS_FLUSH 6
+#define DUMP_CDS_ENOSUP 7
+#define DUMP_CDS_EBUF 8
 
-#define CDS_OPTION_RLABELS                  0
-#define CDS_OPTION_RLABEL_MIN_SIZE          1
-#define CDS_OPTION_RDATA_RINDEX_SIZE        2
-#define CDS_OPTION_RDATA_RINDEX_MIN_SIZE    3
-#define CDS_OPTION_USE_RDATA_INDEX          4
-#define CDS_OPTION_RDATA_INDEX_MIN_SIZE     5
+#define CDS_OPTION_RLABELS 0
+#define CDS_OPTION_RLABEL_MIN_SIZE 1
+#define CDS_OPTION_RDATA_RINDEX_SIZE 2
+#define CDS_OPTION_RDATA_RINDEX_MIN_SIZE 3
+#define CDS_OPTION_USE_RDATA_INDEX 4
+#define CDS_OPTION_RDATA_INDEX_MIN_SIZE 5
 
-#define CDS_DEFAULT_MAX_RLABELS             255
-#define CDS_DEFAULT_MIN_RLABEL_SIZE         3
-#define CDS_DEFAULT_RDATA_INDEX_MIN_SIZE    5
-#define CDS_DEFAULT_RDATA_RINDEX_SIZE       255
-#define CDS_DEFAULT_RDATA_RINDEX_MIN_SIZE   5
+#define CDS_DEFAULT_MAX_RLABELS 255
+#define CDS_DEFAULT_MIN_RLABEL_SIZE 3
+#define CDS_DEFAULT_RDATA_INDEX_MIN_SIZE 5
+#define CDS_DEFAULT_RDATA_RINDEX_SIZE 255
+#define CDS_DEFAULT_RDATA_RINDEX_MIN_SIZE 5
 
 typedef struct ip_header ip_header_t;
 struct ip_header {
@@ -73,15 +73,15 @@ struct ip_header {
     unsigned short have_dest_addr : 1;
     unsigned short have_dest_port : 1;
 
-    uint8_t             bits;
-    struct in_addr      src_addr4;
-    uint16_t            src_port4;
-    struct in6_addr     src_addr6;
-    uint16_t            src_port6;
-    struct in_addr      dest_addr4;
-    uint16_t            dest_port4;
-    struct in6_addr     dest_addr6;
-    uint16_t            dest_port6;
+    uint8_t         bits;
+    struct in_addr  src_addr4;
+    uint16_t        src_port4;
+    struct in6_addr src_addr6;
+    uint16_t        src_port6;
+    struct in_addr  dest_addr4;
+    uint16_t        dest_port4;
+    struct in6_addr dest_addr6;
+    uint16_t        dest_port6;
 };
 
 typedef struct dns_label dns_label_t;
@@ -93,12 +93,12 @@ struct dns_label {
     unsigned short have_label : 1;
     unsigned short have_n_offset : 1;
 
-    uint8_t         size;
-    uint8_t         extension_bits;
-    uint16_t        offset;
-    uint8_t*        offset_p;
-    uint8_t*        label;
-    size_t          n_offset;
+    uint8_t  size;
+    uint8_t  extension_bits;
+    uint16_t offset;
+    uint8_t* offset_p;
+    uint8_t* label;
+    size_t   n_offset;
 };
 
 #define CDS_RLABEL_LABEL_T_LABEL 64
@@ -107,20 +107,20 @@ typedef struct dns_rlabel_label dns_rlabel_label_t;
 struct dns_rlabel_label {
     unsigned short have_n_offset : 1;
 
-    uint8_t         size;
-    uint8_t         label[CDS_RLABEL_LABEL_T_LABEL];
-    size_t          n_offset;
+    uint8_t size;
+    uint8_t label[CDS_RLABEL_LABEL_T_LABEL];
+    size_t  n_offset;
 };
 
 #define CDS_RLABEL_T_LABELS 256
 
 typedef struct dns_rlabel dns_rlabel_t;
 struct dns_rlabel {
-    dns_rlabel_t*       next;
-    dns_rlabel_t*       prev;
+    dns_rlabel_t* next;
+    dns_rlabel_t* prev;
 
-    uint8_t             labels;
-    dns_rlabel_label_t  label[CDS_RLABEL_T_LABELS];
+    uint8_t            labels;
+    dns_rlabel_label_t label[CDS_RLABEL_T_LABELS];
 };
 
 typedef struct dns_rdata dns_rdata_t;
@@ -130,11 +130,11 @@ struct dns_rdata {
     unsigned short have_rlabel_idx : 1;
     unsigned short have_rdata : 1;
 
-    size_t          rdata_len;
-    uint8_t*        rdata;
-    size_t          labels;
-    dns_label_t*    label;
-    size_t          rlabel_idx;
+    size_t       rdata_len;
+    uint8_t*     rdata;
+    size_t       labels;
+    dns_label_t* label;
+    size_t       rlabel_idx;
 };
 
 typedef struct dns_rr dns_rr_t;
@@ -152,19 +152,19 @@ struct dns_rr {
     unsigned short have_rdata_index : 1;
     unsigned short have_rdata_rindex : 1;
 
-    size_t          labels;
-    dns_label_t*    label;
-    size_t          rlabel_idx;
-    uint8_t         bits;
-    uint16_t        type;
-    uint16_t        class;
-    uint32_t        ttl;
-    uint16_t        rdlength;
-    uint8_t*        rdata;
-    size_t          mixed_rdatas;
-    dns_rdata_t*    mixed_rdata;
-    size_t          rdata_index;
-    size_t          rdata_rindex;
+    size_t       labels;
+    dns_label_t* label;
+    size_t       rlabel_idx;
+    uint8_t      bits;
+    uint16_t     type;
+    uint16_t class;
+    uint32_t     ttl;
+    uint16_t     rdlength;
+    uint8_t*     rdata;
+    size_t       mixed_rdatas;
+    dns_rdata_t* mixed_rdata;
+    size_t       rdata_index;
+    size_t       rdata_rindex;
 };
 
 typedef struct dns dns_t;
@@ -183,22 +183,22 @@ struct dns {
     unsigned short have_authorities : 1;
     unsigned short have_additionals : 1;
 
-    int         id;
-    uint16_t    raw;
-    uint8_t     cnt_bits;
-    uint16_t    qdcount;
-    uint16_t    ancount;
-    uint16_t    nscount;
-    uint16_t    arcount;
-    uint8_t     rr_bits;
-    size_t      questions;
-    dns_rr_t*   question;
-    size_t      answers;
-    dns_rr_t*   answer;
-    size_t      authorities;
-    dns_rr_t*   authority;
-    size_t      additionals;
-    dns_rr_t*   additional;
+    int       id;
+    uint16_t  raw;
+    uint8_t   cnt_bits;
+    uint16_t  qdcount;
+    uint16_t  ancount;
+    uint16_t  nscount;
+    uint16_t  arcount;
+    uint8_t   rr_bits;
+    size_t    questions;
+    dns_rr_t* question;
+    size_t    answers;
+    dns_rr_t* answer;
+    size_t    authorities;
+    dns_rr_t* authority;
+    size_t    additionals;
+    dns_rr_t* additional;
 };
 
 int cds_set_cbor_size(size_t size);
@@ -210,7 +210,7 @@ int cds_set_use_rdata_rindex(int use);
 int cds_set_rdata_index_min_size(size_t size);
 int cds_set_rdata_rindex_min_size(size_t size);
 int cds_set_rdata_rindex_size(size_t size);
-int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char *pkt_copy, size_t olen, const u_char *payload, size_t payloadlen);
+int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char* pkt_copy, size_t olen, const u_char* payload, size_t payloadlen);
 int dump_cds();
 int have_cds_support();
 

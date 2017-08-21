@@ -37,14 +37,14 @@
 #ifndef __dnscap_dump_cbor_h
 #define __dnscap_dump_cbor_h
 
-#define DUMP_CBOR_OK        0
-#define DUMP_CBOR_EINVAL    1
-#define DUMP_CBOR_ENOMEM    2
-#define DUMP_CBOR_ECBOR     3
-#define DUMP_CBOR_ELDNS     4
-#define DUMP_CBOR_EWRITE    5
-#define DUMP_CBOR_FLUSH     6
-#define DUMP_CBOR_ENOSUP    7
+#define DUMP_CBOR_OK 0
+#define DUMP_CBOR_EINVAL 1
+#define DUMP_CBOR_ENOMEM 2
+#define DUMP_CBOR_ECBOR 3
+#define DUMP_CBOR_ELDNS 4
+#define DUMP_CBOR_EWRITE 5
+#define DUMP_CBOR_FLUSH 6
+#define DUMP_CBOR_ENOSUP 7
 
 /*
 typedef struct cbor_stringref cbor_stringref_t;
@@ -56,7 +56,7 @@ struct cbor_stringref {
 
 int cbor_set_size(size_t size);
 int cbor_set_reserve(size_t reserve);
-int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char *payload, size_t payloadlen);
+int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char* payload, size_t payloadlen);
 int dump_cbor();
 int have_cbor_support();
 
