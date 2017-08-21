@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.5.0
+Version:        1.5.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -53,6 +53,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Aug 21 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.5.1-1
+- Release 1.5.1
+  * Compatibility fixes for FreeBSD 11.1+ which is now packing `struct ip`
+    and for OpenBSD.
+  * Commits:
+    17e3c92 FreeBSD is packing `struct ip`, need to `memcpy()`
+    f8add66 Code formatting
+    38cd585 Add documentation about libbind
+    d1dd55b Fix #82: Update dependencies for OpenBSD
 * Tue Jun 06 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.5.0-1
 - Release 1.5.0
   * Added support for writing gzipped PCAP if the `-W` suffix ends with
