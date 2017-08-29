@@ -1,4 +1,5 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
+CLEANFILES = $(srcdir)/hashtbl.c
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
@@ -7,7 +8,14 @@ AM_CFLAGS = -I$(srcdir) \
 
 if HAVE_LDNS
 pkglib_LTLIBRARIES = rssm.la
-rssm_la_SOURCES = rssm.c hashtbl.c
-dist_rssm_la_SOURCES = hashtbl.h
+rssm_la_SOURCES = rssm.c
+nodist_rssm_la_SOURCES = hashtbl.c
+BUILT_SOURCES = hashtbl.c
 rssm_la_LDFLAGS = -module -avoid-version
 endif
+
+hashtbl.c: $(top_srcdir)/src/hashtbl.c
+	cp $(top_srcdir)/src/hashtbl.c $(srcdir)/
+
+$(srcdir)/hashtbl.c: $(top_srcdir)/src/hashtbl.c
+	cp $(top_srcdir)/src/hashtbl.c $(srcdir)/

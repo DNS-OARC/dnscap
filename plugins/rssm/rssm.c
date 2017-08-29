@@ -112,8 +112,10 @@ iaddr_ntop(const iaddr* ia)
 }
 
 static unsigned int
-iaddr_hash(const iaddr* ia)
+iaddr_hash(const void* key)
 {
+    const iaddr* ia = (const iaddr*)key;
+
     if (AF_INET == ia->af)
         return ia->u.a4.s_addr >> 8;
     else if (AF_INET6 == ia->af) {
@@ -123,9 +125,11 @@ iaddr_hash(const iaddr* ia)
         return 0;
 }
 
-static unsigned int
-iaddr_cmp(const iaddr* a, const iaddr* b)
+static int
+iaddr_cmp(const void* _a, const void* _b)
 {
+    const iaddr *a = (const iaddr*)_a, *b = (const iaddr*)_b;
+
     if (a->af == b->af) {
         if (AF_INET == a->af)
             return memcmp(&a->u, &b->u, 4);
@@ -184,7 +188,9 @@ int rssm_open(my_bpftimeval ts)
     if (counts.sources.tbl)
         hash_destroy(counts.sources.tbl);
     memset(&counts, 0, sizeof(counts));
-    counts.sources.tbl = hash_create(65536, (hashfunc*)iaddr_hash, (hashkeycmp*)iaddr_cmp, 0);
+    if (!(counts.sources.tbl = hash_create(65536, iaddr_hash, iaddr_cmp, 0))) {
+        return -1;
+    }
     return 0;
 }
 
@@ -306,7 +312,7 @@ int rssm_close(my_bpftimeval ts)
 static void
 hash_find_or_add(iaddr ia, my_hashtbl* t)
 {
-    uint16_t* c = hash_find(&ia, t->tbl);
+    uint64_t* c = hash_find(&ia, t->tbl);
     if (c) {
         (*c)++;
         return;
@@ -314,8 +320,11 @@ hash_find_or_add(iaddr ia, my_hashtbl* t)
     if (t->num_addrs == MAX_TBL_ADDRS)
         return;
     t->addrs[t->num_addrs] = ia;
+    if (hash_add(&t->addrs[t->num_addrs], &t->count[t->num_addrs], t->tbl)) {
+        logerr("rssm.so: unable to add address to hash");
+        return;
+    }
     t->count[t->num_addrs]++;
-    hash_add(&t->addrs[t->num_addrs], &t->count[t->num_addrs], t->tbl);
     t->num_addrs++;
 }
 

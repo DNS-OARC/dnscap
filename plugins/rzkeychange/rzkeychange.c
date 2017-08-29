@@ -1,5 +1,3 @@
-#define COUNT_SOURCES 0
-
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,10 +25,6 @@
 
 #include "dnscap_common.h"
 
-#if COUNT_SOURCES
-#include "hashtbl.h"
-#endif
-
 static logerr_t*      logerr           = 0;
 static my_bpftimeval  open_ts          = { 0, 0 };
 static my_bpftimeval  clos_ts          = { 0, 0 };
@@ -46,14 +40,6 @@ is_responder_t rzkeychange_is_responder = 0;
 
 #define MAX_TBL_ADDRS 2000000
 
-#if COUNT_SOURCES
-typedef struct {
-    hashtbl*     tbl;
-    iaddr        addrs[MAX_TBL_ADDRS];
-    unsigned int num_addrs;
-} my_hashtbl;
-#endif
-
 struct {
     uint64_t dnskey;
     uint64_t tc_bit;
@@ -62,43 +48,11 @@ struct {
     uint64_t icmp_timxceed_reass;
     uint64_t icmp_timxceed_intrans;
     uint64_t total;
-#if COUNT_SOURCES
-    my_hashtbl sources;
-#endif
 } counts;
 
 #define MAX_NAMESERVERS 10
 static unsigned int num_ns_addrs = 0;
 static char*        ns_addrs[MAX_NAMESERVERS];
-
-#if COUNT_SOURCES
-static unsigned int
-iaddr_hash(const iaddr* ia)
-{
-    if (AF_INET == ia->af)
-        return ia->u.a4.s_addr >> 8;
-    else if (AF_INET6 == ia->af) {
-        uint16_t* h = (uint16_t*)&ia->u;
-        return h[2] + h[3] + h[4];
-    } else
-        return 0;
-}
-
-static unsigned int
-iaddr_cmp(const iaddr* a, const iaddr* b)
-{
-    if (a->af == b->af) {
-        if (AF_INET == a->af)
-            return memcmp(&a->u, &b->u, 4);
-        if (AF_INET6 == a->af)
-            return memcmp(&a->u, &b->u, 16);
-        return 0;
-    }
-    if (a->af < b->af)
-        return -1;
-    return 1;
-}
-#endif
 
 void rzkeychange_usage()
 {
@@ -267,14 +221,7 @@ void rzkeychange_stop()
 int rzkeychange_open(my_bpftimeval ts)
 {
     open_ts = clos_ts.tv_sec ? clos_ts : ts;
-#if COUNT_SOURCES
-    if (counts.sources.tbl)
-        hash_destroy(counts.sources.tbl);
-#endif
     memset(&counts, 0, sizeof(counts));
-#if COUNT_SOURCES
-    counts.sources.tbl = hash_create(65536, (hashfunc*)iaddr_hash, (hashkeycmp*)iaddr_cmp, 0);
-#endif
     return 0;
 }
 
@@ -330,21 +277,6 @@ int rzkeychange_close(my_bpftimeval ts)
     exit(0);
 }
 
-#if COUNT_SOURCES
-static void
-hash_find_or_add(iaddr ia, my_hashtbl* t)
-{
-    uint16_t* c = hash_find(&ia, t->tbl);
-    if (c)
-        return;
-    if (t->num_addrs == MAX_TBL_ADDRS)
-        return;
-    t->addrs[t->num_addrs] = ia;
-    hash_add(&t->addrs[t->num_addrs], 0, t->tbl);
-    t->num_addrs++;
-}
-#endif
-
 void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, const unsigned olen,
@@ -376,9 +308,6 @@ void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, 
     if (0 == ldns_pkt_qr(pkt))
         goto done;
     counts.total++;
-#if COUNT_SOURCES
-    hash_find_or_add(from, &counts.sources);
-#endif
     if (IPPROTO_UDP == proto) {
         if (0 != ldns_pkt_tc(pkt))
             counts.tc_bit++;

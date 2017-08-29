@@ -32,34 +32,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-typedef struct _hashitem {
-    const void*       key;
-    void*             data;
-    struct _hashitem* next;
-} hashitem;
+#ifndef __dnscap_hashtbl_h
+#define __dnscap_hashtbl_h
 
-typedef unsigned int hashfunc(const void* key);
-typedef int hashkeycmp(const void* a, const void* b);
-typedef void hashfree(void*);
+#define HASHTBL_EARGS -1
+#define HASHTBL_ENOMEM -2
 
-typedef struct {
+typedef struct hashitem hashitem;
+
+struct hashitem {
+    const void* key;
+    void*       data;
+    hashitem*   next;
+};
+
+typedef unsigned int (*hashkey_func)(const void* key);
+typedef int (*hashkeycmp_func)(const void* a, const void* b);
+typedef void (*hashfree_func)(void* data);
+
+typedef struct hashtbl hashtbl;
+struct hashtbl {
     unsigned int modulus;
     hashitem**   items;
-    hashfunc*    hasher;
-    hashkeycmp*  keycmp;
-    hashfree*    datafree;
-    struct {
-        hashitem*    next;
-        unsigned int slot;
-    } iter;
-} hashtbl;
 
-hashtbl* hash_create(int N, hashfunc*, hashkeycmp*, hashfree*);
-int hash_add(const void* key, void* data, hashtbl*);
+    hashkey_func    hasher;
+    hashkeycmp_func keycmp;
+    hashfree_func   datafree;
+};
+
+hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
+int hash_add(const void* key, void* data, hashtbl* tbl);
+void* hash_find(const void* key, hashtbl* tbl);
 void hash_remove(const void* key, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl*);
-void  hash_iter_init(hashtbl*);
-void* hash_iterate(hashtbl*);
-int   hash_count(hashtbl*);
-void  hash_free(hashtbl*);
-void  hash_destroy(hashtbl*);
+void hash_free(hashtbl* tbl);
+void hash_destroy(hashtbl* tbl);
+
+#endif // __dnscap_hashtbl_h
