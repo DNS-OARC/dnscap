@@ -279,10 +279,11 @@ static int check_dns_label(size_t* labels, uint8_t** p, size_t* l)
     return 0;
 }
 
-static unsigned int rdata_hash(const struct rdata* item)
+static unsigned int rdata_hash(const void* key)
 {
-    size_t       n, o, p;
-    unsigned int key = 0;
+    const struct rdata* item = (const struct rdata*)k;
+    size_t              n, o, p;
+    unsigned int        key = 0;
 
     for (n = 0, o = 0, p = 0; n < item->len; n++) {
         p |= item->data[n] << (o * 8);
@@ -300,8 +301,10 @@ static unsigned int rdata_hash(const struct rdata* item)
     return key;
 }
 
-static unsigned int rdata_cmp(const struct rdata* a, const struct rdata* b)
+static unsigned int rdata_cmp(const void* _a, const void* _b)
 {
+    const struct rdata *a = (const struct rdata*)_a, *b = (const struct rdata*)_b;
+
     if (a->len == b->len) {
         return memcmp(a->data, b->data, a->len);
     } else if (a->len < b->len)
@@ -309,8 +312,10 @@ static unsigned int rdata_cmp(const struct rdata* a, const struct rdata* b)
     return 1;
 }
 
-static void rdata_free(struct rdata* item)
+static void rdata_free(void* d)
 {
+    struct rdata* item = (struct rdata*)d;
+
     if (item) {
         if (item->data) {
             free(item->data);
@@ -1423,7 +1428,9 @@ int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned spo
         cbor_flushed = 0;
     }
     if (!rdata_tbl) {
-        rdata_tbl = hash_create(64 * 1024, (hashfunc*)rdata_hash, (hashkeycmp*)rdata_cmp, (hashfree*)rdata_free);
+        if (!(rdata_tbl = hash_create(64 * 1024, rdata_hash, rdata_cmp, rdata_free))) {
+            return DUMP_CDS_ENOMEM;
+        }
     }
 
     /*

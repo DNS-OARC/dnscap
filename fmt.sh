@@ -5,5 +5,5 @@ clang-format-4.0 \
     -i \
     src/*.c \
     src/*.h \
-    plugins/*/*.c \
-    plugins/*/*.h
+    `find plugins -type f -name '*.c'` \
+    `find plugins -type f -name '*.h'`

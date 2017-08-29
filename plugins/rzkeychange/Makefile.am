@@ -7,7 +7,6 @@ AM_CFLAGS = -I$(srcdir) \
 
 if HAVE_LDNS
 pkglib_LTLIBRARIES = rzkeychange.la
-rzkeychange_la_SOURCES = rzkeychange.c hashtbl.c
-dist_rzkeychange_la_SOURCES = hashtbl.h
+rzkeychange_la_SOURCES = rzkeychange.c
 rzkeychange_la_LDFLAGS = -module -avoid-version $(LIBRARY_VERSION)
 endif
