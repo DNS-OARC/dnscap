@@ -1,8 +1,3 @@
-/* dump_dns.c - library function to emit decoded dns message on a FILE.
- *
- * By: Paul Vixie, ISC, October 2007
- */
-
 /*
  * Copyright (c) 2016-2017, OARC, Inc.
  * All rights reserved.
@@ -37,10 +32,71 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_dump_dns_h
-#define __dnscap_dump_dns_h
+#include "config.h"
 
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline);
+#include "sig.h"
+#include "log.h"
+#include "dumper.h"
+#include "pcaps.h"
 
-#endif // __dnscap_dump_dns_h
+void setsig(int sig, int oneshot)
+{
+    struct sigaction sa;
+
+    memset(&sa, 0, sizeof sa);
+    if (oneshot) {
+        sa.sa_handler = sigbreak;
+        sa.sa_flags   = SA_RESETHAND;
+    } else {
+        sa.sa_handler = sigclose;
+        sa.sa_flags   = SA_RESTART;
+    }
+    if (sigaction(sig, &sa, NULL) < 0) {
+        logerr("sigaction: %s", strerror(errno));
+        exit(1);
+    }
+}
+
+void sigclose(int signum)
+{
+    if (0 == last_ts.tv_sec)
+        gettimeofday(&last_ts, NULL);
+    if (signum == SIGALRM)
+        alarm_set = FALSE;
+    if (dumper_close(last_ts))
+        breakloop_pcaps();
+}
+
+void sigbreak(int signum __attribute__((unused)))
+{
+    logerr("%s: signalled break", ProgramName);
+    main_exit = TRUE;
+    breakloop_pcaps();
+}
+
+void* sigthread(void* arg)
+{
+#if HAVE_PTHREAD
+    sigset_t* set = (sigset_t*)arg;
+    int       sig, err;
+
+    while (1) {
+        if ((err = sigwait(set, &sig))) {
+            logerr("sigwait: %s", strerror(err));
+            return 0;
+        }
+
+        switch (sig) {
+        case SIGALRM:
+            sigclose(sig);
+            break;
+
+        default:
+            sigbreak(sig);
+            break;
+        }
+    }
+#endif
+
+    return 0;
+}

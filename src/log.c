@@ -1,8 +1,3 @@
-/* dump_dns.c - library function to emit decoded dns message on a FILE.
- *
- * By: Paul Vixie, ISC, October 2007
- */
-
 /*
  * Copyright (c) 2016-2017, OARC, Inc.
  * All rights reserved.
@@ -37,10 +32,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_dump_dns_h
-#define __dnscap_dump_dns_h
+#include "config.h"
 
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline);
+#include "log.h"
 
-#endif // __dnscap_dump_dns_h
+int logerr(const char* fmt, ...)
+{
+    va_list ap;
+    int     x = 1;
+    va_start(ap, fmt);
+    if (background)
+        vsyslog(LOG_NOTICE, fmt, ap);
+    else {
+        x = vfprintf(stderr, fmt, ap);
+        fputc('\n', stderr);
+    }
+    va_end(ap);
+    return x;
+}
