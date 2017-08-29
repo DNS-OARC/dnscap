@@ -1,8 +1,3 @@
-/* dump_dns.c - library function to emit decoded dns message on a FILE.
- *
- * By: Paul Vixie, ISC, October 2007
- */
-
 /*
  * Copyright (c) 2016-2017, OARC, Inc.
  * All rights reserved.
@@ -37,10 +32,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_dump_dns_h
-#define __dnscap_dump_dns_h
+#include "config.h"
 
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline);
+#include "dnscap.h"
 
-#endif // __dnscap_dump_dns_h
+#if !HAVE___ASSERTION_FAILED
+static void my_assertion_failed(const char* file, int line, assertion_type type, const char* msg, int something) __attribute__((noreturn));
+#endif
+
+#if !HAVE___ASSERTION_FAILED
+static void
+my_assertion_failed(const char* file, int line, assertion_type type, const char* msg, int something)
+{
+    (void)type;
+    (void)something;
+    fprintf(stderr, "assertion failed: %s(%d): %s\n", file, line, msg);
+    abort();
+}
+
+assertion_failure_callback __assertion_failed = my_assertion_failed;
+#endif
