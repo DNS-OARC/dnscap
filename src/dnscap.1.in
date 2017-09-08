@@ -457,6 +457,25 @@ Set the
 .Xr pcap 3pcap
 buffer size to use when capturing packets, can be used too not miss packets
 during processing.
+.It use_layers=yes
+Enable pcap-thread layers, this will let pcap-thread parse the network layers
+and call back with UDP, TCP or ICMP traffic.
+.It defrag_ipv4=yes
+Enable IPv4 defragmentation in pcap-thread, requires
+.Ar use_layers=yes .
+.It max_ipv4_fragments=<num>
+Set the maximum fragmented IPv4 packets to track for reassembly, if the limit
+is reach then all other fragmented packets will not be reassembled.
+.It max_ipv4_fragments_per_packet=<num>
+Set the maximum fragments per tracked IPv4 packet to keep for reassembly.
+.It defrag_ipv6=yes
+Enable IPv6 defragmentation in pcap-thread, requires
+.Ar use_layers=yes .
+.It max_ipv6_fragments=<num>
+Set the maximum fragmented IPv6 packets to track for reassembly, if the limit
+is reach then all other fragmented packets will not be reassembled.
+.It max_ipv6_fragments_per_packet=<num>
+Set the maximum fragments per tracked IPv6 packet to keep for reassembly.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:
