@@ -1,3 +1,7 @@
+- opts for enable defrag
+- use layers, add cb for udp/tcp
+- tests
+
 # dnscap
 
 [![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
