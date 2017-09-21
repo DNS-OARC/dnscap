@@ -177,7 +177,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (firstpkt->pkthdr.len != firstpkt->pkthdr.caplen)
         return;
 
-    vlan = 0;
+    vlan = MAX_VLAN;
     for (prevpkt = packet; prevpkt; prevpkt = prevpkt->prevpkt) {
         if (prevpkt->have_ieee802hdr) {
             /* TODO: Only match first found VLAN or all? */
@@ -196,6 +196,39 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         char             when[100];
         const struct tm* tm;
         time_t           t;
+
+        /*
+         * Reduce `len` to report same captured length as `dl_pkt`
+         */
+        for (prevpkt = packet; len && prevpkt; prevpkt = prevpkt->prevpkt) {
+            if (prevpkt->have_nullhdr) {
+                if (len > sizeof(prevpkt->nullhdr))
+                    len -= sizeof(prevpkt->nullhdr);
+                else
+                    len = 0;
+            }
+            if (prevpkt->have_loophdr) {
+                if (len > sizeof(prevpkt->loophdr))
+                    len -= sizeof(prevpkt->loophdr);
+                else
+                    len = 0;
+            }
+            if (prevpkt->have_ethhdr) {
+                if (len > sizeof(prevpkt->ethhdr))
+                    len -= sizeof(prevpkt->ethhdr);
+                else
+                    len = 0;
+            }
+            if (prevpkt->have_linux_sll) {
+                if (len > sizeof(prevpkt->linux_sll))
+                    len -= sizeof(prevpkt->linux_sll);
+                else
+                    len = 0;
+            }
+
+            if (!prevpkt->have_prevpkt)
+                break;
+        }
 
         t  = (time_t)firstpkt->pkthdr.ts.tv_sec;
         tm = gmtime(&t);
