@@ -460,22 +460,14 @@ void discard(tcpstate_ptr tcpstate, const char* msg)
 void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length)
 {
     u_char          pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char*   dnspkt;
+    const u_char*   dnspkt = 0;
     unsigned        proto, sport, dport;
     iaddr           from, to, initiator, responder;
-    struct ip6_hdr* ipv6;
     int             response;
-    unsigned        flags    = 0;
-    struct udphdr*  udp      = NULL;
-    struct tcphdr*  tcp      = NULL;
+    unsigned        flags    = DNSCAP_OUTPUT_ISLAYER;
     tcpstate_ptr    tcpstate = NULL;
-    struct ip*      ip;
-    size_t          len, dnslen;
+    size_t          len, dnslen = 0;
     HEADER          dns;
-    const pcap_thread_packet_t*          prevpkt;
-
-    if (dumptrace >= 4)
-        fprintf(stderr, "processing %s packet: len=%zu\n", (pf == PF_INET ? "IPv4" : (pf == PF_INET6 ? "IPv6" : "unknown")), length);
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -484,31 +476,38 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
     /* Network. */
     sport = dport = 0;
-    for (prevpkt = packet; prevpkt; prevpkt = prevpkt->prevpkt) {
-        if (prevpkt->have_iphdr) {
-            memset(&from, 0, sizeof from);
-            from.af = AF_INET;
-            memcpy(&from.u.a4, &(prevpkt->iphdr.ip_src), sizeof(struct in_addr));
-            memset(&to, 0, sizeof to);
-            to.af = AF_INET;
-            memcpy(&to.u.a4, &(prevpkt->iphdr.ip_dst), sizeof(struct in_addr));
-            break;
-        } else if (prevpkt->have_ip6hdr) {
-            memset(&from, 0, sizeof from);
-            from.af = AF_INET6;
-            memcpy(&from.u.a6, &(prevpkt->ip6hdr.ip6_src), sizeof(struct in6_addr));
-            memset(&to, 0, sizeof to);
-            to.af = AF_INET6;
-            memcpy(&to.u.a6, &(prevpkt->ip6hdr.ip6_dst), sizeof(struct in6_addr));
-            break;
-        }
-        if (!prevpkt->have_prevpkt)
-            break;
+    if (packet->have_iphdr) {
+        if (dumptrace >= 4)
+            fprintf(stderr, "processing IPv4 packet: len=%zu\n", length);
+
+        memset(&from, 0, sizeof from);
+        from.af = AF_INET;
+        memcpy(&from.u.a4, &(packet->iphdr.ip_src), sizeof(struct in_addr));
+        memset(&to, 0, sizeof to);
+        to.af = AF_INET;
+        memcpy(&to.u.a4, &(packet->iphdr.ip_dst), sizeof(struct in_addr));
+        break;
+    } else if (packet->have_ip6hdr) {
+        if (dumptrace >= 4)
+            fprintf(stderr, "processing IPv6 packet: len=%zu\n", length);
+
+        memset(&from, 0, sizeof from);
+        from.af = AF_INET6;
+        memcpy(&from.u.a6, &(packet->ip6hdr.ip6_src), sizeof(struct in6_addr));
+        memset(&to, 0, sizeof to);
+        to.af = AF_INET6;
+        memcpy(&to.u.a6, &(packet->ip6hdr.ip6_dst), sizeof(struct in6_addr));
+        break;
+    } else {
+        if (dumptrace >= 4)
+            fprintf(stderr, "processing unknown packet: len=%zu\n", length);
+        from.af = AF_UNSPEC;
+        to.af = AF_UNSPEC;
     }
 
     /* Transport. */
     if (packet->have_icmphdr || packet->icmp6hdr) {
-        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, length);
+        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, pkt, len);
         return;
     } else if (packet->have_udphdr) {
         sport = packet->udphdr.uh_sport;
@@ -517,6 +516,8 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         dnslen = length;
         flags |= DNSCAP_OUTPUT_ISDNS;
     } else if (packet->have_tcphdr) {
+        uint32_t seq = packet->tcphdr.th_seq;
+
         sport = packet->tcphdr.th_sport;
         dport = packet->tcphdr.th_dport;
         dnspkt = payload;
@@ -553,22 +554,28 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 #if 1
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
-            fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] ", ProgramName,
-                (u_long)ts.tv_sec, (u_long)ts.tv_usec, (u_long)len);
-            fprintf(stderr, "%15s -> ", ia_str(from));
-            fprintf(stderr, "%15s; ", ia_str(to));
+            fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] %15s -> %15s; ",
+                ProgramName,
+                (u_long)ts.tv_sec,
+                (u_long)ts.tv_usec,
+                (u_long)len,
+                ia_str(from),
+                ia_str(to));
+
             if (tcpstate)
                 fprintf(stderr, "want=%08x; ", tcpstate->start);
             else
                 fprintf(stderr, "no state; ");
+
             fprintf(stderr, "seq=%08x; ", seq);
         }
         if (tcp->th_flags & (TH_FIN | TH_RST)) {
-            /* Always output FIN and RST segments. */
             if (dumptrace >= 3)
                 fprintf(stderr, "FIN|RST\n");
-            output(descr, from, to, proto, flags, sport, dport, ts,
-                pkt_copy, olen, NULL, 0);
+
+            /* Always output FIN and RST segments. */
+            output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+
             /* End of stream; deallocate the tcpstate. */
             if (tcpstate) {
                 UNLINK(tcpstates, tcpstate, link);
@@ -580,9 +587,10 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         if (tcp->th_flags & TH_SYN) {
             if (dumptrace >= 3)
                 fprintf(stderr, "SYN\n");
+
             /* Always output SYN segments. */
-            output(descr, from, to, proto, flags, sport, dport, ts,
-                pkt_copy, olen, NULL, 0);
+            output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+
             if (tcpstate) {
 #if 0
             /* Disabled because warning may scare user, and
@@ -610,14 +618,19 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         }
         if (tcpstate) {
             uint32_t seqdiff = seq - tcpstate->start;
+
             if (dumptrace >= 3)
                 fprintf(stderr, "diff=%08x; ", seqdiff);
+
             if (seqdiff == 0 && len > 2) {
-                /* This is the first segment of the stream, and
-             * contains the dnslen and dns header, so we can
-             * filter on it. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "len+hdr\n");
+
+                /*
+                 * This is the first segment of the stream, and
+                 * contains the dnslen and dns header, so we can
+                 * filter on it.
+                 */
                 dnslen = tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
                 dnspkt                    = pkt + 2;
                 if (dnslen > len - 2)
@@ -625,24 +638,29 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 flags |= DNSCAP_OUTPUT_ISDNS;
                 tcpstate->maxdiff = (uint32_t)len;
             } else if (seqdiff == 0 && len == 2) {
-                /* This is the first segment of the stream, but only
-             * contains the dnslen. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "len\n");
+
+                /*
+                 * This is the first segment of the stream, but only
+                 * contains the dnslen.
+                 */
                 tcpstate->dnslen  = (pkt[0] << 8) | (pkt[1] << 0);
                 tcpstate->maxdiff = (uint32_t)len;
-                output(descr, from, to, proto, flags, sport, dport, ts,
-                    pkt_copy, olen, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 return;
             } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
                 /* shouldn't happen */
                 discard(tcpstate, NULL);
                 return;
             } else if (seqdiff == 2) {
-                /* This is not the first segment, but it does contain
-             * the first dns header, so we can filter on it. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "hdr\n");
+
+                /*
+                 * This is not the first segment, but it does contain
+                 * the first dns header, so we can filter on it.
+                 */
                 tcpstate->maxdiff = seqdiff + (uint32_t)len;
                 dnslen            = tcpstate->dnslen;
                 dnspkt            = pkt;
@@ -652,31 +670,36 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     dnslen = len;
                 flags |= DNSCAP_OUTPUT_ISDNS;
             } else if (seqdiff > tcpstate->maxdiff + MAX_TCP_WINDOW) {
-                /* This segment is outside the window. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "out of window\n");
+
+                /* This segment is outside the window. */
                 return;
             } else if (len == 0) {
-                /* No payload (e.g., an ACK) */
                 if (dumptrace >= 3)
                     fprintf(stderr, "empty\n");
+
+                /* No payload (e.g., an ACK) */
                 return;
             } else {
-                /* non-first */
                 if (dumptrace >= 3)
                     fprintf(stderr, "keep\n");
+
+                /* non-first */
                 if (tcpstate->maxdiff < seqdiff + (uint32_t)len)
                     tcpstate->maxdiff = seqdiff + (uint32_t)len;
-                output(descr, from, to, proto, flags, sport, dport, ts,
-                    pkt_copy, olen, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 return;
             }
         } else {
             if (dumptrace >= 3)
                 fprintf(stderr, "no state\n");
-            /* There is no state for this stream.  Either we never saw
+
+            /*
+             * There is no state for this stream.  Either we never saw
              * a SYN for this stream, or we have already decided to
-             * discard this stream. */
+             * discard this stream.
+             */
             return;
         }
 #endif
@@ -826,13 +849,13 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             uint16_t* init_port;
 
             if (dns.qr == 0) {
-                init_addr = (void*)&ip->ip_src;
-                resp_addr = (void*)&ip->ip_dst;
-                init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
+                init_addr = (void*)&(packet->iphdr.ip_src);
+                resp_addr = (void*)&(packet->iphdr.ip_dst);
+                init_port = sport;
             } else {
-                init_addr = (void*)&ip->ip_dst;
-                resp_addr = (void*)&ip->ip_src;
-                init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
+                init_addr = (void*)&(packet->iphdr.ip_dst);
+                resp_addr = (void*)&(packet->iphdr.ip_src);
+                init_port = dport;
             }
 
             if ((end_hide & END_INITIATOR) != 0) {
@@ -842,9 +865,9 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             if ((end_hide & END_RESPONDER) != 0)
                 memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
 
-            ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
-            if (udp)
-                udp->uh_sum = 0U;
+            packet->iphdr.ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
+            if (packet->have_udphdr)
+                packet->udphdr.uh_sum = 0U;
             break;
         }
         case AF_INET6: {
@@ -852,13 +875,13 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             uint16_t* init_port;
 
             if (dns.qr == 0) {
-                init_addr = (void*)&ipv6->ip6_src;
-                resp_addr = (void*)&ipv6->ip6_dst;
-                init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
+                init_addr = (void*)&(packet->ip6hdr.ip6_src);
+                resp_addr = (void*)&(packet->ip6hdr.ip6_dst);
+                init_port = sport;
             } else {
-                init_addr = (void*)&ipv6->ip6_dst;
-                resp_addr = (void*)&ipv6->ip6_src;
-                init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
+                init_addr = (void*)&(packet->ip6hdr.ip6_dst);
+                resp_addr = (void*)&(packet->ip6hdr.ip6_src);
+                init_port = dport;
             }
 
             if ((end_hide & END_INITIATOR) != 0) {
@@ -868,16 +891,15 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             if ((end_hide & END_RESPONDER) != 0)
                 memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
 
-            if (udp)
-                udp->uh_sum = 0U;
+            if (packet->have_udphdr)
+                packet->udphdr.uh_sum = 0U;
             break;
         }
         default:
             abort();
         }
     }
-    output(descr, from, to, proto, flags, sport, dport, ts,
-        pkt_copy, olen, dnspkt, dnslen);
+    output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
 }
 
 void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
