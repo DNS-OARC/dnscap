@@ -110,7 +110,8 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
     return tcpstate;
 }
 
-static int skip_vlan(unsigned vlan) {
+static int skip_vlan(unsigned vlan)
+{
     if (!EMPTY(vlans_excl)) {
         vlan_ptr vl;
 
@@ -144,11 +145,11 @@ static int skip_vlan(unsigned vlan) {
 
 void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* payload, size_t length)
 {
-    mypcap_ptr mypcap = (mypcap_ptr)user;
-    size_t     len;
-    unsigned   vlan, pf;
-    const pcap_thread_packet_t*          prevpkt, *firstpkt = packet;
-    char       descr[200];
+    mypcap_ptr                  mypcap = (mypcap_ptr)user;
+    size_t                      len;
+    unsigned                    vlan;
+    const pcap_thread_packet_t *prevpkt, *firstpkt = packet;
+    char                        descr[200];
 
     if (!mypcap)
         return;
@@ -161,10 +162,10 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (!firstpkt->have_pkthdr)
         return;
 
-    len = firstpkt->pkthdr->caplen;
+    len = firstpkt->pkthdr.caplen;
 
-    last_ts = firstpkt->pkthdr->ts;
-    if (stop_time != 0 && firstpkt->pkthdr->ts.tv_sec >= stop_time) {
+    last_ts = firstpkt->pkthdr.ts;
+    if (stop_time != 0 && firstpkt->pkthdr.ts.tv_sec >= stop_time) {
         breakloop_pcaps();
         main_exit = TRUE;
     }
@@ -173,7 +174,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         return;
 
     /* If ever SNAPLEN wasn't big enough, we have no recourse. */
-    if (firstpkt->pkthdr->len != firstpkt->pkthdr->caplen)
+    if (firstpkt->pkthdr.len != firstpkt->pkthdr.caplen)
         return;
 
     vlan = 0;
@@ -196,15 +197,15 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         const struct tm* tm;
         time_t           t;
 
-        t  = (time_t)firstpkt->pkthdr->ts.tv_sec;
+        t  = (time_t)firstpkt->pkthdr.ts.tv_sec;
         tm = gmtime(&t);
         strftime(when, sizeof(when), "%Y-%m-%d %T", tm);
 
         if (vlan != MAX_VLAN) {
-            snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s (vlan %u) %u] \\\n"
+            snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s (vlan %u) %u] \\\n",
                 (u_long)len,
                 when,
-                (u_long)firstpkt->pkthdr->ts.tv_usec,
+                (u_long)firstpkt->pkthdr.ts.tv_usec,
                 (long)msgcount,
                 mypcap->name ? mypcap->name : "\"some interface\"",
                 vlan,
@@ -213,24 +214,24 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
             snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s %u] \\\n",
                 (u_long)len,
                 when,
-                (u_long)firstpkt->pkthdr->ts.tv_usec,
+                (u_long)firstpkt->pkthdr.ts.tv_usec,
                 (long)msgcount,
                 mypcap->name ? mypcap->name : "\"some interface\"",
                 vlan);
         }
     }
 
-    if (next_interval != 0 && firstpkt->pkthdr->ts.tv_sec >= next_interval && dumper_opened == dump_state)
-        dumper_close(firstpkt->pkthdr->ts);
-    if (dumper_closed == dump_state && dumper_open(firstpkt->pkthdr->ts))
+    if (next_interval != 0 && firstpkt->pkthdr.ts.tv_sec >= next_interval && dumper_opened == dump_state)
+        dumper_close(firstpkt->pkthdr.ts);
+    if (dumper_closed == dump_state && dumper_open(firstpkt->pkthdr.ts))
         goto breakloop;
 
-    network_pkt2(descr, firstpkt->pkthdr->ts, packet, payload, length);
+    network_pkt2(descr, firstpkt->pkthdr.ts, packet, payload, length);
 
     if (limit_packets != 0U && msgcount == limit_packets) {
         if (preso)
             goto breakloop;
-        if (dumper_opened == dump_state && dumper_close(firstpkt->pkthdr->ts))
+        if (dumper_opened == dump_state && dumper_close(firstpkt->pkthdr.ts))
             goto breakloop;
         msgcount = 0;
     }
@@ -239,7 +240,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         if (preso) {
             goto breakloop;
         }
-        if (dumper_opened == dump_state && dumper_close(firstpkt->pkthdr->ts)) {
+        if (dumper_opened == dump_state && dumper_close(firstpkt->pkthdr.ts)) {
             goto breakloop;
         }
         capturedbytes = 0;
@@ -459,15 +460,15 @@ void discard(tcpstate_ptr tcpstate, const char* msg)
 
 void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length)
 {
-    u_char          pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char*   dnspkt = 0;
-    unsigned        proto, sport, dport;
-    iaddr           from, to, initiator, responder;
-    int             response;
-    unsigned        flags    = DNSCAP_OUTPUT_ISLAYER;
-    tcpstate_ptr    tcpstate = NULL;
-    size_t          len, dnslen = 0;
-    HEADER          dns;
+    u_char        pkt_copy[SNAPLEN], *pkt = pkt_copy;
+    const u_char* dnspkt = 0;
+    unsigned      proto, sport, dport;
+    iaddr         from, to, initiator, responder;
+    int           response;
+    unsigned      flags    = DNSCAP_OUTPUT_ISLAYER;
+    tcpstate_ptr  tcpstate = NULL;
+    size_t        len, dnslen = 0;
+    HEADER        dns;
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -486,7 +487,6 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         memset(&to, 0, sizeof to);
         to.af = AF_INET;
         memcpy(&to.u.a4, &(packet->iphdr.ip_dst), sizeof(struct in_addr));
-        break;
     } else if (packet->have_ip6hdr) {
         if (dumptrace >= 4)
             fprintf(stderr, "processing IPv6 packet: len=%zu\n", length);
@@ -497,34 +497,40 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         memset(&to, 0, sizeof to);
         to.af = AF_INET6;
         memcpy(&to.u.a6, &(packet->ip6hdr.ip6_dst), sizeof(struct in6_addr));
-        break;
     } else {
         if (dumptrace >= 4)
             fprintf(stderr, "processing unknown packet: len=%zu\n", length);
         from.af = AF_UNSPEC;
-        to.af = AF_UNSPEC;
+        to.af   = AF_UNSPEC;
     }
 
     /* Transport. */
-    if (packet->have_icmphdr || packet->icmp6hdr) {
-        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, pkt, len);
+    if (packet->have_icmphdr) {
+        output(descr, from, to, IPPROTO_ICMP, flags, sport, dport, ts, pkt_copy, length, pkt, len);
+        return;
+    } else if (packet->have_icmpv6hdr) {
+        output(descr, from, to, IPPROTO_ICMPV6, flags, sport, dport, ts, pkt_copy, length, pkt, len);
         return;
     } else if (packet->have_udphdr) {
-        sport = packet->udphdr.uh_sport;
-        dport = packet->udphdr.uh_dport;
+        proto  = IPPROTO_UDP;
+        sport  = packet->udphdr.uh_sport;
+        dport  = packet->udphdr.uh_dport;
         dnspkt = payload;
         dnslen = length;
         flags |= DNSCAP_OUTPUT_ISDNS;
     } else if (packet->have_tcphdr) {
         uint32_t seq = packet->tcphdr.th_seq;
 
-        sport = packet->tcphdr.th_sport;
-        dport = packet->tcphdr.th_dport;
+        proto  = IPPROTO_TCP;
+        sport  = packet->tcphdr.th_sport;
+        dport  = packet->tcphdr.th_dport;
         dnspkt = payload;
         dnslen = length;
         flags |= DNSCAP_OUTPUT_ISDNS;
 
-        /* TCP processing.
+        /*
+         * TCP processing.
+         *
          * We need to capture enough to allow a later analysis to
          * reassemble the TCP stream, but we don't want to keep all
          * the state required to do reassembly here.
@@ -551,7 +557,6 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
          * -- kkeys@caida.org
          */
 
-#if 1
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
             fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] %15s -> %15s; ",
@@ -569,7 +574,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
             fprintf(stderr, "seq=%08x; ", seq);
         }
-        if (tcp->th_flags & (TH_FIN | TH_RST)) {
+        if (packet->tcphdr.th_flags & (TH_FIN | TH_RST)) {
             if (dumptrace >= 3)
                 fprintf(stderr, "FIN|RST\n");
 
@@ -584,7 +589,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             }
             return;
         }
-        if (tcp->th_flags & TH_SYN) {
+        if (packet->tcphdr.th_flags & TH_SYN) {
             if (dumptrace >= 3)
                 fprintf(stderr, "SYN\n");
 
@@ -592,20 +597,24 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
 
             if (tcpstate) {
-#if 0
-            /* Disabled because warning may scare user, and
-             * there's nothing else we can do anyway. */
-            if (tcpstate->start == seq + 1) {
-                /* repeated SYN */
-            } else {
-                /* Assume existing state is stale and recycle it. */
-                if (ts.tv_sec - tcpstate->last_use < MAX_TCP_IDLE_TIME)
-                fprintf(stderr, "warning: recycling state for "
-                    "duplicate tcp stream after only %ld "
-                    "seconds idle\n",
-                    (u_long)(ts.tv_sec - tcpstate->last_use));
-            }
-#endif
+                if (tcpstate->start == seq + 1) {
+                    /* repeated SYN */
+                } else {
+                    /* Assume existing state is stale and recycle it. */
+
+                    /*
+                     * Disabled because warning may scare user, and
+                     * there's nothing else we can do anyway.
+                     */
+
+                    /*
+                    if (ts.tv_sec - tcpstate->last_use < MAX_TCP_IDLE_TIME)
+                    fprintf(stderr, "warning: recycling state for "
+                        "duplicate tcp stream after only %ld "
+                        "seconds idle\n",
+                        (u_long)(ts.tv_sec - tcpstate->last_use));
+                    */
+                }
             } else {
                 /* create new tcpstate */
                 tcpstate = tcpstate_new(from, to, sport, dport);
@@ -702,7 +711,6 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
              */
             return;
         }
-#endif
     } else {
         return;
     }
@@ -841,64 +849,10 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
     }
 #endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 
-    /* Policy hiding. */
-    if (end_hide != 0) {
-        switch (from.af) {
-        case AF_INET: {
-            void *    init_addr, *resp_addr;
-            uint16_t* init_port;
+    /*
+     * TODO: Policy hiding.
+     */
 
-            if (dns.qr == 0) {
-                init_addr = (void*)&(packet->iphdr.ip_src);
-                resp_addr = (void*)&(packet->iphdr.ip_dst);
-                init_port = sport;
-            } else {
-                init_addr = (void*)&(packet->iphdr.ip_dst);
-                resp_addr = (void*)&(packet->iphdr.ip_src);
-                init_port = dport;
-            }
-
-            if ((end_hide & END_INITIATOR) != 0) {
-                memcpy(init_addr, HIDE_INET, sizeof(struct in_addr));
-                *init_port = htons(HIDE_PORT);
-            }
-            if ((end_hide & END_RESPONDER) != 0)
-                memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
-
-            packet->iphdr.ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
-            if (packet->have_udphdr)
-                packet->udphdr.uh_sum = 0U;
-            break;
-        }
-        case AF_INET6: {
-            void *    init_addr, *resp_addr;
-            uint16_t* init_port;
-
-            if (dns.qr == 0) {
-                init_addr = (void*)&(packet->ip6hdr.ip6_src);
-                resp_addr = (void*)&(packet->ip6hdr.ip6_dst);
-                init_port = sport;
-            } else {
-                init_addr = (void*)&(packet->ip6hdr.ip6_dst);
-                resp_addr = (void*)&(packet->ip6hdr.ip6_src);
-                init_port = dport;
-            }
-
-            if ((end_hide & END_INITIATOR) != 0) {
-                memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
-                *init_port = htons(HIDE_PORT);
-            }
-            if ((end_hide & END_RESPONDER) != 0)
-                memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
-
-            if (packet->have_udphdr)
-                packet->udphdr.uh_sum = 0U;
-            break;
-        }
-        default:
-            abort();
-        }
-    }
     output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
 }
 

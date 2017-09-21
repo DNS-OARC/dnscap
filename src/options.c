@@ -158,6 +158,11 @@ int option_parse(options_t* options, const char* option)
             options->pcap_buffer_size = s;
             return 0;
         }
+    } else if (have("use_layers")) {
+        if (!strcmp(argument, "yes")) {
+            options->use_layers = 1;
+            return 0;
+        }
     }
 
     return 1;

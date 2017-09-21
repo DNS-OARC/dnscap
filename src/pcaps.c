@@ -88,9 +88,33 @@ void open_pcaps(void)
         print_pcap_thread_error("pcap_thread_set_immediate_mode()", err);
         exit(1);
     }
-    if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
-        print_pcap_thread_error("pcap_thread_set_callback()", err);
-        exit(1);
+    if (options.use_layers) {
+        if ((err = pcap_thread_set_callback_icmp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_icmp()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_icmpv6(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_icmpv6()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_udp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_udp()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_tcp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_tcp()", err);
+            exit(1);
+        }
+
+        if ((err = pcap_thread_set_use_layers(&pcap_thread, 1)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_use_layers()", err);
+            exit(1);
+        }
+    } else {
+        if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback()", err);
+            exit(1);
+        }
     }
     if ((err = pcap_thread_set_dropback(&pcap_thread, drop_pkt)) != PCAP_THREAD_OK) {
         print_pcap_thread_error("pcap_thread_set_dropback()", err);
