@@ -1,6 +1,6 @@
 - opts for enable defrag
-- use layers, add cb for udp/tcp
 - tests
+  - check output of -g with and without layers, should match
 
 # dnscap
 
