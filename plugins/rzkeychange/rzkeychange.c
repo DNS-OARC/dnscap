@@ -249,8 +249,9 @@ int rzkeychange_open(my_bpftimeval ts)
 
 void rzkeychange_submit_counts(void)
 {
-    char   qname[256];
-    double elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
+    char      qname[256];
+    ldns_pkt* pkt;
+    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
     snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
         (u_long)open_ts.tv_sec,
         (unsigned int)(elapsed + 0.5),
@@ -264,12 +265,12 @@ void rzkeychange_submit_counts(void)
         report_node,
         report_server,
         report_zone);
-    dns_query(qname, LDNS_RR_TYPE_TXT);
-    /* normally we would free any return packet, but this process is about to exit */
+    pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
+    if (pkt)
+        ldns_pkt_free(pkt);
     if (keytag_zone != 0) {
         unsigned int i;
         for (i = 0; i < num_key_tag_signals; i++) {
-            usleep(1000);
             char *s = strdup(rzkeychange_ia_str(key_tag_signals[i].addr));
             char *t;
             if (0 == s)
@@ -282,7 +283,9 @@ void rzkeychange_submit_counts(void)
                 s,
                 key_tag_signals[i].signal,
                 keytag_zone);
-            dns_query(qname, LDNS_RR_TYPE_TXT);
+            pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
+            if (pkt)
+                ldns_pkt_free(pkt);
         }
     }
 }
