@@ -541,6 +541,7 @@ void parse_args(int argc, char* argv[])
             p->extension = dlsym(p->handle, sn);
             if (p->extension) {
                 (*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
+                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)ia_str);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", p->name);
             p->getopt = dlsym(p->handle, sn);
