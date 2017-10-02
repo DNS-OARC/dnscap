@@ -278,10 +278,12 @@ void rzkeychange_submit_counts(void)
             for (t = s; *t; t++)
                 if (*t == '.' || *t == ':')
                    *t = '-';
-            snprintf(qname, sizeof(qname), "%lu.%s.%s.%s",
+            snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
                 (u_long)open_ts.tv_sec,
                 s,
                 key_tag_signals[i].signal,
+                report_node,
+                report_server,
                 keytag_zone);
             pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
             if (pkt)
