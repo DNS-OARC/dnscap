@@ -5,4 +5,9 @@
 # remove timestamp
 sed -i -e 's%^\(\[[0-9]*\]\)[^\[]*\[%\1 [%g' frags.out
 
-diff frags.out "$srcdir/frags.gold"
+# create gold file
+cp "$srcdir/dns.gold" frags.gold
+sed -i -e 's%^\(\[[0-9]*\]\)[^\[]*\[%\1 [%g' frags.gold
+sed -i -e 's%dns.pcap-dist%frags.pcap-dist%g' frags.gold
+
+diff frags.out frags.gold

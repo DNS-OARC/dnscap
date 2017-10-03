@@ -19,4 +19,4 @@ test3.sh: frags.pcap-dist
 
 EXTRA_DIST = $(TESTS) \
     dns.gold dns.pcap \
-    frags.pcap frags.gold
+    frags.pcap
