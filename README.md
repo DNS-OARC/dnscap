@@ -1,7 +1,3 @@
-- opts for enable defrag
-- tests
-  - check output of -g with and without layers, should match
-
 # dnscap
 
 [![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
