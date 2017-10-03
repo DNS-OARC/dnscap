@@ -5,6 +5,13 @@
 # remove timestamp
 sed -i -e 's%^\(\[[0-9]*\]\)[^\[]*\[%\1 [%g' frags.out
 
+osrel=`uname -s`
+if [ "$osrel" = "OpenBSD" ]; then
+    mv frags.out frags.out.old
+    grep -v "^dnscap.*WARNING.*symbol.*relink" frags.out.old > frags.out
+    rm frags.out.old
+fi
+
 # create gold file
 cp "$srcdir/dns.gold" frags.gold
 sed -i -e 's%^\(\[[0-9]*\]\)[^\[]*\[%\1 [%g' frags.gold
