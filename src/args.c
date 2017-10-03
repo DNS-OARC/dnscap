@@ -704,4 +704,8 @@ void parse_args(int argc, char* argv[])
         cds_set_rdata_rindex_min_size(options.cds_rdata_rindex_min_size);
         cds_set_rdata_rindex_size(options.cds_rdata_rindex_size);
     }
+
+    if (!options.use_layers && (options.defrag_ipv4 || options.defrag_ipv6)) {
+        usage("can't defragment IP packets without use_layers=yes");
+    }
 }

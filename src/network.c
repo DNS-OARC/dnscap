@@ -157,6 +157,8 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         return;
 
     while (firstpkt->have_prevpkt) {
+        if (firstpkt->have_pkthdr)
+            break;
         firstpkt = firstpkt->prevpkt;
     }
     if (!firstpkt->have_pkthdr)

@@ -163,6 +163,40 @@ int option_parse(options_t* options, const char* option)
             options->use_layers = 1;
             return 0;
         }
+    } else if (have("defrag_ipv4")) {
+        if (!strcmp(argument, "yes")) {
+            options->defrag_ipv4 = 1;
+            return 0;
+        }
+    } else if (have("max_ipv4_fragments")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->max_ipv4_fragments = s;
+            return 0;
+        }
+    } else if (have("max_ipv4_fragments_per_packet")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->max_ipv4_fragments_per_packet = s;
+            return 0;
+        }
+    } else if (have("defrag_ipv6")) {
+        if (!strcmp(argument, "yes")) {
+            options->defrag_ipv6 = 1;
+            return 0;
+        }
+    } else if (have("max_ipv6_fragments")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->max_ipv6_fragments = s;
+            return 0;
+        }
+    } else if (have("max_ipv6_fragments_per_packet")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->max_ipv6_fragments_per_packet = s;
+            return 0;
+        }
     }
 
     return 1;

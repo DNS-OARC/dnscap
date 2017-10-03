@@ -457,6 +457,20 @@ Set the
 .Xr pcap 3pcap
 buffer size to use when capturing packets, can be used too not miss packets
 during processing.
+.It use_layers=yes
+TODO
+.It defrag_ipv4=yes
+TODO
+.It max_ipv4_fragments=<num>
+TODO
+.It max_ipv4_fragments_per_packet=<num>
+TODO
+.It defrag_ipv6=yes
+TODO
+.It max_ipv6_fragments=<num>
+TODO
+.It max_ipv6_fragments_per_packet=<num>
+TODO
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:

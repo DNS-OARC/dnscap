@@ -110,6 +110,35 @@ void open_pcaps(void)
             print_pcap_thread_error("pcap_thread_set_use_layers()", err);
             exit(1);
         }
+
+        if (options.defrag_ipv4) {
+            if ((err = pcap_thread_set_defrag_ipv4(&pcap_thread, 1)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_defrag_ipv4()", err);
+                exit(1);
+            }
+            if (options.max_ipv4_fragments > 0 && (err = pcap_thread_set_max_ipv4_fragments(&pcap_thread, options.max_ipv4_fragments)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_max_ipv4_fragments()", err);
+                exit(1);
+            }
+            if (options.max_ipv4_fragments_per_packet > 0 && (err = pcap_thread_set_max_ipv4_fragments_per_packet(&pcap_thread, options.max_ipv4_fragments_per_packet)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_max_ipv4_fragments_per_packet()", err);
+                exit(1);
+            }
+        }
+        if (options.defrag_ipv6) {
+            if ((err = pcap_thread_set_defrag_ipv6(&pcap_thread, 1)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_defrag_ipv6()", err);
+                exit(1);
+            }
+            if (options.max_ipv6_fragments > 0 && (err = pcap_thread_set_max_ipv6_fragments(&pcap_thread, options.max_ipv6_fragments)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_max_ipv6_fragments()", err);
+                exit(1);
+            }
+            if (options.max_ipv6_fragments_per_packet > 0 && (err = pcap_thread_set_max_ipv6_fragments_per_packet(&pcap_thread, options.max_ipv6_fragments_per_packet)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_max_ipv6_fragments_per_packet()", err);
+                exit(1);
+            }
+        }
     } else {
         if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
             print_pcap_thread_error("pcap_thread_set_callback()", err);
