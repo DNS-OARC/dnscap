@@ -38,13 +38,13 @@ static ldns_resolver* res;
 
 output_t       rzkeychange_output;
 is_responder_t rzkeychange_is_responder = 0;
-ia_str_t       rzkeychange_ia_str = 0;
+ia_str_t       rzkeychange_ia_str       = 0;
 
 #define MAX_KEY_TAG_SIGNALS 500
 static unsigned int num_key_tag_signals;
 struct {
-    iaddr addr;
-    const char *signal;
+    iaddr       addr;
+    const char* signal;
 } key_tag_signals[MAX_KEY_TAG_SIGNALS];
 
 struct {
@@ -206,7 +206,7 @@ int rzkeychange_start(logerr_t* a_logerr)
         ldns_resolver_set_port(res, resolver_port);
     if (resolver_use_tcp)
         ldns_resolver_set_usevc(res, 1);
-    //
+
     fprintf(stderr, "Testing reachability of zone '%s'\n", report_zone);
     pkt = dns_query(report_zone, LDNS_RR_TYPE_TXT);
     if (!pkt) {
@@ -252,6 +252,7 @@ void rzkeychange_submit_counts(void)
     char      qname[256];
     ldns_pkt* pkt;
     double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
+
     snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
         (u_long)open_ts.tv_sec,
         (unsigned int)(elapsed + 0.5),
@@ -265,15 +266,19 @@ void rzkeychange_submit_counts(void)
         report_node,
         report_server,
         report_zone);
+
     pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
     if (pkt)
         ldns_pkt_free(pkt);
+
     if (keytag_zone != 0) {
         unsigned int i;
+
         for (i = 0; i < num_key_tag_signals; i++) {
-            char *s = strdup(rzkeychange_ia_str(key_tag_signals[i].addr));
-            char *t;
-            int k;
+            char* s = strdup(rzkeychange_ia_str(key_tag_signals[i].addr));
+            char* t;
+            int   k;
+
             if (0 == s) {
                 /*
                  * Apparently out of memory.  This function is called in
@@ -282,9 +287,11 @@ void rzkeychange_submit_counts(void)
                  */
                 break;
             }
+
             for (t = s; *t; t++)
                 if (*t == '.' || *t == ':')
-                   *t = '-';
+                    *t = '-';
+
             k = snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
                 (u_long)open_ts.tv_sec,
                 s,
@@ -293,8 +300,10 @@ void rzkeychange_submit_counts(void)
                 report_server,
                 keytag_zone);
             free(s);
+
             if (k >= sizeof(qname))
                 continue; // qname was truncated in snprintf()
+
             pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
             if (pkt)
                 ldns_pkt_free(pkt);
@@ -333,10 +342,10 @@ int rzkeychange_close(my_bpftimeval ts)
     exit(0);
 }
 
-void rzkeychange_keytagsignal(const ldns_rr *question_rr, iaddr addr)
+void rzkeychange_keytagsignal(const ldns_rr* question_rr, iaddr addr)
 {
-    ldns_rdf *qn;
-    char *qn_str = 0;
+    ldns_rdf* qn;
+    char*     qn_str = 0;
     if (LDNS_RR_TYPE_NULL != ldns_rr_get_type(question_rr))
         return;
     if (num_key_tag_signals == MAX_KEY_TAG_SIGNALS)
@@ -349,10 +358,10 @@ void rzkeychange_keytagsignal(const ldns_rr *question_rr, iaddr addr)
         return;
     if (0 != strncasecmp(qn_str, "_ta-", 4))
         goto keytagsignal_done;
-    qn_str[strlen(qn_str) - 1] = 0;    // ldns always adds terminating dot
-    if (strchr(qn_str, '.'))    // dont want non-root keytag signals
+    qn_str[strlen(qn_str) - 1] = 0; // ldns always adds terminating dot
+    if (strchr(qn_str, '.')) // dont want non-root keytag signals
         goto keytagsignal_done;
-    key_tag_signals[num_key_tag_signals].addr = addr;
+    key_tag_signals[num_key_tag_signals].addr   = addr;
     key_tag_signals[num_key_tag_signals].signal = strdup(qn_str);
     assert(key_tag_signals[num_key_tag_signals].signal);
     num_key_tag_signals++;
@@ -410,7 +419,7 @@ void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, 
         if (LDNS_RR_TYPE_DNSKEY == ldns_rr_get_type(question_rr))
             counts.dnskey++;
     if (keytag_zone != 0)
-        rzkeychange_keytagsignal(question_rr, to);    // 'to' here because plugin should be processing responses
+        rzkeychange_keytagsignal(question_rr, to); // 'to' here because plugin should be processing responses
 done:
     ldns_pkt_free(pkt);
 }
