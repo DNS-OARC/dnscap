@@ -273,18 +273,28 @@ void rzkeychange_submit_counts(void)
         for (i = 0; i < num_key_tag_signals; i++) {
             char *s = strdup(rzkeychange_ia_str(key_tag_signals[i].addr));
             char *t;
-            if (0 == s)
+            int k;
+            if (0 == s) {
+                /*
+                 * Apparently out of memory.  This function is called in
+                 * a child process which will exit right after this we
+                 * break from the loop and return from this function.
+                 */
                 break;
+            }
             for (t = s; *t; t++)
                 if (*t == '.' || *t == ':')
                    *t = '-';
-            snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
+            k = snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
                 (u_long)open_ts.tv_sec,
                 s,
                 key_tag_signals[i].signal,
                 report_node,
                 report_server,
                 keytag_zone);
+            free(s);
+            if (k >= sizeof(qname))
+                continue; // qname was truncated in snprintf()
             pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
             if (pkt)
                 ldns_pkt_free(pkt);
