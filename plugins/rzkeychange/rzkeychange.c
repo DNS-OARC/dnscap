@@ -336,7 +336,7 @@ int rzkeychange_close(my_bpftimeval ts)
 void rzkeychange_keytagsignal(const ldns_rr *question_rr, iaddr addr)
 {
     ldns_rdf *qn;
-    char *qn_str;
+    char *qn_str = 0;
     if (LDNS_RR_TYPE_NULL != ldns_rr_get_type(question_rr))
         return;
     if (num_key_tag_signals == MAX_KEY_TAG_SIGNALS)
@@ -348,14 +348,17 @@ void rzkeychange_keytagsignal(const ldns_rr *question_rr, iaddr addr)
     if (qn_str == 0)
         return;
     if (0 != strncasecmp(qn_str, "_ta-", 4))
-        return;
-    *(qn_str+strlen(qn_str)-1) = 0;    // ldns always adds terminating dot
+        goto keytagsignal_done;
+    qn_str[strlen(qn_str) - 1] = 0;    // ldns always adds terminating dot
     if (strchr(qn_str, '.'))    // dont want non-root keytag signals
-        return;
+        goto keytagsignal_done;
     key_tag_signals[num_key_tag_signals].addr = addr;
     key_tag_signals[num_key_tag_signals].signal = strdup(qn_str);
     assert(key_tag_signals[num_key_tag_signals].signal);
     num_key_tag_signals++;
+keytagsignal_done:
+    if (qn_str)
+        free(qn_str);
 }
 
 void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
