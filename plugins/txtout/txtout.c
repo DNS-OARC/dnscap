@@ -48,8 +48,8 @@
 #include "dnscap_common.h"
 
 static logerr_t* logerr;
-static int       opt_f = 0;
 static char*     opt_o = 0;
+static int       opt_s = 0;
 static FILE*     out   = 0;
 
 output_t txtout_output;
@@ -58,8 +58,8 @@ void txtout_usage()
 {
     fprintf(stderr,
         "\ntxtout.so options:\n"
-        "\t-f         flag option\n"
-        "\t-o <arg>   output file name\n");
+        "\t-o <arg>   output file name\n"
+        "\t-s         short output, only QTYPE/QNAME for IN\n");
 }
 
 void txtout_getopt(int* argc, char** argv[])
@@ -69,15 +69,15 @@ void txtout_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "fo:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "so:")) != EOF) {
         switch (c) {
-        case 'f':
-            opt_f = 1;
-            break;
         case 'o':
             if (opt_o)
                 free(opt_o);
             opt_o = strdup(optarg);
+            break;
+        case 's':
+            opt_s = 1;
             break;
         default:
             txtout_usage();
@@ -154,6 +154,26 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
     const u_char* pkt_copy, unsigned olen,
     const u_char* payload, unsigned payloadlen)
 {
+    /*
+     * Short output, only print QTYPE and QNAME for IN records
+     */
+    if (opt_s) {
+        if (flags & DNSCAP_OUTPUT_ISDNS) {
+            ns_msg msg;
+            int    qdcount;
+            ns_rr  rr;
+            ns_initparse(payload, payloadlen, &msg);
+            qdcount = ns_msg_count(msg, ns_s_qd);
+
+            if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr) && ns_rr_class(rr) == 1) {
+                fprintf(out, "%s %s\n",
+                    p_type(ns_rr_type(rr)),
+                    ns_rr_name(rr));
+            }
+        }
+        return;
+    }
+
     /*
      * IP Stuff
      */
