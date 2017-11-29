@@ -61,7 +61,7 @@ void txtout_usage()
         "\ntxtout.so options:\n"
         "\t-f         flag option\n"
         "\t-o <arg>   output file name\n"
-        "\t-s         short (just QTYPE<space>QNAME) output\n");
+        "\t-s         short output, only QTYPE/QNAME for IN\n");
 }
 
 void txtout_getopt(int* argc, char** argv[])
@@ -160,65 +160,70 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
     const u_char* payload, unsigned payloadlen)
 {
     /*
+     * Short output, only print QTYPE and QNAME for IN records
+     */
+    if (opt_s) {
+        if (flags & DNSCAP_OUTPUT_ISDNS) {
+            ns_msg msg;
+            int    qdcount;
+            ns_rr  rr;
+            ns_initparse(payload, payloadlen, &msg);
+            qdcount = ns_msg_count(msg, ns_s_qd);
+
+            if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr) && ns_rr_class(rr) == 1) {
+                fprintf(out, "%s %s\n",
+                    p_type(ns_rr_type(rr)),
+                    ns_rr_name(rr));
+            }
+        }
+        return;
+    }
+
+    /*
      * IP Stuff
      */
-    /* Default, full output */
-    if (opt_s == 0) {
-		fprintf(out, "%10ld.%06ld", (long)ts.tv_sec, (long)ts.tv_usec);
-		fprintf(out, " %s %u", ia_str(from), sport);
-		fprintf(out, " %s %u", ia_str(to), dport);
-		fprintf(out, " %hhu", proto);
+    fprintf(out, "%10ld.%06ld", (long)ts.tv_sec, (long)ts.tv_usec);
+    fprintf(out, " %s %u", ia_str(from), sport);
+    fprintf(out, " %s %u", ia_str(to), dport);
+    fprintf(out, " %hhu", proto);
 
-		if (flags & DNSCAP_OUTPUT_ISDNS) {
-			ns_msg msg;
-			int    qdcount;
-			ns_rr  rr;
-			ns_initparse(payload, payloadlen, &msg);
-			/*
-			 * DNS Header
-			 */
-			fprintf(out, " %u", ns_msg_id(msg));
-			fprintf(out, " %u", ns_msg_getflag(msg, ns_f_opcode));
-			fprintf(out, " %u", ns_msg_getflag(msg, ns_f_rcode));
-			fprintf(out, " |");
-			if (ns_msg_getflag(msg, ns_f_qr))
-				fprintf(out, "QR|");
-			if (ns_msg_getflag(msg, ns_f_aa))
-				fprintf(out, "AA|");
-			if (ns_msg_getflag(msg, ns_f_tc))
-				fprintf(out, "TC|");
-			if (ns_msg_getflag(msg, ns_f_rd))
-				fprintf(out, "RD|");
-			if (ns_msg_getflag(msg, ns_f_ra))
-				fprintf(out, "RA|");
-			if (ns_msg_getflag(msg, ns_f_ad))
-				fprintf(out, "AD|");
-			if (ns_msg_getflag(msg, ns_f_cd))
-				fprintf(out, "CD|");
+    if (flags & DNSCAP_OUTPUT_ISDNS) {
+        ns_msg msg;
+        int    qdcount;
+        ns_rr  rr;
+        ns_initparse(payload, payloadlen, &msg);
+        /*
+         * DNS Header
+         */
+        fprintf(out, " %u", ns_msg_id(msg));
+        fprintf(out, " %u", ns_msg_getflag(msg, ns_f_opcode));
+        fprintf(out, " %u", ns_msg_getflag(msg, ns_f_rcode));
+        fprintf(out, " |");
+        if (ns_msg_getflag(msg, ns_f_qr))
+            fprintf(out, "QR|");
+        if (ns_msg_getflag(msg, ns_f_aa))
+            fprintf(out, "AA|");
+        if (ns_msg_getflag(msg, ns_f_tc))
+            fprintf(out, "TC|");
+        if (ns_msg_getflag(msg, ns_f_rd))
+            fprintf(out, "RD|");
+        if (ns_msg_getflag(msg, ns_f_ra))
+            fprintf(out, "RA|");
+        if (ns_msg_getflag(msg, ns_f_ad))
+            fprintf(out, "AD|");
+        if (ns_msg_getflag(msg, ns_f_cd))
+            fprintf(out, "CD|");
 
-			qdcount = ns_msg_count(msg, ns_s_qd);
-			if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
-				fprintf(out, " %s %s %s",
-					p_class(ns_rr_class(rr)),
-					p_type(ns_rr_type(rr)),
-					ns_rr_name(rr));
-		    fprintf(out, "\n");
-			}
-		}
-	/* Shorter output */
-    } else {
-		if (flags & DNSCAP_OUTPUT_ISDNS) {
-			ns_msg msg;
-			int    qdcount;
-			ns_rr  rr;
-			ns_initparse(payload, payloadlen, &msg);
-			qdcount = ns_msg_count(msg, ns_s_qd);
-			/* Only print out for CLASS IN */
-			if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr) && ns_rr_class(rr) == 1) {
-				fprintf(out, "%s %s\n",
-					p_type(ns_rr_type(rr)),
-					ns_rr_name(rr));
-			} 
-		}   	
+        qdcount = ns_msg_count(msg, ns_s_qd);
+        if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
+            fprintf(out, " %s %s %s",
+                p_class(ns_rr_class(rr)),
+                p_type(ns_rr_type(rr)),
+                ns_rr_name(rr));
+        }
     }
+    /*
+     * Done
+     */
+    fprintf(out, "\n");
 }
