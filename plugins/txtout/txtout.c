@@ -48,7 +48,6 @@
 #include "dnscap_common.h"
 
 static logerr_t* logerr;
-static int       opt_f = 0;
 static char*     opt_o = 0;
 static int       opt_s = 0;
 static FILE*     out   = 0;
@@ -59,7 +58,6 @@ void txtout_usage()
 {
     fprintf(stderr,
         "\ntxtout.so options:\n"
-        "\t-f         flag option\n"
         "\t-o <arg>   output file name\n"
         "\t-s         short output, only QTYPE/QNAME for IN\n");
 }
@@ -71,11 +69,8 @@ void txtout_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "fso:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "so:")) != EOF) {
         switch (c) {
-        case 'f':
-            opt_f = 1;
-            break;
         case 'o':
             if (opt_o)
                 free(opt_o);
