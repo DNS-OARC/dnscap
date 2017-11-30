@@ -38,10 +38,20 @@
 
 const char* ia_str(iaddr ia)
 {
-    static char ret[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
+    static char inet[INET_ADDRSTRLEN], inet6[INET6_ADDRSTRLEN];
 
-    (void)inet_ntop(ia.af, &ia.u, ret, sizeof ret);
-    return (ret);
+    switch (ia.af) {
+    case AF_INET:
+        if (inet_ntop(ia.af, &ia.u, inet, sizeof(inet)))
+            return inet;
+        return "255.255.255.255";
+    case AF_INET6:
+        if (inet_ntop(ia.af, &ia.u, inet6, sizeof(inet6)))
+            return inet6;
+        return "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff";
+    }
+
+    return "UNKNOWN";
 }
 
 int ia_equal(iaddr x, iaddr y)

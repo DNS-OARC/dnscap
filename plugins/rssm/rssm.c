@@ -100,17 +100,6 @@ struct {
     my_hashtbl sources;
 } counts;
 
-static char*
-iaddr_ntop(const iaddr* ia)
-{
-    static char bufs[10][256];
-    static int  idx = 0;
-    if (10 == idx)
-        idx = 0;
-    inet_ntop(ia->af, &ia->u, bufs[idx], 256);
-    return bufs[idx];
-}
-
 static unsigned int
 iaddr_hash(const void* key)
 {
@@ -140,6 +129,17 @@ iaddr_cmp(const void* _a, const void* _b)
     if (a->af < b->af)
         return -1;
     return 1;
+}
+
+ia_str_t ia_str = 0;
+
+void rssm_extension(int ext, void* arg)
+{
+    switch (ext) {
+    case DNSCAP_EXT_IA_STR:
+        ia_str = (ia_str_t)arg;
+        break;
+    }
 }
 
 void rssm_usage()
@@ -268,7 +268,7 @@ void rssm_save_sources(const char* sbuf)
         return;
     }
     for (i = 0; i < counts.sources.num_addrs; i++) {
-        fprintf(fp, "%s %" PRIu64 "\n", iaddr_ntop(&counts.sources.addrs[i]), counts.sources.count[i]);
+        fprintf(fp, "%s %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
     }
     fclose(fp);
     free(tbuf);
