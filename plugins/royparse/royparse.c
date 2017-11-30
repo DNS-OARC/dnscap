@@ -13,9 +13,9 @@
 #include <arpa/nameser.h>
 #include <pcap.h>
 
-static logerr_t*   logerr;
-static const char* opt_q = 0;
-static const char* opt_r = 0;
+static logerr_t* logerr;
+static char*     opt_q = 0;
+static char*     opt_r = 0;
 
 pcap_t*        pd;
 pcap_dumper_t* q_out = 0;
@@ -33,7 +33,7 @@ void royparse_usage()
         "\t-r <arg>   royparse output file name (default: stdout)\n");
 }
 
-void royparse_extension(int ext, void*arg)
+void royparse_extension(int ext, void* arg)
 {
     switch (ext) {
     case DNSCAP_EXT_IA_STR:
@@ -49,9 +49,13 @@ void royparse_getopt(int* argc, char** argv[])
     while ((c = getopt(*argc, *argv, "q:r:")) != EOF) {
         switch (c) {
         case 'q':
+            if (opt_q)
+                free(opt_q);
             opt_q = strdup(optarg);
             break;
         case 'r':
+            if (opt_r)
+                free(opt_r);
             opt_r = strdup(optarg);
             break;
         default:
@@ -192,10 +196,11 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 
             while (rrmax > 0) {
                 rrmax--;
-                ns_parserr(&msg, ns_s_ar, rrmax, &rr);
-                if (ns_rr_type(rr) == ns_t_opt) {
-                    fprintf(r_out, "-%c", (u_long)ns_rr_ttl(rr) & NS_OPT_DNSSEC_OK ? 'D' : 'E');
-                    break;
+                if (ns_parserr(&msg, ns_s_ar, rrmax, &rr) == 0) {
+                    if (ns_rr_type(rr) == ns_t_opt) {
+                        fprintf(r_out, "-%c", (u_long)ns_rr_ttl(rr) & NS_OPT_DNSSEC_OK ? 'D' : 'E');
+                        break;
+                    }
                 }
             }
             fprintf(r_out, "\n");
