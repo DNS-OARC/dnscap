@@ -184,7 +184,7 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
             } else
                 fprintf(r_out, ",");
 
-            fprintf(r_out, ",%u,%s%s%s%s", ns_msg_size(msg), ns_msg_id(msg) < 256 ? "-L" : "",
+            fprintf(r_out, ",%ld,%s%s%s%s", ns_msg_size(msg), ns_msg_id(msg) < 256 ? "-L" : "",
                 ns_msg_getflag(msg, ns_f_tc) ? "-TC" : "",
                 ns_msg_getflag(msg, ns_f_ad) ? "-AD" : "",
                 ns_msg_getflag(msg, ns_f_cd) ? "-CD" : "");
