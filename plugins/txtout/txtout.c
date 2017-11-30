@@ -140,13 +140,15 @@ int txtout_close(my_bpftimeval ts)
     return 0;
 }
 
-static const char*
-ia_str(iaddr ia)
-{
-    static char ret[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
+ia_str_t ia_str = 0;
 
-    (void)inet_ntop(ia.af, &ia.u, ret, sizeof ret);
-    return (ret);
+void txtout_extension(int ext, void* arg)
+{
+    switch (ext) {
+    case DNSCAP_EXT_IA_STR:
+        ia_str = (ia_str_t)arg;
+        break;
+    }
 }
 
 void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
