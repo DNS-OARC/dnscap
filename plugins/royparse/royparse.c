@@ -22,13 +22,24 @@ pcap_dumper_t* q_out = 0;
 static FILE*   r_out = 0;
 
 output_t royparse_output;
+ia_str_t royparse_ia_str = 0;
 
 void royparse_usage()
 {
     fprintf(stderr,
+        "\nroyparse splits a pcap into two streams: queries in pcap format and responses in ASCII format.\n"
         "\nroyparse.so options:\n"
-        "\t-q <arg>   query pcap stream output file name\n"
-        "\t-r <arg>   royparse output file name\n");
+        "\t-q <arg>   query pcap stream output file name (default: no output)\n"
+        "\t-r <arg>   royparse output file name (default: stdout)\n");
+}
+
+void royparse_extension(int ext, void*arg)
+{
+    switch (ext) {
+    case DNSCAP_EXT_IA_STR:
+        royparse_ia_str = (ia_str_t)arg;
+        break;
+    }
 }
 
 void royparse_getopt(int* argc, char** argv[])
@@ -92,14 +103,6 @@ int royparse_open(my_bpftimeval ts)
 int royparse_close(my_bpftimeval ts)
 {
     return 0;
-}
-
-static const char*
-ia_str(iaddr ia)
-{
-    static char iastr[INET6_ADDRSTRLEN];
-    (void)inet_ntop(ia.af, &ia.u, iastr, sizeof iastr);
-    return (iastr);
 }
 
 void royparse_normalize(char* str)
@@ -170,7 +173,7 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
                 fprintf(r_out, "ELSE");
             }
 
-            fprintf(r_out, " %s,", ia_str(to));
+            fprintf(r_out, " %s,", royparse_ia_str(to));
 
             if (ns_msg_count(msg, ns_s_qd) > 0) {
                 if (ns_parserr(&msg, ns_s_qd, 0, &rr) == 0) {
