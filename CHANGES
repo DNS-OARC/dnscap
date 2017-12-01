@@ -1,3 +1,53 @@
+2017-12-01 Jerry Lundström
+
+    Release 1.6.0
+
+    New additions to the plugins:
+    - `rzkeychange` can now collect RFC8145 key tag signaling. Signals are
+      saved during the collection interval, and then sent to the specified
+      `-k <zone>`, one at a time, at the end of the interval. Only root zone
+      signals are collected. Added by Duane Wessels (@wessels).
+    - `royparse` is a new plugin to splits a PCAP into two streams, queries
+      in PCAP format and responses in ASCII format. Created by Roy Arends
+      (@RoyArends).
+    - `txtout` new option `-s` for short output, only print QTYPE and QNAME
+      for IN records. Added by Paul Hoffman (@paulehoffman)
+    - The extension interface has been extended with `DNSCAP_EXT_IA_STR` to
+      export the `ia_str()` function.
+
+    Bugfixes and other changes:
+    - Remove duplicated hashtbl code
+    - `rssm`: fix bug where count in table was taken out as `uint16_t` but
+      was a `uint64_t`
+    - Handle return values from hashtbl functions
+    - `txtout`: removed unused `-f` options
+    - Change `ia_str()` to use buffers with correct sizes, thanks to
+      @RoyArends for spotting this!
+
+    Commits:
+    3f78a31 Add copy/author text
+    1bd914d Fix CID 1462343, 1462344, 1462345
+    f9bb955 Fix `fprintf()` format for message size
+    abedf84 Fix #105: `inet_ntop` buffers
+    bfdcd0d Addresses the suggestions from Jerry.
+    dda0996 royparse :)
+    4f6520a royparse plugin finished
+    f1aa4f2 Fix #103: Remove `opt_f`
+    32355b7 Rearrange code to keep the change smaller and fix indentation
+    d6612c1 Added -s to txtout for short output
+    9d8d1ef Check return of `snprintf()`
+    55f5aba Format code
+    9f19ec3 Fixed memory leak in rzkeychange_keytagsignal()
+    58b8784 Fix memory leaks and better return value checks in
+            rzkeychange_submit_counts()
+    b06659f Add server and node to keytag signal query name
+    705a866 Always free response packets in rzkeychange plugin.
+    e802843 Implement RFC8145 key tag signal collection in rzkeychange plugin
+    5fbf6d0 Added extension for ia_str() so it can be used by rzkeychange
+            plugin.
+    3be8b8f Split `dnscap.c` into more files
+    e431d14 Fix #92: hashtbl
+
 2017-08-21 Jerry Lundström
 
     Release 1.5.1
