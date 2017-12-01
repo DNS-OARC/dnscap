@@ -32,39 +32,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "dnscap.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#ifndef __dnscap_network_h
+#define __dnscap_network_h
 
-typedef struct hashitem hashitem;
+tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t);
+tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport);
+void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, const char* name, const int dlt);
+void discard(tcpstate_ptr tcpstate, const char* msg);
+void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf, const u_char* opkt, size_t olen);
+uint16_t in_checksum(const u_char* ptr, size_t len);
 
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
-
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
-
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+#endif /* __dnscap_network_h */

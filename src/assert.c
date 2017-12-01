@@ -32,39 +32,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "config.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#include "dnscap.h"
 
-typedef struct hashitem hashitem;
+#if !HAVE___ASSERTION_FAILED
+static void my_assertion_failed(const char* file, int line, assertion_type type, const char* msg, int something) __attribute__((noreturn));
+#endif
 
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
+#if !HAVE___ASSERTION_FAILED
+static void
+my_assertion_failed(const char* file, int line, assertion_type type, const char* msg, int something)
+{
+    (void)type;
+    (void)something;
+    fprintf(stderr, "assertion failed: %s(%d): %s\n", file, line, msg);
+    abort();
+}
 
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
-
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+assertion_failure_callback __assertion_failed = my_assertion_failed;
+#endif

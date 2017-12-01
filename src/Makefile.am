@@ -12,17 +12,14 @@ EXTRA_DIST = dnscap.1.in
 
 bin_PROGRAMS = dnscap
 
-dnscap_SOURCES = dnscap.c \
-    dump_dns.c \
-    dump_cbor.c dump_cds.c \
-    pcap-thread/pcap_thread.c \
-    options.c hashtbl.c
-dist_dnscap_SOURCES = dnscap.h \
-    dnscap_common.h \
-    dump_dns.h \
-    dump_cbor.h dump_cds.h \
-    pcap-thread/pcap_thread.h \
-    options.h hashtbl.h
+dnscap_SOURCES = args.c assert.c bpft.c daemon.c dnscap.c dump_cbor.c \
+    dump_cds.c dump_dns.c dumper.c endpoint.c hashtbl.c iaddr.c log.c \
+    network.c options.c pcaps.c sig.c \
+    pcap-thread/pcap_thread.c
+dist_dnscap_SOURCES = args.h bpft.h daemon.h dnscap_common.h dnscap.h \
+    dump_cbor.h dump_cds.h dump_dns.h dumper.h endpoint.h hashtbl.h iaddr.h \
+    log.h network.h options.h pcaps.h sig.h \
+    pcap-thread/pcap_thread.h
 dnscap_LDADD = $(PTHREAD_LIBS)
 
 man1_MANS = dnscap.1

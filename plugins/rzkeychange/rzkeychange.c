@@ -1,4 +1,6 @@
-#define COUNT_SOURCES 0
+/*
+ * Author Duane Wessels
+ */
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -27,32 +29,27 @@
 
 #include "dnscap_common.h"
 
-#if COUNT_SOURCES
-#include "hashtbl.h"
-#endif
-
 static logerr_t*      logerr           = 0;
 static my_bpftimeval  open_ts          = { 0, 0 };
 static my_bpftimeval  clos_ts          = { 0, 0 };
 static char*          report_zone      = 0;
 static char*          report_server    = 0;
 static char*          report_node      = 0;
+static char*          keytag_zone      = 0;
 static unsigned short resolver_port    = 0;
 static unsigned int   resolver_use_tcp = 0;
 static ldns_resolver* res;
 
 output_t       rzkeychange_output;
 is_responder_t rzkeychange_is_responder = 0;
+ia_str_t       rzkeychange_ia_str       = 0;
 
-#define MAX_TBL_ADDRS 2000000
-
-#if COUNT_SOURCES
-typedef struct {
-    hashtbl*     tbl;
-    iaddr        addrs[MAX_TBL_ADDRS];
-    unsigned int num_addrs;
-} my_hashtbl;
-#endif
+#define MAX_KEY_TAG_SIGNALS 500
+static unsigned int num_key_tag_signals;
+struct {
+    iaddr       addr;
+    const char* signal;
+} key_tag_signals[MAX_KEY_TAG_SIGNALS];
 
 struct {
     uint64_t dnskey;
@@ -62,43 +59,11 @@ struct {
     uint64_t icmp_timxceed_reass;
     uint64_t icmp_timxceed_intrans;
     uint64_t total;
-#if COUNT_SOURCES
-    my_hashtbl sources;
-#endif
 } counts;
 
 #define MAX_NAMESERVERS 10
 static unsigned int num_ns_addrs = 0;
 static char*        ns_addrs[MAX_NAMESERVERS];
-
-#if COUNT_SOURCES
-static unsigned int
-iaddr_hash(const iaddr* ia)
-{
-    if (AF_INET == ia->af)
-        return ia->u.a4.s_addr >> 8;
-    else if (AF_INET6 == ia->af) {
-        uint16_t* h = (uint16_t*)&ia->u;
-        return h[2] + h[3] + h[4];
-    } else
-        return 0;
-}
-
-static unsigned int
-iaddr_cmp(const iaddr* a, const iaddr* b)
-{
-    if (a->af == b->af) {
-        if (AF_INET == a->af)
-            return memcmp(&a->u, &b->u, 4);
-        if (AF_INET6 == a->af)
-            return memcmp(&a->u, &b->u, 16);
-        return 0;
-    }
-    if (a->af < b->af)
-        return -1;
-    return 1;
-}
-#endif
 
 void rzkeychange_usage()
 {
@@ -107,6 +72,7 @@ void rzkeychange_usage()
         "\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
         "\t-s <server>  Data is from server <server> (required)\n"
         "\t-n <node>    Data is from site/node <node> (required)\n"
+        "\t-k <zone>    Report RFC 8145 key tag signals to <zone>\n"
         "\t-a <addr>    Send DNS queries to this addr\n"
         "\t-p <port>    Send DNS queries to this port\n"
         "\t-t           Use TCP for DNS queries\n");
@@ -118,13 +84,16 @@ void rzkeychange_extension(int ext, void* arg)
     case DNSCAP_EXT_IS_RESPONDER:
         rzkeychange_is_responder = (is_responder_t)arg;
         break;
+    case DNSCAP_EXT_IA_STR:
+        rzkeychange_ia_str = (ia_str_t)arg;
+        break;
     }
 }
 
 void rzkeychange_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "a:n:p:s:tz:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "a:k:n:p:s:tz:")) != EOF) {
         switch (c) {
         case 'n':
             if (report_node)
@@ -149,6 +118,15 @@ void rzkeychange_getopt(int* argc, char** argv[])
                 free(report_zone);
             report_zone = strdup(optarg);
             if (!report_zone) {
+                fprintf(stderr, "strdup() out of memory\n");
+                exit(1);
+            }
+            break;
+        case 'k':
+            if (keytag_zone)
+                free(keytag_zone);
+            keytag_zone = strdup(optarg);
+            if (!keytag_zone) {
                 fprintf(stderr, "strdup() out of memory\n");
                 exit(1);
             }
@@ -232,7 +210,7 @@ int rzkeychange_start(logerr_t* a_logerr)
         ldns_resolver_set_port(res, resolver_port);
     if (resolver_use_tcp)
         ldns_resolver_set_usevc(res, 1);
-    //
+
     fprintf(stderr, "Testing reachability of zone '%s'\n", report_zone);
     pkt = dns_query(report_zone, LDNS_RR_TYPE_TXT);
     if (!pkt) {
@@ -267,22 +245,20 @@ void rzkeychange_stop()
 int rzkeychange_open(my_bpftimeval ts)
 {
     open_ts = clos_ts.tv_sec ? clos_ts : ts;
-#if COUNT_SOURCES
-    if (counts.sources.tbl)
-        hash_destroy(counts.sources.tbl);
-#endif
     memset(&counts, 0, sizeof(counts));
-#if COUNT_SOURCES
-    counts.sources.tbl = hash_create(65536, (hashfunc*)iaddr_hash, (hashkeycmp*)iaddr_cmp, 0);
-#endif
+    memset(&key_tag_signals, 0, sizeof(key_tag_signals));
+    num_key_tag_signals = 0;
     return 0;
 }
 
 void rzkeychange_submit_counts(void)
 {
-    char   qname[256];
-    double elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
-    snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
+    char      qname[256];
+    ldns_pkt* pkt;
+    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
+    int       k;
+
+    k = snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
         (u_long)open_ts.tv_sec,
         (unsigned int)(elapsed + 0.5),
         counts.total,
@@ -295,8 +271,50 @@ void rzkeychange_submit_counts(void)
         report_node,
         report_server,
         report_zone);
-    dns_query(qname, LDNS_RR_TYPE_TXT);
-    /* normally we would free any return packet, but this process is about to exit */
+
+    if (k < sizeof(qname)) {
+        pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
+        if (pkt)
+            ldns_pkt_free(pkt);
+    }
+
+    if (keytag_zone != 0) {
+        unsigned int i;
+
+        for (i = 0; i < num_key_tag_signals; i++) {
+            char* s = strdup(rzkeychange_ia_str(key_tag_signals[i].addr));
+            char* t;
+
+            if (0 == s) {
+                /*
+                 * Apparently out of memory.  This function is called in
+                 * a child process which will exit right after this we
+                 * break from the loop and return from this function.
+                 */
+                break;
+            }
+
+            for (t = s; *t; t++)
+                if (*t == '.' || *t == ':')
+                    *t = '-';
+
+            k = snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
+                (u_long)open_ts.tv_sec,
+                s,
+                key_tag_signals[i].signal,
+                report_node,
+                report_server,
+                keytag_zone);
+            free(s);
+
+            if (k >= sizeof(qname))
+                continue; // qname was truncated in snprintf()
+
+            pkt = dns_query(qname, LDNS_RR_TYPE_TXT);
+            if (pkt)
+                ldns_pkt_free(pkt);
+        }
+    }
 }
 
 /*
@@ -330,20 +348,33 @@ int rzkeychange_close(my_bpftimeval ts)
     exit(0);
 }
 
-#if COUNT_SOURCES
-static void
-hash_find_or_add(iaddr ia, my_hashtbl* t)
+void rzkeychange_keytagsignal(const ldns_rr* question_rr, iaddr addr)
 {
-    uint16_t* c = hash_find(&ia, t->tbl);
-    if (c)
+    ldns_rdf* qn;
+    char*     qn_str = 0;
+    if (LDNS_RR_TYPE_NULL != ldns_rr_get_type(question_rr))
         return;
-    if (t->num_addrs == MAX_TBL_ADDRS)
+    if (num_key_tag_signals == MAX_KEY_TAG_SIGNALS)
         return;
-    t->addrs[t->num_addrs] = ia;
-    hash_add(&t->addrs[t->num_addrs], 0, t->tbl);
-    t->num_addrs++;
+    qn = ldns_rr_owner(question_rr);
+    if (qn == 0)
+        return;
+    qn_str = ldns_rdf2str(qn);
+    if (qn_str == 0)
+        return;
+    if (0 != strncasecmp(qn_str, "_ta-", 4))
+        goto keytagsignal_done;
+    qn_str[strlen(qn_str) - 1] = 0; // ldns always adds terminating dot
+    if (strchr(qn_str, '.')) // dont want non-root keytag signals
+        goto keytagsignal_done;
+    key_tag_signals[num_key_tag_signals].addr   = addr;
+    key_tag_signals[num_key_tag_signals].signal = strdup(qn_str);
+    assert(key_tag_signals[num_key_tag_signals].signal);
+    num_key_tag_signals++;
+keytagsignal_done:
+    if (qn_str)
+        free(qn_str);
 }
-#endif
 
 void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
@@ -376,9 +407,6 @@ void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, 
     if (0 == ldns_pkt_qr(pkt))
         goto done;
     counts.total++;
-#if COUNT_SOURCES
-    hash_find_or_add(from, &counts.sources);
-#endif
     if (IPPROTO_UDP == proto) {
         if (0 != ldns_pkt_tc(pkt))
             counts.tc_bit++;
@@ -396,6 +424,8 @@ void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, 
     if (LDNS_RR_CLASS_IN == ldns_rr_get_class(question_rr))
         if (LDNS_RR_TYPE_DNSKEY == ldns_rr_get_type(question_rr))
             counts.dnskey++;
+    if (keytag_zone != 0)
+        rzkeychange_keytagsignal(question_rr, to); // 'to' here because plugin should be processing responses
 done:
     ldns_pkt_free(pkt);
 }

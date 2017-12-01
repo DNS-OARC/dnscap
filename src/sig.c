@@ -32,34 +32,71 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-typedef struct _hashitem {
-    const void*       key;
-    void*             data;
-    struct _hashitem* next;
-} hashitem;
+#include "config.h"
 
-typedef unsigned int hashfunc(const void* key);
-typedef int hashkeycmp(const void* a, const void* b);
-typedef void hashfree(void*);
+#include "sig.h"
+#include "log.h"
+#include "dumper.h"
+#include "pcaps.h"
 
-typedef struct {
-    unsigned int modulus;
-    hashitem**   items;
-    hashfunc*    hasher;
-    hashkeycmp*  keycmp;
-    hashfree*    datafree;
-    struct {
-        hashitem*    next;
-        unsigned int slot;
-    } iter;
-} hashtbl;
+void setsig(int sig, int oneshot)
+{
+    struct sigaction sa;
 
-hashtbl* hash_create(int N, hashfunc*, hashkeycmp*, hashfree*);
-int hash_add(const void* key, void* data, hashtbl*);
-void hash_remove(const void* key, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl*);
-void  hash_iter_init(hashtbl*);
-void* hash_iterate(hashtbl*);
-int   hash_count(hashtbl*);
-void  hash_free(hashtbl*);
-void  hash_destroy(hashtbl*);
+    memset(&sa, 0, sizeof sa);
+    if (oneshot) {
+        sa.sa_handler = sigbreak;
+        sa.sa_flags   = SA_RESETHAND;
+    } else {
+        sa.sa_handler = sigclose;
+        sa.sa_flags   = SA_RESTART;
+    }
+    if (sigaction(sig, &sa, NULL) < 0) {
+        logerr("sigaction: %s", strerror(errno));
+        exit(1);
+    }
+}
+
+void sigclose(int signum)
+{
+    if (0 == last_ts.tv_sec)
+        gettimeofday(&last_ts, NULL);
+    if (signum == SIGALRM)
+        alarm_set = FALSE;
+    if (dumper_close(last_ts))
+        breakloop_pcaps();
+}
+
+void sigbreak(int signum __attribute__((unused)))
+{
+    logerr("%s: signalled break", ProgramName);
+    main_exit = TRUE;
+    breakloop_pcaps();
+}
+
+void* sigthread(void* arg)
+{
+#if HAVE_PTHREAD
+    sigset_t* set = (sigset_t*)arg;
+    int       sig, err;
+
+    while (1) {
+        if ((err = sigwait(set, &sig))) {
+            logerr("sigwait: %s", strerror(err));
+            return 0;
+        }
+
+        switch (sig) {
+        case SIGALRM:
+            sigclose(sig);
+            break;
+
+        default:
+            sigbreak(sig);
+            break;
+        }
+    }
+#endif
+
+    return 0;
+}

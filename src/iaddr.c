@@ -32,39 +32,37 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "config.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#include "iaddr.h"
 
-typedef struct hashitem hashitem;
+const char* ia_str(iaddr ia)
+{
+    static char inet[INET_ADDRSTRLEN], inet6[INET6_ADDRSTRLEN];
 
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
+    switch (ia.af) {
+    case AF_INET:
+        if (inet_ntop(ia.af, &ia.u, inet, sizeof(inet)))
+            return inet;
+        return "255.255.255.255";
+    case AF_INET6:
+        if (inet_ntop(ia.af, &ia.u, inet6, sizeof(inet6)))
+            return inet6;
+        return "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff";
+    }
 
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
+    return "UNKNOWN";
+}
 
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+int ia_equal(iaddr x, iaddr y)
+{
+    if (x.af != y.af)
+        return FALSE;
+    switch (x.af) {
+    case AF_INET:
+        return (x.u.a4.s_addr == y.u.a4.s_addr);
+    case AF_INET6:
+        return (memcmp(&x.u.a6, &y.u.a6, sizeof x.u.a6) == 0);
+    }
+    return FALSE;
+}

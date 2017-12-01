@@ -32,39 +32,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "config.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#include "log.h"
 
-typedef struct hashitem hashitem;
-
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
-
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
-
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+int logerr(const char* fmt, ...)
+{
+    va_list ap;
+    int     x = 1;
+    va_start(ap, fmt);
+    if (background)
+        vsyslog(LOG_NOTICE, fmt, ap);
+    else {
+        x = vfprintf(stderr, fmt, ap);
+        fputc('\n', stderr);
+    }
+    va_end(ap);
+    return x;
+}

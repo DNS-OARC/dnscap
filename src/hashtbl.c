@@ -38,65 +38,89 @@
 #include <stdlib.h>
 #include <assert.h>
 
-hashtbl* hash_create(int N, hashfunc* hasher, hashkeycmp* cmp, hashfree* datafree)
+hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree)
 {
-    hashtbl* new = calloc(1, sizeof(*new));
-    assert(new);
-    new->modulus  = N;
-    new->hasher   = hasher;
-    new->keycmp   = cmp;
-    new->datafree = datafree;
-    new->items    = calloc(N, sizeof(hashitem*));
+    hashtbl* new;
+
+    assert(N);
+    assert(hasher);
+    assert(cmp);
+
+    if ((new = calloc(1, sizeof(hashtbl)))) {
+        new->modulus  = N;
+        new->hasher   = hasher;
+        new->keycmp   = cmp;
+        new->datafree = datafree;
+
+        if (!(new->items = calloc(N, sizeof(hashitem*)))) {
+            free(new);
+            return 0;
+        }
+    }
+
     return new;
 }
 
 int hash_add(const void* key, void* data, hashtbl* tbl)
 {
-    hashitem* new = calloc(1, sizeof(*new));
-    hashitem** I;
-    int        slot;
+    hashitem* new, **I;
+    unsigned int slot;
+
+    if (!key || !tbl) {
+        return HASHTBL_EARGS;
+    }
+
+    new = calloc(1, sizeof(hashitem));
+    if (!new) {
+        return HASHTBL_ENOMEM;
+    }
+
     new->key  = key;
     new->data = data;
     slot      = tbl->hasher(key) % tbl->modulus;
+
     for (I = &tbl->items[slot]; *I; I = &(*I)->next)
         ;
     *I = new;
+
     return 0;
 }
 
 void* hash_find(const void* key, hashtbl* tbl)
 {
-    int       slot = tbl->hasher(key) % tbl->modulus;
-    hashitem* i;
+    unsigned int slot;
+    hashitem*    i;
+
+    if (!key || !tbl) {
+        return NULL;
+    }
+
+    slot = tbl->hasher(key) % tbl->modulus;
+
     for (i = tbl->items[slot]; i; i = i->next) {
-        if (0 == tbl->keycmp(key, i->key))
+        if (!tbl->keycmp(key, i->key))
             return i->data;
     }
-    return NULL;
-}
 
-int hash_count(hashtbl* tbl)
-{
-    int slot;
-    int count = 0;
-    for (slot = 0; slot < tbl->modulus; slot++) {
-        hashitem* i;
-        for (i = tbl->items[slot]; i; i = i->next)
-            count++;
-    }
-    return count;
+    return NULL;
 }
 
 void hash_remove(const void* key, hashtbl* tbl)
 {
     hashitem **I, *i;
     int        slot;
+
+    if (!key || !tbl) {
+        return;
+    }
+
     slot = tbl->hasher(key) % tbl->modulus;
+
     for (I = &tbl->items[slot]; *I; I = &(*I)->next) {
-        if (0 == tbl->keycmp(key, (*I)->key)) {
+        if (!tbl->keycmp(key, (*I)->key)) {
             i  = *I;
             *I = (*I)->next;
-            if (i->data)
+            if (tbl->datafree)
                 tbl->datafree(i->data);
             free(i);
             break;
@@ -106,53 +130,31 @@ void hash_remove(const void* key, hashtbl* tbl)
 
 void hash_free(hashtbl* tbl)
 {
-    int slot;
+    hashitem *i, *next;
+    int       slot;
+
+    if (!tbl) {
+        return;
+    }
+
     for (slot = 0; slot < tbl->modulus; slot++) {
-        hashitem* i;
-        hashitem* next;
         for (i = tbl->items[slot]; i; i = next) {
             next = i->next;
             if (tbl->datafree)
                 tbl->datafree(i->data);
             free(i);
         }
-        tbl->items[slot] = NULL;
+        tbl->items[slot] = 0;
     }
 }
 
 void hash_destroy(hashtbl* tbl)
 {
+    if (!tbl) {
+        return;
+    }
+
     hash_free(tbl);
     free(tbl->items);
     free(tbl);
-}
-
-static void
-hash_iter_next_slot(hashtbl* tbl)
-{
-    while (tbl->iter.next == NULL) {
-        tbl->iter.slot++;
-        if (tbl->iter.slot == tbl->modulus)
-            break;
-        tbl->iter.next = tbl->items[tbl->iter.slot];
-    }
-}
-
-void hash_iter_init(hashtbl* tbl)
-{
-    tbl->iter.slot = 0;
-    tbl->iter.next = tbl->items[tbl->iter.slot];
-    if (NULL == tbl->iter.next)
-        hash_iter_next_slot(tbl);
-}
-
-void* hash_iterate(hashtbl* tbl)
-{
-    hashitem* this = tbl->iter.next;
-    if (this) {
-        tbl->iter.next = this->next;
-        if (NULL == tbl->iter.next)
-            hash_iter_next_slot(tbl);
-    }
-    return this ? this->data : NULL;
 }

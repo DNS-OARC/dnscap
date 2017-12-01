@@ -37,5 +37,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __dnscap_dump_dns_h
+#define __dnscap_dump_dns_h
+
 void dump_dns(const u_char* payload, size_t paylen,
     FILE* trace, const char* endline);
+
+#endif // __dnscap_dump_dns_h
