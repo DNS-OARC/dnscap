@@ -1,3 +1,7 @@
+/*
+ * Author Duane Wessels
+ */
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
