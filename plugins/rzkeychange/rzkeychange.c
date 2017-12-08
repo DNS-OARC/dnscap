@@ -48,8 +48,13 @@ ia_str_t       rzkeychange_ia_str       = 0;
 static unsigned int num_key_tag_signals;
 struct {
     iaddr       addr;
+    uint8_t     flags;
     const char* signal;
 } key_tag_signals[MAX_KEY_TAG_SIGNALS];
+
+#define KEYTAG_FLAG_DO 1
+#define KEYTAG_FLAG_CD 2
+#define KEYTAG_FLAG_RD 4
 
 struct {
     uint64_t dnskey;
@@ -298,9 +303,10 @@ void rzkeychange_submit_counts(void)
                 if (*t == '.' || *t == ':')
                     *t = '-';
 
-            k = snprintf(qname, sizeof(qname), "%lu.%s.%s.%s.%s.%s",
+            k = snprintf(qname, sizeof(qname), "%lu.%s.%hhx.%s.%s.%s.%s",
                 (u_long)open_ts.tv_sec,
                 s,
+                key_tag_signals[i].flags,
                 key_tag_signals[i].signal,
                 report_node,
                 report_server,
@@ -348,7 +354,7 @@ int rzkeychange_close(my_bpftimeval ts)
     exit(0);
 }
 
-void rzkeychange_keytagsignal(const ldns_rr* question_rr, iaddr addr)
+void rzkeychange_keytagsignal(const ldns_pkt *pkt, const ldns_rr* question_rr, iaddr addr)
 {
     ldns_rdf* qn;
     char*     qn_str = 0;
@@ -370,6 +376,12 @@ void rzkeychange_keytagsignal(const ldns_rr* question_rr, iaddr addr)
     key_tag_signals[num_key_tag_signals].addr   = addr;
     key_tag_signals[num_key_tag_signals].signal = strdup(qn_str);
     assert(key_tag_signals[num_key_tag_signals].signal);
+    if (ldns_pkt_rd(pkt))
+        key_tag_signals[num_key_tag_signals].flags |= KEYTAG_FLAG_RD;
+    if (ldns_pkt_cd(pkt))
+        key_tag_signals[num_key_tag_signals].flags |= KEYTAG_FLAG_CD;
+    if (ldns_pkt_edns_do(pkt))
+        key_tag_signals[num_key_tag_signals].flags |= KEYTAG_FLAG_DO;
     num_key_tag_signals++;
 keytagsignal_done:
     if (qn_str)
@@ -425,7 +437,7 @@ void rzkeychange_output(const char* descr, iaddr from, iaddr to, uint8_t proto, 
         if (LDNS_RR_TYPE_DNSKEY == ldns_rr_get_type(question_rr))
             counts.dnskey++;
     if (keytag_zone != 0)
-        rzkeychange_keytagsignal(question_rr, to); // 'to' here because plugin should be processing responses
+        rzkeychange_keytagsignal(pkt, question_rr, to); // 'to' here because plugin should be processing responses
 done:
     ldns_pkt_free(pkt);
 }
