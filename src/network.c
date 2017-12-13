@@ -661,7 +661,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
     /* Application. */
     if (dnslen < sizeof dns) {
-        discard(tcpstate, "too small");
+        if (dumptrace >= 3)
+            fprintf(stderr, "payload is smaller than a valid DNS message\n");
+        /* Just return; don't discard state.  A TCP packet that is
+         * "too small" should not discard all connection state. */
         return;
     }
     memcpy(&dns, dnspkt, sizeof dns);
