@@ -1236,7 +1236,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
     /* Application. */
     if (dnslen < sizeof dns) {
-        discard(tcpstate, "too small");
+        if (dumptrace >= 3)
+            fprintf(stderr, "payload is smaller than a valid DNS header\n");
         return;
     }
     memcpy(&dns, dnspkt, sizeof dns);
