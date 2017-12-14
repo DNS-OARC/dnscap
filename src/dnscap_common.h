@@ -99,6 +99,7 @@ typedef const char* (*ia_str_t)(iaddr ia);
 
 #define DNSCAP_OUTPUT_ISFRAG (1 << 0)
 #define DNSCAP_OUTPUT_ISDNS (1 << 1)
+#define DNSCAP_OUTPUT_ISLAYER (1 << 2)
 
 #define DIR_INITIATE 0x0001
 #define DIR_RESPONSE 0x0002

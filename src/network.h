@@ -44,4 +44,7 @@ void discard(tcpstate_ptr tcpstate, const char* msg);
 void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf, const u_char* opkt, size_t olen);
 uint16_t in_checksum(const u_char* ptr, size_t len);
 
+void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* payload, size_t length);
+void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length);
+
 #endif /* __dnscap_network_h */
