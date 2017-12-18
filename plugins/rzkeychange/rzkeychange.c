@@ -354,7 +354,7 @@ int rzkeychange_close(my_bpftimeval ts)
     exit(0);
 }
 
-void rzkeychange_keytagsignal(const ldns_pkt *pkt, const ldns_rr* question_rr, iaddr addr)
+void rzkeychange_keytagsignal(const ldns_pkt* pkt, const ldns_rr* question_rr, iaddr addr)
 {
     ldns_rdf* qn;
     char*     qn_str = 0;

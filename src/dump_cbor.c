@@ -55,6 +55,7 @@
 
 #include "dump_cbor.h"
 #include "dnscap.h"
+#include "iaddr.h"
 
 #if HAVE_LIBLDNS && HAVE_LIBTINYCBOR
 

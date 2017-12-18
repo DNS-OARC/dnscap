@@ -37,6 +37,7 @@
 #include "dump_cds.h"
 #include "dnscap.h"
 #include "hashtbl.h"
+#include "iaddr.h"
 
 #if HAVE_LIBTINYCBOR
 
@@ -279,9 +280,9 @@ static int check_dns_label(size_t* labels, uint8_t** p, size_t* l)
     return 0;
 }
 
-static unsigned int rdata_hash(const void* key)
+static unsigned int rdata_hash(const void* _item)
 {
-    const struct rdata* item = (const struct rdata*)k;
+    const struct rdata* item = (const struct rdata*)_item;
     size_t              n, o, p;
     unsigned int        key = 0;
 
@@ -301,7 +302,7 @@ static unsigned int rdata_hash(const void* key)
     return key;
 }
 
-static unsigned int rdata_cmp(const void* _a, const void* _b)
+static int rdata_cmp(const void* _a, const void* _b)
 {
     const struct rdata *a = (const struct rdata*)_a, *b = (const struct rdata*)_b;
 
