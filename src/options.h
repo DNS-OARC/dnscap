@@ -94,11 +94,11 @@ struct options {
 
     size_t pcap_buffer_size;
 
-    int use_layers;
-    int defrag_ipv4;
+    int    use_layers;
+    int    defrag_ipv4;
     size_t max_ipv4_fragments;
     size_t max_ipv4_fragments_per_packet;
-    int defrag_ipv6;
+    int    defrag_ipv6;
     size_t max_ipv6_fragments;
     size_t max_ipv6_fragments_per_packet;
 };
