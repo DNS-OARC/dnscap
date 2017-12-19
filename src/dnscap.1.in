@@ -457,6 +457,25 @@ Set the
 .Xr pcap 3pcap
 buffer size to use when capturing packets, can be used too not miss packets
 during processing.
+.It use_layers=yes
+Enable pcap-thread layers, this will let pcap-thread parse the network layers
+and call back with UDP, TCP or ICMP traffic.
+.It defrag_ipv4=yes
+Enable IPv4 defragmentation in pcap-thread, requires
+.Ar use_layers=yes .
+.It max_ipv4_fragments=<num>
+Set the maximum fragmented IPv4 packets to track for reassembly, if the limit
+is reach then all other fragmented packets will not be reassembled.
+.It max_ipv4_fragments_per_packet=<num>
+Set the maximum fragments per tracked IPv4 packet to keep for reassembly.
+.It defrag_ipv6=yes
+Enable IPv6 defragmentation in pcap-thread, requires
+.Ar use_layers=yes .
+.It max_ipv6_fragments=<num>
+Set the maximum fragmented IPv6 packets to track for reassembly, if the limit
+is reach then all other fragmented packets will not be reassembled.
+.It max_ipv6_fragments_per_packet=<num>
+Set the maximum fragments per tracked IPv6 packet to keep for reassembly.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:
@@ -468,19 +487,80 @@ draft by Paul Hoffman.
 CBOR DNS Stream format.
 .It pcap
 This uses the pcap library to output the captured DNS packets.
+.It diagnostic
+This is the output produced by
+.Fl g
+, a backslash at the end indicates that the line continues on the next.
+First line contains packet and capturing information:
+.Bd -literal -offset indent
+[<pktsize>] <date> <timestamp> [<pktnum> <file|interface> <vlanid>]
+.Ed
+.Pp
+Second line shows IP information or if the packet is a fragment:
+.Bd -literal -offset indent
+[<srcip>].<srcport> -> [<dstip>].<dstport>
+.Ed
+.Pp
+.Bd -literal -offset indent
+;: [<srcip>] -> [<dstip>] (frag)
+.Ed
+.Pp
+If the packet contains DNS information then the next line will show the DNS
+header information:
+.Bd -literal -offset indent
+dns <opcode>,<rcode>,<id>,<flags>
+.Ed
+.Pp
+Next are the 4 sections of the DNS, each section is prefixed by the number
+of records and each record and section are separated by space.
+Below are a few example, first is just a query, second has just one answer
+and the last has also authority and additional records.
+.Bd -literal -offset indent
+1 example.com,IN,A 0 0 0
+.Ed
+.Pp
+.Bd -literal -offset indent
+1 example.com,IN,A \\
+1 example.com,IN,A,47,127.0.0.1 0 0
+.Ed
+.Pp
+.Bd -literal -offset indent
+1 example.com,IN,A \\
+1 example.com,IN,A,263,127.0.0.1 \\
+4 example.com,IN,NS,157794,ns1.example.com \\
+example.com,IN,NS,157794,ns4.example.com \\
+example.com,IN,NS,157794,ns3.example.com \\
+example.com,IN,NS,157794,ns2.example.com \\
+4 ns2.example.com,IN,A,157794,127.0.0.1 \\
+ns1.example.com,IN,A,331796,127.0.0.1 \\
+ns3.example.com,IN,A,157794,127.0.0.1 \\
+ns4.example.com,IN,A,157794,127.0.0.1
+.Ed
+.Pp
+Each DNS record contains the following:
+.Bd -literal -offset indent
+<fqdn>,<class>,<type>[,<ttl>[,<additional information>]]
+.Ed
+.Pp
+Additional information will be displayed for SOA, A, AAAA, MX, NS, PTR,
+CNAME and OPT records containing EDNS0.
 .El
 .Sh "COMPATIBILITY NOTES"
 If
 .Nm dnscap
-produces no output, it's probably due to some kind of bug in your kernel's
+produces no output, it's probably due to some kind of bug in the kernel's
 .Xr bpf 4
-module or in your
+module or in the
 .Xr pcap 3
 library.  You may need the
 .Fl 6
-or
+,
 .Fl l Ar 0
-options.  To diagnose your way out of "no output" hell, use the
+,
+.Fl l Ar 4095
+or
+.Fl L Ar 4095
+options.  To diagnose "no output", use the
 .Fl d
 and
 .Fl g
@@ -488,34 +568,36 @@ options to find out what BPF program is being internally generated, and
 then cut/paste this BPF program onto a
 .Xr tcpdump 1
 command line to see if it likewise produces no output.
+You can also run
+.Xr tcpdump 1
+with
+.Fl e
+to see the link-level headers in order to see if the traffic is encapsulated.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
-.Xr ncaptool 1 ,
 .Xr pcap 3 ,
 .Xr bpf 4
+.Sh AUTHORS
+Maintained by DNS-OARC
+.Bd -literal -offset indent
+https://www.dns-oarc.net/
+.Ed
+.Pp
+For issues and feature requests please use:
+.Bd -literal -offset indent
+@PACKAGE_URL@
+.Ed
+.Pp
+For question and help please use:
+.Bd -literal -offset indent
+@PACKAGE_BUGREPORT@
+.Ed
 .Sh HISTORY
 .Nm
 was written by Paul Vixie (ISC) with help from Duane Wessels,
 Kevin Brintnall, and others too numerous to mention.
-.Sh BUGS
-Ought to handle fragmented UDP.
-.Pp
-Ought to be re-implented as a
-.Xr ncap
-client.
-.Pp
-Too many design botches within
-.Xr bpf 4
-and
-.Xr pcap 3
-are made visible to the user of this utility.
-.Pp
-.Fl X
-doesn't necessarily work without an "enclosing"
-.Fl x
-option.
 .Sh LICENSE
 Copyright (c) 2016-2017, OARC, Inc.
 All rights reserved.

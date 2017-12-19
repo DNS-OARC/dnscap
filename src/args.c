@@ -576,6 +576,8 @@ void parse_args(int argc, char* argv[])
     }
     assert(msg_wanted != 0U);
     assert(err_wanted != 0U);
+    if (dump_type != nowhere && options.use_layers)
+        usage("use_layers is only compatible with -g so far");
     if (dump_type == nowhere && !preso && EMPTY(plugins))
         usage("without -w or -g, there would be no output");
     if (end_hide != 0U && wantfrags)
@@ -704,5 +706,9 @@ void parse_args(int argc, char* argv[])
         cds_set_rdata_index_min_size(options.cds_rdata_index_min_size);
         cds_set_rdata_rindex_min_size(options.cds_rdata_rindex_min_size);
         cds_set_rdata_rindex_size(options.cds_rdata_rindex_size);
+    }
+
+    if (!options.use_layers && (options.defrag_ipv4 || options.defrag_ipv6)) {
+        usage("can't defragment IP packets without use_layers=yes");
     }
 }

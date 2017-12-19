@@ -38,6 +38,8 @@
 #include "log.h"
 #include "network.h"
 
+#include "pcap-thread/pcap_thread_ext_frag.h"
+
 static void
 drop_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, const char* name, const int dlt)
 {
@@ -88,9 +90,66 @@ void open_pcaps(void)
         print_pcap_thread_error("pcap_thread_set_immediate_mode()", err);
         exit(1);
     }
-    if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
-        print_pcap_thread_error("pcap_thread_set_callback()", err);
-        exit(1);
+    if (options.use_layers) {
+        if ((err = pcap_thread_set_callback_icmp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_icmp()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_icmpv6(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_icmpv6()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_udp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_udp()", err);
+            exit(1);
+        }
+        if ((err = pcap_thread_set_callback_tcp(&pcap_thread, layer_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback_tcp()", err);
+            exit(1);
+        }
+
+        if ((err = pcap_thread_set_use_layers(&pcap_thread, 1)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_use_layers()", err);
+            exit(1);
+        }
+
+        if (options.defrag_ipv4) {
+            pcap_thread_ext_frag_conf_t frag_conf = PCAP_THREAD_EXT_FRAG_CONF_T_INIT;
+
+            if (options.max_ipv4_fragments > 0 && (err = pcap_thread_ext_frag_conf_set_fragments(&frag_conf, options.max_ipv4_fragments)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_ext_frag_conf_set_fragments()", err);
+                exit(1);
+            }
+            if (options.max_ipv4_fragments_per_packet > 0 && (err = pcap_thread_ext_frag_conf_set_per_packet(&frag_conf, options.max_ipv4_fragments_per_packet)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_ext_frag_conf_set_per_packet()", err);
+                exit(1);
+            }
+            if ((err = pcap_thread_set_callback_ipv4_frag(&pcap_thread, pcap_thread_ext_frag_layer_callback(&frag_conf))) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_callback_ipv4_frag()", err);
+                exit(1);
+            }
+        }
+        if (options.defrag_ipv6) {
+            pcap_thread_ext_frag_conf_t frag_conf = PCAP_THREAD_EXT_FRAG_CONF_T_INIT;
+
+            if (options.max_ipv6_fragments > 0 && (err = pcap_thread_ext_frag_conf_set_fragments(&frag_conf, options.max_ipv6_fragments)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_ext_frag_conf_set_fragments()", err);
+                exit(1);
+            }
+            if (options.max_ipv6_fragments_per_packet > 0 && (err = pcap_thread_ext_frag_conf_set_per_packet(&frag_conf, options.max_ipv6_fragments_per_packet)) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_ext_frag_conf_set_per_packet()", err);
+                exit(1);
+            }
+            if ((err = pcap_thread_set_callback_ipv6_frag(&pcap_thread, pcap_thread_ext_frag_layer_callback(&frag_conf))) != PCAP_THREAD_OK) {
+                print_pcap_thread_error("pcap_thread_set_callback_ipv6_frag()", err);
+                exit(1);
+            }
+        }
+    } else {
+        if ((err = pcap_thread_set_callback(&pcap_thread, dl_pkt)) != PCAP_THREAD_OK) {
+            print_pcap_thread_error("pcap_thread_set_callback()", err);
+            exit(1);
+        }
     }
     if ((err = pcap_thread_set_dropback(&pcap_thread, drop_pkt)) != PCAP_THREAD_OK) {
         print_pcap_thread_error("pcap_thread_set_dropback()", err);

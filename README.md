@@ -189,7 +189,7 @@ cd dnscap
 git submodule update --init
 git clone https://github.com/01org/tinycbor.git
 cd tinycbor
-git checkout v0.4
+git checkout v0.4.2
 make
 cd ..
 sh autogen.sh

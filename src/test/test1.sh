@@ -1,6 +1,6 @@
 #!/bin/sh -xe
 
-../dnscap -g -r dns.pcap.dist 2>dns.out
+../dnscap -g -r dns.pcap-dist 2>dns.out
 
 osrel=`uname -s`
 if [ "$osrel" = "OpenBSD" ]; then
