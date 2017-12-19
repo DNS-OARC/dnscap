@@ -134,8 +134,12 @@ int main(int argc, char* argv[])
     }
     prepare_bpft();
     open_pcaps();
-    if (dump_type == to_stdout)
-        dumper_open(now);
+    if (dump_type == to_stdout) {
+        if (dumper_open(now)) {
+            fprintf(stderr, "%s: dumper_open() to stdout failed\n", ProgramName);
+            exit(1);
+        }
+    }
     INIT_LIST(tcpstates);
 
     if (!dont_drop_privileges && !only_offline_pcaps) {
