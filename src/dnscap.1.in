@@ -579,6 +579,21 @@ to see the link-level headers in order to see if the traffic is encapsulated.
 .Xr tcpdump 1 ,
 .Xr pcap 3 ,
 .Xr bpf 4
+.Sh AUTHORS
+Maintained by DNS-OARC
+.Bd -literal -offset indent
+https://www.dns-oarc.net/
+.Ed
+.Pp
+For issues and feature requests please use:
+.Bd -literal -offset indent
+@PACKAGE_URL@
+.Ed
+.Pp
+For question and help please use:
+.Bd -literal -offset indent
+@PACKAGE_BUGREPORT@
+.Ed
 .Sh HISTORY
 .Nm
 was written by Paul Vixie (ISC) with help from Duane Wessels,
