@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.6.0
+Version:        1.7.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -53,6 +53,50 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Dec 19 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.7.0-1
+- Release 1.7.0
+  * This release adds IP fragmentation handling by using layers in pcap-thread
+    which also adds a new flag to output and modules. `DNSCAP_OUTPUT_ISLAYER`
+    indicates that `pkt_copy` is equal to `payload` since the layers of the
+    traffic have already been parsed. IP fragments are reassembled with the
+    `pcap_thread_ext_frag` extension that is included in pcap-thread.
+  * New extended (`-o`) options:
+    - `use_layers`: Use pcap-thread layers to handle the traffic
+    - `defrag_ipv4`: Enabled IPv4 de-fragmentation
+    - `defrag_ipv6`: Enabled IPv6 de-fragmentation
+    - `max_ipv4_fragments`: Set maximum fragmented IPv4 packets to track
+    - `max_ipv4_fragments_per_packet`: Set the maximum IPv4 fragments per
+      tracked packet
+    - `max_ipv6_fragments`: Set maximum fragmented IPv6 packets to track
+    - `max_ipv6_fragments_per_packet`: Set the maximum IPv6 fragments per
+      tracked packet
+  * Currently `-w` does not work with `use_layers` and the plugins `pcapdump`
+    and `royparse` will discard output with the flag `DNSCAP_OUTPUT_ISLAYER`
+    because they need access to the original packet.
+  * The `rzkeychange` plugin now encodes certain flag bits in the data that
+    it reports for RFC8145 key tag signaling. The flags of interest are:
+    `DO`, `CD`, and `RD`. These are encoded in an bit-mask as a hexadecimal
+    value before the `_ta` component of the query name.
+  * Other changes and bug-fixes:
+    - Fix #115: document `-g` output, see `OUTPUT FORMATS` `diagnostic` in
+      `dnscap(1)` man-page
+    - Add test to match output from non-layers runs with those using layers
+    - Add test with fragmented DNS queries
+    - Fix #120: CBOR/CDS compiles again, update tinycbor to v0.4.2
+    - Fix `ip->ip_len` byte order
+    - Fix parsing of IP packets with padding or missing parts of payload
+  * Commits:
+    0347f74 Add AUTHORS section in man-page
+    ef1b68c Fix CID 1463073
+    8a79f89 Layers
+    a404d08 Update pcap-thread to v3.1.0, add test for padding fixes
+    08402f1 Fix byte order bug.  ip->ip_len must be evaluated with ntohs().
+    d6d2340 CBOR/CDS and formatting
+    85ec2d8 Fix #87: IP fragmentation reassembly
+    22bfd4a Documentation
+    c35f19f Adding flag bits to rzkeychange RFC8145 key tag signaling data.
+            This may be useful to find "false" key tag signals from sources
+            that don't actually perform DNSSEC validation.
 * Fri Dec 01 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.6.0-1
 - Release 1.6.0
   * New additions to the plugins:
