@@ -236,6 +236,8 @@ void pcapdump_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
     const u_char* pkt_copy, const unsigned olen, const u_char* payload, const unsigned payloadlen)
 {
     struct pcap_pkthdr h;
+    if (flags & DNSCAP_OUTPUT_ISLAYER)
+        return;
     if (flags & DNSCAP_OUTPUT_ISDNS) {
         HEADER* dns = (HEADER*)payload;
         if (0 == dns->qr && 0 == (dir_wanted & DIR_INITIATE))

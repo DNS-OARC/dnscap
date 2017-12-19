@@ -242,6 +242,8 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
             fprintf(r_out, "\n");
         } else if (opt_q != 0 && ns_msg_getflag(msg, ns_f_qr) == 0 && dport == 53) {
             struct pcap_pkthdr h;
+            if (flags & DNSCAP_OUTPUT_ISLAYER)
+                return;
             memset(&h, 0, sizeof h);
             h.ts  = ts;
             h.len = h.caplen = olen;

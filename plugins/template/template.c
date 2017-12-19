@@ -133,5 +133,9 @@ void template_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      * packets were outputted.
      *
      * if flags & PCAP_OUTPUT_ISDNS != 0 then payload is the start of a DNS message.
+     *
+     * if flags & PCAP_OUTPUT_ISFRAG != 0 then the packet is a fragment.
+     *
+     * if flags & PCAP_OUTPUT_ISLAYER != 0 then the pkt_copy is the same as payload.
      */
 }

@@ -576,6 +576,8 @@ void parse_args(int argc, char* argv[])
     }
     assert(msg_wanted != 0U);
     assert(err_wanted != 0U);
+    if (dump_type != nowhere && options.use_layers)
+        usage("use_layers is only compatible with -g so far");
     if (dump_type == nowhere && !preso && EMPTY(plugins))
         usage("without -w or -g, there would be no output");
     if (end_hide != 0U && wantfrags)
