@@ -1,5 +1,6 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
-CLEANFILES = $(srcdir)/hashtbl.c
+CLEANFILES = $(srcdir)/hashtbl.c \
+    hashtbl.c
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
@@ -15,7 +16,7 @@ rssm_la_LDFLAGS = -module -avoid-version
 endif
 
 hashtbl.c: $(top_srcdir)/src/hashtbl.c
-	cp $(top_srcdir)/src/hashtbl.c $(srcdir)/
+	cp $(top_srcdir)/src/hashtbl.c ./
 
 $(srcdir)/hashtbl.c: $(top_srcdir)/src/hashtbl.c
 	cp $(top_srcdir)/src/hashtbl.c $(srcdir)/
