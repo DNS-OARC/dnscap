@@ -184,6 +184,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         if (prevpkt->have_ieee802hdr) {
             /* TODO: Only match first found VLAN or all? */
             vlan = prevpkt->ieee802hdr.vid;
+            len -= 4;
             break;
         }
         if (!prevpkt->have_prevpkt)

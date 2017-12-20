@@ -1,0 +1,714 @@
+[56] 2016-10-20 15:23:01.075993 [#0 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].53199 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:23:01.077982 [#1 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].53199  \
+	dns QUERY,NOERROR,59311,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,44,216.58.218.206 \
+	4 google.com,IN,NS,157880,ns4.google.com \
+	google.com,IN,NS,157880,ns3.google.com \
+	google.com,IN,NS,157880,ns1.google.com \
+	google.com,IN,NS,157880,ns2.google.com \
+	4 ns2.google.com,IN,A,157880,216.239.34.10 \
+	ns1.google.com,IN,A,331882,216.239.32.10 \
+	ns3.google.com,IN,A,157880,216.239.36.10 \
+	ns4.google.com,IN,A,157880,216.239.38.10
+[73] 2016-10-20 15:23:01.082865 [#2 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].57822 [8.8.8.8].53  \
+	dns QUERY,NOERROR,35665,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:23:01.084107 [#3 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].57822  \
+	dns QUERY,NOERROR,35665,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72125,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72125,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71608,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71608,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71608,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71608,ns4.google.com \
+	4 ns1.google.com,IN,A,331882,216.239.32.10 \
+	ns3.google.com,IN,A,157880,216.239.36.10 \
+	ns4.google.com,IN,A,157880,216.239.38.10 \
+	ns2.google.com,IN,A,157880,216.239.34.10
+[56] 2016-10-20 15:23:01.087291 [#4 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].40043 [8.8.8.8].53  \
+	dns QUERY,NOERROR,5337,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:23:01.088733 [#5 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].40043  \
+	dns QUERY,NOERROR,5337,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,44,216.58.218.206 \
+	4 google.com,IN,NS,157880,ns1.google.com \
+	google.com,IN,NS,157880,ns2.google.com \
+	google.com,IN,NS,157880,ns3.google.com \
+	google.com,IN,NS,157880,ns4.google.com \
+	4 ns2.google.com,IN,A,157880,216.239.34.10 \
+	ns1.google.com,IN,A,331882,216.239.32.10 \
+	ns3.google.com,IN,A,157880,216.239.36.10 \
+	ns4.google.com,IN,A,157880,216.239.38.10
+[56] 2016-10-20 15:23:10.322117 [#6 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].37953 [8.8.8.8].53  \
+	dns QUERY,NOERROR,22982,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:23:10.323399 [#7 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].37953  \
+	dns QUERY,NOERROR,22982,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,34,216.58.218.206 \
+	4 google.com,IN,NS,157870,ns4.google.com \
+	google.com,IN,NS,157870,ns1.google.com \
+	google.com,IN,NS,157870,ns2.google.com \
+	google.com,IN,NS,157870,ns3.google.com \
+	4 ns2.google.com,IN,A,157870,216.239.34.10 \
+	ns1.google.com,IN,A,331872,216.239.32.10 \
+	ns3.google.com,IN,A,157870,216.239.36.10 \
+	ns4.google.com,IN,A,157870,216.239.38.10
+[73] 2016-10-20 15:23:10.328324 [#8 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].48658 [8.8.8.8].53  \
+	dns QUERY,NOERROR,18718,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:23:10.329572 [#9 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].48658  \
+	dns QUERY,NOERROR,18718,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72115,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72115,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71598,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71598,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71598,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71598,ns1.google.com \
+	4 ns1.google.com,IN,A,331872,216.239.32.10 \
+	ns3.google.com,IN,A,157870,216.239.36.10 \
+	ns4.google.com,IN,A,157870,216.239.38.10 \
+	ns2.google.com,IN,A,157870,216.239.34.10
+[56] 2016-10-20 15:23:52.860937 [#10 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].40953 [8.8.8.8].53  \
+	dns QUERY,NOERROR,22531,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:23:52.863771 [#11 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].40953  \
+	dns QUERY,NOERROR,22531,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,297,216.58.218.206 \
+	4 google.com,IN,NS,157828,ns2.google.com \
+	google.com,IN,NS,157828,ns4.google.com \
+	google.com,IN,NS,157828,ns1.google.com \
+	google.com,IN,NS,157828,ns3.google.com \
+	4 ns2.google.com,IN,A,157828,216.239.34.10 \
+	ns1.google.com,IN,A,331830,216.239.32.10 \
+	ns3.google.com,IN,A,157828,216.239.36.10 \
+	ns4.google.com,IN,A,157828,216.239.38.10
+[56] 2016-10-20 15:23:59.083869 [#12 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].45174 [8.8.8.8].53  \
+	dns QUERY,NOERROR,58510,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:23:59.086104 [#13 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].45174  \
+	dns QUERY,NOERROR,58510,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,291,216.58.218.206 \
+	4 google.com,IN,NS,157822,ns2.google.com \
+	google.com,IN,NS,157822,ns3.google.com \
+	google.com,IN,NS,157822,ns1.google.com \
+	google.com,IN,NS,157822,ns4.google.com \
+	4 ns2.google.com,IN,A,157822,216.239.34.10 \
+	ns1.google.com,IN,A,331824,216.239.32.10 \
+	ns3.google.com,IN,A,157822,216.239.36.10 \
+	ns4.google.com,IN,A,157822,216.239.38.10
+[73] 2016-10-20 15:23:59.090911 [#14 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].33916 [8.8.8.8].53  \
+	dns QUERY,NOERROR,45248,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:23:59.092204 [#15 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].33916  \
+	dns QUERY,NOERROR,45248,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72067,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72067,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71550,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71550,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71550,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71550,ns1.google.com \
+	4 ns1.google.com,IN,A,331824,216.239.32.10 \
+	ns3.google.com,IN,A,157822,216.239.36.10 \
+	ns4.google.com,IN,A,157822,216.239.38.10 \
+	ns2.google.com,IN,A,157822,216.239.34.10
+[56] 2016-10-20 15:24:04.323868 [#16 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].43559 [8.8.8.8].53  \
+	dns QUERY,NOERROR,49483,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:04.325597 [#17 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].43559  \
+	dns QUERY,NOERROR,49483,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,285,216.58.218.206 \
+	4 google.com,IN,NS,157816,ns4.google.com \
+	google.com,IN,NS,157816,ns3.google.com \
+	google.com,IN,NS,157816,ns1.google.com \
+	google.com,IN,NS,157816,ns2.google.com \
+	4 ns2.google.com,IN,A,157816,216.239.34.10 \
+	ns1.google.com,IN,A,331818,216.239.32.10 \
+	ns3.google.com,IN,A,157816,216.239.36.10 \
+	ns4.google.com,IN,A,157816,216.239.38.10
+[56] 2016-10-20 15:24:06.332239 [#18 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].54859 [8.8.8.8].53  \
+	dns QUERY,NOERROR,31669,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:06.333743 [#19 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].54859  \
+	dns QUERY,NOERROR,31669,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,283,216.58.218.206 \
+	4 google.com,IN,NS,157814,ns2.google.com \
+	google.com,IN,NS,157814,ns1.google.com \
+	google.com,IN,NS,157814,ns4.google.com \
+	google.com,IN,NS,157814,ns3.google.com \
+	4 ns2.google.com,IN,A,157814,216.239.34.10 \
+	ns1.google.com,IN,A,331816,216.239.32.10 \
+	ns3.google.com,IN,A,157814,216.239.36.10 \
+	ns4.google.com,IN,A,157814,216.239.38.10
+[73] 2016-10-20 15:24:06.339145 [#20 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].58176 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25433,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:06.340820 [#21 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].58176  \
+	dns QUERY,NOERROR,25433,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72059,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72059,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71542,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71542,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71542,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71542,ns2.google.com \
+	4 ns1.google.com,IN,A,331816,216.239.32.10 \
+	ns3.google.com,IN,A,157814,216.239.36.10 \
+	ns4.google.com,IN,A,157814,216.239.38.10 \
+	ns2.google.com,IN,A,157814,216.239.34.10
+[56] 2016-10-20 15:24:07.346429 [#22 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].41266 [8.8.8.8].53  \
+	dns QUERY,NOERROR,63798,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:07.348160 [#23 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].41266  \
+	dns QUERY,NOERROR,63798,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,282,216.58.218.206 \
+	4 google.com,IN,NS,157813,ns4.google.com \
+	google.com,IN,NS,157813,ns1.google.com \
+	google.com,IN,NS,157813,ns3.google.com \
+	google.com,IN,NS,157813,ns2.google.com \
+	4 ns2.google.com,IN,A,157813,216.239.34.10 \
+	ns1.google.com,IN,A,331815,216.239.32.10 \
+	ns3.google.com,IN,A,157813,216.239.36.10 \
+	ns4.google.com,IN,A,157813,216.239.38.10
+[73] 2016-10-20 15:24:07.353123 [#24 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].34607 [8.8.8.8].53  \
+	dns QUERY,NOERROR,8470,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:07.354682 [#25 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].34607  \
+	dns QUERY,NOERROR,8470,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72058,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72058,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71541,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71541,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71541,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71541,ns3.google.com \
+	4 ns1.google.com,IN,A,331815,216.239.32.10 \
+	ns3.google.com,IN,A,157813,216.239.36.10 \
+	ns4.google.com,IN,A,157813,216.239.38.10 \
+	ns2.google.com,IN,A,157813,216.239.34.10
+[56] 2016-10-20 15:24:08.360528 [#26 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].60437 [8.8.8.8].53  \
+	dns QUERY,NOERROR,60258,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:08.362206 [#27 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].60437  \
+	dns QUERY,NOERROR,60258,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,281,216.58.218.206 \
+	4 google.com,IN,NS,157812,ns3.google.com \
+	google.com,IN,NS,157812,ns2.google.com \
+	google.com,IN,NS,157812,ns4.google.com \
+	google.com,IN,NS,157812,ns1.google.com \
+	4 ns2.google.com,IN,A,157812,216.239.34.10 \
+	ns1.google.com,IN,A,331814,216.239.32.10 \
+	ns3.google.com,IN,A,157812,216.239.36.10 \
+	ns4.google.com,IN,A,157812,216.239.38.10
+[73] 2016-10-20 15:24:08.368516 [#28 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].37149 [8.8.8.8].53  \
+	dns QUERY,NOERROR,44985,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:08.370119 [#29 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].37149  \
+	dns QUERY,NOERROR,44985,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72057,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72057,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71540,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71540,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71540,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71540,ns2.google.com \
+	4 ns1.google.com,IN,A,331814,216.239.32.10 \
+	ns3.google.com,IN,A,157812,216.239.36.10 \
+	ns4.google.com,IN,A,157812,216.239.38.10 \
+	ns2.google.com,IN,A,157812,216.239.34.10
+[56] 2016-10-20 15:24:09.375942 [#30 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].53820 [8.8.8.8].53  \
+	dns QUERY,NOERROR,45512,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:09.378425 [#31 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].53820  \
+	dns QUERY,NOERROR,45512,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,280,216.58.218.206 \
+	4 google.com,IN,NS,157811,ns3.google.com \
+	google.com,IN,NS,157811,ns4.google.com \
+	google.com,IN,NS,157811,ns1.google.com \
+	google.com,IN,NS,157811,ns2.google.com \
+	4 ns2.google.com,IN,A,157811,216.239.34.10 \
+	ns1.google.com,IN,A,331813,216.239.32.10 \
+	ns3.google.com,IN,A,157811,216.239.36.10 \
+	ns4.google.com,IN,A,157811,216.239.38.10
+[73] 2016-10-20 15:24:09.384057 [#32 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].52368 [8.8.8.8].53  \
+	dns QUERY,NOERROR,22980,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:09.385463 [#33 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].52368  \
+	dns QUERY,NOERROR,22980,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72056,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72056,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71539,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71539,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71539,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71539,ns1.google.com \
+	4 ns1.google.com,IN,A,331813,216.239.32.10 \
+	ns3.google.com,IN,A,157811,216.239.36.10 \
+	ns4.google.com,IN,A,157811,216.239.38.10 \
+	ns2.google.com,IN,A,157811,216.239.34.10
+[56] 2016-10-20 15:24:10.391358 [#34 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].47637 [8.8.8.8].53  \
+	dns QUERY,NOERROR,1834,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:10.392886 [#35 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].47637  \
+	dns QUERY,NOERROR,1834,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,279,216.58.218.206 \
+	4 google.com,IN,NS,157810,ns1.google.com \
+	google.com,IN,NS,157810,ns2.google.com \
+	google.com,IN,NS,157810,ns4.google.com \
+	google.com,IN,NS,157810,ns3.google.com \
+	4 ns2.google.com,IN,A,157810,216.239.34.10 \
+	ns1.google.com,IN,A,331812,216.239.32.10 \
+	ns3.google.com,IN,A,157810,216.239.36.10 \
+	ns4.google.com,IN,A,157810,216.239.38.10
+[73] 2016-10-20 15:24:10.398099 [#36 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].34426 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25431,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:10.400317 [#37 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].34426  \
+	dns QUERY,NOERROR,25431,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72055,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72055,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71538,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71538,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71538,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71538,ns2.google.com \
+	4 ns1.google.com,IN,A,331812,216.239.32.10 \
+	ns3.google.com,IN,A,157810,216.239.36.10 \
+	ns4.google.com,IN,A,157810,216.239.38.10 \
+	ns2.google.com,IN,A,157810,216.239.34.10
+[56] 2016-10-20 15:24:11.406297 [#38 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].41059 [8.8.8.8].53  \
+	dns QUERY,NOERROR,48432,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:11.407460 [#39 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].41059  \
+	dns QUERY,NOERROR,48432,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,278,216.58.218.206 \
+	4 google.com,IN,NS,157809,ns3.google.com \
+	google.com,IN,NS,157809,ns4.google.com \
+	google.com,IN,NS,157809,ns2.google.com \
+	google.com,IN,NS,157809,ns1.google.com \
+	4 ns2.google.com,IN,A,157809,216.239.34.10 \
+	ns1.google.com,IN,A,331811,216.239.32.10 \
+	ns3.google.com,IN,A,157809,216.239.36.10 \
+	ns4.google.com,IN,A,157809,216.239.38.10
+[73] 2016-10-20 15:24:11.412133 [#40 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].51181 [8.8.8.8].53  \
+	dns QUERY,NOERROR,47411,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:11.413370 [#41 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].51181  \
+	dns QUERY,NOERROR,47411,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72054,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72054,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71537,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71537,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71537,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71537,ns4.google.com \
+	4 ns1.google.com,IN,A,331811,216.239.32.10 \
+	ns3.google.com,IN,A,157809,216.239.36.10 \
+	ns4.google.com,IN,A,157809,216.239.38.10 \
+	ns2.google.com,IN,A,157809,216.239.34.10
+[56] 2016-10-20 15:24:12.419936 [#42 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].32976 [8.8.8.8].53  \
+	dns QUERY,NOERROR,12038,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:12.421228 [#43 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].32976  \
+	dns QUERY,NOERROR,12038,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,277,216.58.218.206 \
+	4 google.com,IN,NS,157808,ns2.google.com \
+	google.com,IN,NS,157808,ns3.google.com \
+	google.com,IN,NS,157808,ns1.google.com \
+	google.com,IN,NS,157808,ns4.google.com \
+	4 ns2.google.com,IN,A,157808,216.239.34.10 \
+	ns1.google.com,IN,A,331810,216.239.32.10 \
+	ns3.google.com,IN,A,157808,216.239.36.10 \
+	ns4.google.com,IN,A,157808,216.239.38.10
+[56] 2016-10-20 15:24:14.428524 [#44 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].53467 [8.8.8.8].53  \
+	dns QUERY,NOERROR,11614,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:14.429863 [#45 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].53467  \
+	dns QUERY,NOERROR,11614,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,275,216.58.218.206 \
+	4 google.com,IN,NS,157806,ns3.google.com \
+	google.com,IN,NS,157806,ns1.google.com \
+	google.com,IN,NS,157806,ns4.google.com \
+	google.com,IN,NS,157806,ns2.google.com \
+	4 ns2.google.com,IN,A,157806,216.239.34.10 \
+	ns1.google.com,IN,A,331808,216.239.32.10 \
+	ns3.google.com,IN,A,157806,216.239.36.10 \
+	ns4.google.com,IN,A,157806,216.239.38.10
+[56] 2016-10-20 15:24:16.435733 [#46 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].41532 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59173,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:16.437471 [#47 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].41532  \
+	dns QUERY,NOERROR,59173,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,273,216.58.218.206 \
+	4 google.com,IN,NS,157804,ns1.google.com \
+	google.com,IN,NS,157804,ns3.google.com \
+	google.com,IN,NS,157804,ns2.google.com \
+	google.com,IN,NS,157804,ns4.google.com \
+	4 ns2.google.com,IN,A,157804,216.239.34.10 \
+	ns1.google.com,IN,A,331806,216.239.32.10 \
+	ns3.google.com,IN,A,157804,216.239.36.10 \
+	ns4.google.com,IN,A,157804,216.239.38.10
+[56] 2016-10-20 15:24:18.445519 [#48 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].44982 [8.8.8.8].53  \
+	dns QUERY,NOERROR,45535,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:18.446775 [#49 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].44982  \
+	dns QUERY,NOERROR,45535,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,271,216.58.218.206 \
+	4 google.com,IN,NS,157802,ns4.google.com \
+	google.com,IN,NS,157802,ns2.google.com \
+	google.com,IN,NS,157802,ns1.google.com \
+	google.com,IN,NS,157802,ns3.google.com \
+	4 ns2.google.com,IN,A,157802,216.239.34.10 \
+	ns1.google.com,IN,A,331804,216.239.32.10 \
+	ns3.google.com,IN,A,157802,216.239.36.10 \
+	ns4.google.com,IN,A,157802,216.239.38.10
+[73] 2016-10-20 15:24:18.452451 [#50 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].40224 [8.8.8.8].53  \
+	dns QUERY,NOERROR,60808,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:18.454030 [#51 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].40224  \
+	dns QUERY,NOERROR,60808,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72047,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72047,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71530,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71530,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71530,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71530,ns1.google.com \
+	4 ns1.google.com,IN,A,331804,216.239.32.10 \
+	ns3.google.com,IN,A,157802,216.239.36.10 \
+	ns4.google.com,IN,A,157802,216.239.38.10 \
+	ns2.google.com,IN,A,157802,216.239.34.10
+[56] 2016-10-20 15:24:19.460087 [#52 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].45658 [8.8.8.8].53  \
+	dns QUERY,NOERROR,64325,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:19.462224 [#53 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].45658  \
+	dns QUERY,NOERROR,64325,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,270,216.58.218.206 \
+	4 google.com,IN,NS,157801,ns1.google.com \
+	google.com,IN,NS,157801,ns3.google.com \
+	google.com,IN,NS,157801,ns4.google.com \
+	google.com,IN,NS,157801,ns2.google.com \
+	4 ns2.google.com,IN,A,157801,216.239.34.10 \
+	ns1.google.com,IN,A,331803,216.239.32.10 \
+	ns3.google.com,IN,A,157801,216.239.36.10 \
+	ns4.google.com,IN,A,157801,216.239.38.10
+[73] 2016-10-20 15:24:19.467324 [#54 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].60457 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25543,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:19.468895 [#55 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].60457  \
+	dns QUERY,NOERROR,25543,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72046,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72046,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71529,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71529,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71529,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71529,ns1.google.com \
+	4 ns1.google.com,IN,A,331803,216.239.32.10 \
+	ns3.google.com,IN,A,157801,216.239.36.10 \
+	ns4.google.com,IN,A,157801,216.239.38.10 \
+	ns2.google.com,IN,A,157801,216.239.34.10
+[56] 2016-10-20 15:24:20.475086 [#56 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].59762 [8.8.8.8].53  \
+	dns QUERY,NOERROR,20736,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:20.476841 [#57 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].59762  \
+	dns QUERY,NOERROR,20736,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,269,216.58.218.206 \
+	4 google.com,IN,NS,157800,ns3.google.com \
+	google.com,IN,NS,157800,ns1.google.com \
+	google.com,IN,NS,157800,ns4.google.com \
+	google.com,IN,NS,157800,ns2.google.com \
+	4 ns2.google.com,IN,A,157800,216.239.34.10 \
+	ns1.google.com,IN,A,331802,216.239.32.10 \
+	ns3.google.com,IN,A,157800,216.239.36.10 \
+	ns4.google.com,IN,A,157800,216.239.38.10
+[73] 2016-10-20 15:24:20.482188 [#58 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].56022 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25911,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:20.483927 [#59 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].56022  \
+	dns QUERY,NOERROR,25911,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72045,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72045,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71528,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71528,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71528,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71528,ns3.google.com \
+	4 ns1.google.com,IN,A,331802,216.239.32.10 \
+	ns3.google.com,IN,A,157800,216.239.36.10 \
+	ns4.google.com,IN,A,157800,216.239.38.10 \
+	ns2.google.com,IN,A,157800,216.239.34.10
+[56] 2016-10-20 15:24:21.489468 [#60 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].37669 [8.8.8.8].53  \
+	dns QUERY,NOERROR,64358,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:21.490573 [#61 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].37669  \
+	dns QUERY,NOERROR,64358,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,268,216.58.218.206 \
+	4 google.com,IN,NS,157799,ns2.google.com \
+	google.com,IN,NS,157799,ns1.google.com \
+	google.com,IN,NS,157799,ns4.google.com \
+	google.com,IN,NS,157799,ns3.google.com \
+	4 ns2.google.com,IN,A,157799,216.239.34.10 \
+	ns1.google.com,IN,A,331801,216.239.32.10 \
+	ns3.google.com,IN,A,157799,216.239.36.10 \
+	ns4.google.com,IN,A,157799,216.239.38.10
+[73] 2016-10-20 15:24:21.495324 [#62 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].42978 [8.8.8.8].53  \
+	dns QUERY,NOERROR,37698,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:21.496815 [#63 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].42978  \
+	dns QUERY,NOERROR,37698,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72044,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72044,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71527,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71527,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71527,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71527,ns2.google.com \
+	4 ns1.google.com,IN,A,331801,216.239.32.10 \
+	ns3.google.com,IN,A,157799,216.239.36.10 \
+	ns4.google.com,IN,A,157799,216.239.38.10 \
+	ns2.google.com,IN,A,157799,216.239.34.10
+[56] 2016-10-20 15:24:22.502667 [#64 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].49829 [8.8.8.8].53  \
+	dns QUERY,NOERROR,54706,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:22.504738 [#65 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].49829  \
+	dns QUERY,NOERROR,54706,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,267,216.58.218.206 \
+	4 google.com,IN,NS,157798,ns2.google.com \
+	google.com,IN,NS,157798,ns4.google.com \
+	google.com,IN,NS,157798,ns3.google.com \
+	google.com,IN,NS,157798,ns1.google.com \
+	4 ns2.google.com,IN,A,157798,216.239.34.10 \
+	ns1.google.com,IN,A,331800,216.239.32.10 \
+	ns3.google.com,IN,A,157798,216.239.36.10 \
+	ns4.google.com,IN,A,157798,216.239.38.10
+[73] 2016-10-20 15:24:22.510176 [#66 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].50599 [8.8.8.8].53  \
+	dns QUERY,NOERROR,32142,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:22.511746 [#67 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].50599  \
+	dns QUERY,NOERROR,32142,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72043,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72043,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71526,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71526,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71526,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71526,ns4.google.com \
+	4 ns1.google.com,IN,A,331800,216.239.32.10 \
+	ns3.google.com,IN,A,157798,216.239.36.10 \
+	ns4.google.com,IN,A,157798,216.239.38.10 \
+	ns2.google.com,IN,A,157798,216.239.34.10
+[56] 2016-10-20 15:24:23.520203 [#68 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].44980 [8.8.8.8].53  \
+	dns QUERY,NOERROR,41808,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:23.521976 [#69 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].44980  \
+	dns QUERY,NOERROR,41808,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,266,216.58.218.206 \
+	4 google.com,IN,NS,157797,ns2.google.com \
+	google.com,IN,NS,157797,ns4.google.com \
+	google.com,IN,NS,157797,ns1.google.com \
+	google.com,IN,NS,157797,ns3.google.com \
+	4 ns2.google.com,IN,A,157797,216.239.34.10 \
+	ns1.google.com,IN,A,331799,216.239.32.10 \
+	ns3.google.com,IN,A,157797,216.239.36.10 \
+	ns4.google.com,IN,A,157797,216.239.38.10
+[73] 2016-10-20 15:24:23.527449 [#70 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].60063 [8.8.8.8].53  \
+	dns QUERY,NOERROR,18886,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:23.529385 [#71 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].60063  \
+	dns QUERY,NOERROR,18886,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72042,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72042,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71525,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71525,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71525,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71525,ns2.google.com \
+	4 ns1.google.com,IN,A,331799,216.239.32.10 \
+	ns3.google.com,IN,A,157797,216.239.36.10 \
+	ns4.google.com,IN,A,157797,216.239.38.10 \
+	ns2.google.com,IN,A,157797,216.239.34.10
+[56] 2016-10-20 15:24:24.537264 [#72 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].42042 [8.8.8.8].53  \
+	dns QUERY,NOERROR,10624,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:24.539398 [#73 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].42042  \
+	dns QUERY,NOERROR,10624,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,265,216.58.218.206 \
+	4 google.com,IN,NS,157796,ns3.google.com \
+	google.com,IN,NS,157796,ns4.google.com \
+	google.com,IN,NS,157796,ns1.google.com \
+	google.com,IN,NS,157796,ns2.google.com \
+	4 ns2.google.com,IN,A,157796,216.239.34.10 \
+	ns1.google.com,IN,A,331798,216.239.32.10 \
+	ns3.google.com,IN,A,157796,216.239.36.10 \
+	ns4.google.com,IN,A,157796,216.239.38.10
+[73] 2016-10-20 15:24:24.544538 [#74 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].60469 [8.8.8.8].53  \
+	dns QUERY,NOERROR,33139,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:24.546172 [#75 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].60469  \
+	dns QUERY,NOERROR,33139,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72041,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72041,dfw06s47-in-f14.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71524,ns2.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71524,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71524,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71524,ns1.google.com \
+	4 ns1.google.com,IN,A,331798,216.239.32.10 \
+	ns3.google.com,IN,A,157796,216.239.36.10 \
+	ns4.google.com,IN,A,157796,216.239.38.10 \
+	ns2.google.com,IN,A,157796,216.239.34.10
+[56] 2016-10-20 15:24:25.554744 [#76 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].45703 [8.8.8.8].53  \
+	dns QUERY,NOERROR,61415,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:25.556513 [#77 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].45703  \
+	dns QUERY,NOERROR,61415,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,264,216.58.218.206 \
+	4 google.com,IN,NS,157795,ns3.google.com \
+	google.com,IN,NS,157795,ns4.google.com \
+	google.com,IN,NS,157795,ns2.google.com \
+	google.com,IN,NS,157795,ns1.google.com \
+	4 ns2.google.com,IN,A,157795,216.239.34.10 \
+	ns1.google.com,IN,A,331797,216.239.32.10 \
+	ns3.google.com,IN,A,157795,216.239.36.10 \
+	ns4.google.com,IN,A,157795,216.239.38.10
+[73] 2016-10-20 15:24:25.562608 [#78 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].33507 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59258,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[289] 2016-10-20 15:24:25.564509 [#79 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].33507  \
+	dns QUERY,NOERROR,59258,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	2 206.218.58.216.in-addr.arpa,IN,PTR,72040,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,72040,dfw06s47-in-f206.1e100.net \
+	4 218.58.216.in-addr.arpa,IN,NS,71523,ns1.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71523,ns4.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71523,ns3.google.com \
+	218.58.216.in-addr.arpa,IN,NS,71523,ns2.google.com \
+	4 ns1.google.com,IN,A,331797,216.239.32.10 \
+	ns3.google.com,IN,A,157795,216.239.36.10 \
+	ns4.google.com,IN,A,157795,216.239.38.10 \
+	ns2.google.com,IN,A,157795,216.239.34.10
+[56] 2016-10-20 15:24:26.572784 [#80 vlan11.pcap-dist (vlan 11) 11] \
+	[172.17.0.10].46798 [8.8.8.8].53  \
+	dns QUERY,NOERROR,17700,rd \
+	1 google.com,IN,A 0 0 0
+[208] 2016-10-20 15:24:26.574350 [#81 vlan11.pcap-dist (vlan 11) 11] \
+	[8.8.8.8].53 [172.17.0.10].46798  \
+	dns QUERY,NOERROR,17700,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,263,216.58.218.206 \
+	4 google.com,IN,NS,157794,ns1.google.com \
+	google.com,IN,NS,157794,ns4.google.com \
+	google.com,IN,NS,157794,ns3.google.com \
+	google.com,IN,NS,157794,ns2.google.com \
+	4 ns2.google.com,IN,A,157794,216.239.34.10 \
+	ns1.google.com,IN,A,331796,216.239.32.10 \
+	ns3.google.com,IN,A,157794,216.239.36.10 \
+	ns4.google.com,IN,A,157794,216.239.38.10
