@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include "dump_dns.h"
+#include "network.h"
 
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_NAME_UNCOMPRESS && HAVE_P_RCODE
 
@@ -117,8 +118,17 @@ void dump_dns(const u_char* payload, size_t paylen,
 
     fprintf(trace, " %sdns ", endline);
     if (ns_initparse(payload, paylen, &msg) < 0) {
-        fputs(strerror(errno), trace);
-        return;
+        /* DNS message may have padding, try get actual size */
+        if (errno == EMSGSIZE) {
+            size_t dnslen = calcdnslen(payload, paylen);
+            if (dnslen > 0 && dnslen < paylen && ns_initparse(payload, dnslen, &msg) < 0) {
+                fputs(strerror(errno), trace);
+                return;
+            }
+        } else {
+            fputs(strerror(errno), trace);
+            return;
+        }
     }
     opcode = ns_msg_getflag(msg, ns_f_opcode);
     rcode  = ns_msg_getflag(msg, ns_f_rcode);
