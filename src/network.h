@@ -47,4 +47,6 @@ uint16_t in_checksum(const u_char* ptr, size_t len);
 void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* payload, size_t length);
 void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length);
 
+size_t calcdnslen(const u_char* dnspkt, size_t dnslen);
+
 #endif /* __dnscap_network_h */
