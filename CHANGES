@@ -1,3 +1,22 @@
+2017-12-27 Jerry Lundström
+
+    Release 1.7.1
+
+    The library used for parsing DNS (libbind) is unable to parse DNS
+    messages when there is padding at the end (the UDP/TCP payload is larger
+    then the DNS message). This has been fixed by trying to find the actual
+    DNS message size, walking all labels and RR data, and then retry parsing.
+
+    Other changes and bug-fixes:
+    - Fix size when there is a VLAN to match output of `use_layers` yes/no
+    - Add test of VLAN matching
+    - Fix `hashtbl.c` building in `rssm`
+    - Add test with padded DNS message
+
+    49e5400 Fix #127: If `ns_initparse()` returns `EMSGSIZE`, try and get
+            actual size and reparse
+    99bda0b Fix #98: VLAN
+
 2017-12-19 Jerry Lundström
 
     Release 1.7.0
