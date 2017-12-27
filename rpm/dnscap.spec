@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.7.0
+Version:        1.7.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -53,6 +53,21 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Dec 27 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.7.1-1
+- Release 1.7.1
+  * The library used for parsing DNS (libbind) is unable to parse DNS
+    messages when there is padding at the end (the UDP/TCP payload is larger
+    then the DNS message). This has been fixed by trying to find the actual
+    DNS message size, walking all labels and RR data, and then retry parsing.
+  * Other changes and bug-fixes:
+    - Fix size when there is a VLAN to match output of `use_layers` yes/no
+    - Add test of VLAN matching
+    - Fix `hashtbl.c` building in `rssm`
+    - Add test with padded DNS message
+  * Commits:
+    49e5400 Fix #127: If `ns_initparse()` returns `EMSGSIZE`, try and get
+            actual size and reparse
+    99bda0b Fix #98: VLAN
 * Tue Dec 19 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.7.0-1
 - Release 1.7.0
   * This release adds IP fragmentation handling by using layers in pcap-thread
