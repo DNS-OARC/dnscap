@@ -1,0 +1,8 @@
+[59] 2016-10-20 15:23:01.075993 [#0 dnspad.pcap-dist 4095] \
+	[172.17.0.10].53199 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[59] 2016-10-20 15:23:01.075993 [#0 dnspad.pcap-dist 4095] \
+	[172.17.0.10].53199 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0

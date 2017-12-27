@@ -184,6 +184,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         if (prevpkt->have_ieee802hdr) {
             /* TODO: Only match first found VLAN or all? */
             vlan = prevpkt->ieee802hdr.vid;
+            len -= 4;
             break;
         }
         if (!prevpkt->have_prevpkt)
@@ -812,8 +813,17 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         match    = -1;
         negmatch = -1;
         if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
-            discard(tcpstate, "failed parse");
-            return;
+            /* DNS message may have padding, try get actual size */
+            if (errno == EMSGSIZE) {
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
+                    discard(tcpstate, "failed parse");
+                    return;
+                }
+            } else {
+                discard(tcpstate, "failed parse");
+                return;
+            }
         }
         /* Look at each section of the message:
              question, answer, authority, additional */
@@ -1296,8 +1306,17 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         match    = -1;
         negmatch = -1;
         if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
-            discard(tcpstate, "failed parse");
-            return;
+            /* DNS message may have padding, try get actual size */
+            if (errno == EMSGSIZE) {
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
+                    discard(tcpstate, "failed parse");
+                    return;
+                }
+            } else {
+                discard(tcpstate, "failed parse");
+                return;
+            }
         }
         /* Look at each section of the message:
              question, answer, authority, additional */
@@ -1451,4 +1470,55 @@ uint16_t in_checksum(const u_char* ptr, size_t len)
 
     /* Caller should ~ this result. */
     return ((uint16_t)sum);
+}
+
+static size_t calcrr(int q, const u_char* p, size_t l, size_t t)
+{
+    while (l < t) {
+        if ((p[l] & 0xc0) == 0xc0) {
+            l += 2;
+        } else if (p[l] & 0xc0) {
+            l += 1;
+        } else if (p[l]) {
+            l += p[l];
+        } else {
+            break;
+        }
+    }
+    l += 4; /* type + class */
+    if (q)
+        return l;
+    l += 6; /* ttl + rdlength */
+    if (l < t) {
+        l += (p[l - 2] << 8) + p[l - 1]; /* rdata */
+    }
+    return l;
+}
+
+size_t calcdnslen(const u_char* dnspkt, size_t dnslen)
+{
+    HEADER dns;
+    size_t n, len;
+
+    if (dnslen > 65535 || dnslen < sizeof(dns)) {
+        return 0;
+    }
+    memcpy(&dns, dnspkt, sizeof dns);
+    len = sizeof(dns);
+
+    for (n = 0; len < dnslen && n < dns.qdcount; n++) {
+        len = calcrr(1, dnspkt, len, dnslen);
+    }
+    for (n = 0; len < dnslen && n < dns.ancount; n++) {
+        len = calcrr(0, dnspkt, len, dnslen);
+    }
+    for (n = 0; len < dnslen && n < dns.nscount; n++) {
+        len = calcrr(0, dnspkt, len, dnslen);
+    }
+    for (n = 0; len < dnslen && n < dns.arcount; n++) {
+        len = calcrr(0, dnspkt, len, dnslen);
+    }
+    if (len < dnslen)
+        return len;
+    return dnslen;
 }
