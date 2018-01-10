@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -252,6 +252,9 @@ struct tcpstate {
     uint32_t maxdiff; /* maximum (seq# - start) */
     uint16_t dnslen;
     time_t   last_use;
+    uint32_t lastdns;
+    uint32_t currseq;
+    size_t   currlen;
 };
 typedef struct tcpstate* tcpstate_ptr;
 typedef LIST(struct tcpstate) tcpstate_list;

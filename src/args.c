@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,23 @@
 #include "endpoint.h"
 #include "iaddr.h"
 #include "log.h"
+#include "tcpstate.h"
+
+#ifdef __OpenBSD__
+/* OpenBSD need file local functions for export to loaded modules */
+void* _tcpstate_getcurr(void)
+{
+    return (void*)tcpstate_getcurr();
+}
+void _tcpstate_reset(void* tcpstate, const char* msg)
+{
+    tcpstate_reset((tcpstate_ptr)tcpstate, msg);
+}
+const char* _ia_str(iaddr ia)
+{
+    return ia_str(ia);
+}
+#endif
 
 #ifdef __linux__
 extern char* strptime(const char*, const char*, struct tm*);
@@ -541,7 +558,15 @@ void parse_args(int argc, char* argv[])
             p->extension = dlsym(p->handle, sn);
             if (p->extension) {
                 (*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
+#ifdef __OpenBSD__
+                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
+#else
                 (*p->extension)(DNSCAP_EXT_IA_STR, (void*)ia_str);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)tcpstate_getcurr);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)tcpstate_reset);
+#endif
             }
             snprintf(sn, sizeof(sn), "%s_getopt", p->name);
             p->getopt = dlsym(p->handle, sn);
