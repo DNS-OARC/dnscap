@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, OARC, Inc.
+ * Copyright (c) 2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,39 +32,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "dnscap.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#ifndef __dnscap_tcpstate_h
+#define __dnscap_tcpstate_h
 
-typedef struct hashitem hashitem;
+tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t);
+tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport);
+void tcpstate_discard(tcpstate_ptr tcpstate, const char* msg);
+tcpstate_ptr tcpstate_getcurr(void);
+void tcpstate_reset(tcpstate_ptr tcpstate, const char* msg);
 
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
-
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
-
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+#endif /* __dnscap_tcpstate_h */

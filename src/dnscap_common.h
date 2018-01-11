@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,6 +96,12 @@ typedef int (*is_responder_t)(iaddr ia);
 
 #define DNSCAP_EXT_IA_STR 2
 typedef const char* (*ia_str_t)(iaddr ia);
+
+#define DNSCAP_EXT_TCPSTATE_GETCURR 3
+typedef void* (*tcpstate_getcurr_t)(void);
+
+#define DNSCAP_EXT_TCPSTATE_RESET 4
+typedef void (*tcpstate_reset_t)(void* tcpstate, const char* msg);
 
 #define DNSCAP_OUTPUT_ISFRAG (1 << 0)
 #define DNSCAP_OUTPUT_ISDNS (1 << 1)

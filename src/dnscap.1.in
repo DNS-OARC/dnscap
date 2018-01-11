@@ -124,8 +124,18 @@ options.
 All subsequent non-empty packets in the stream, regardless of DNS message
 boundaries, will be captured if and only if the first DNS header passed all
 filter options.
-TCP packets will usually not be printable with
-.Fl g .
+
+Each TCP packet with payload will be tagged as DNS with the support of having
+the DNS length arrive before the message in an own packet.
+Ongoing TCP connections can be inspected by using extended option
+.Fl o Ar parse_ongoing_tcp=yes .
+TCP packets are processed as they arrive so missing, unaligned data or DNS
+message split over multiple packets will produce parsing errors.
+Using extended option
+.Fl o Ar allow_reset_tcpstate=yes
+may allow
+.Nm
+to recover from these scenarios.
 .It Fl I
 Select ICMP and ICMPv6 packets.
 .It Fl i Ar if
@@ -476,6 +486,14 @@ Set the maximum fragmented IPv6 packets to track for reassembly, if the limit
 is reach then all other fragmented packets will not be reassembled.
 .It max_ipv6_fragments_per_packet=<num>
 Set the maximum fragments per tracked IPv6 packet to keep for reassembly.
+.It parse_ongoing_tcp=yes
+Enable state tracking when a new TCP stream is found but no SYN/ACK has been
+seen.
+Each TCP packet with payload will be tagged as DNS.
+.It allow_reset_tcpstate=yes
+Allow the TCP state to be reseted, this is used in diagnostic output and
+plugins when parsing the DNS in a TCP packet fails to try and recover from
+missing or unaligned data.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:
@@ -599,7 +617,7 @@ For question and help please use:
 was written by Paul Vixie (ISC) with help from Duane Wessels,
 Kevin Brintnall, and others too numerous to mention.
 .Sh LICENSE
-Copyright (c) 2016-2017, OARC, Inc.
+Copyright (c) 2016-2018, OARC, Inc.
 All rights reserved.
 .Pp
 Redistribution and use in source and binary forms, with or without
