@@ -170,7 +170,10 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
         int    rrmax;
         ns_msg msg;
         ns_rr  rr;
-        ns_initparse(payload, payloadlen, &msg);
+        if (ns_initparse(payload, payloadlen, &msg) < 0) {
+            fprintf(r_out, "ERR\n");
+            return;
+        }
         if (ns_msg_getflag(msg, ns_f_qr) != 0 && sport == 53) {
             fprintf(r_out, "%cD_", ns_msg_getflag(msg, ns_f_rd) ? 'R' : 'N');
 
