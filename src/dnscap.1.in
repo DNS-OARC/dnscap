@@ -119,14 +119,12 @@ not tested against filter options that require a DNS header such as
 .Fl s ,
 and
 .Fl e .
-The first DNS header in the stream is captured if it passes all filter
-options.
-All subsequent non-empty packets in the stream, regardless of DNS message
-boundaries, will be captured if and only if the first DNS header passed all
-filter options.
+All DNS messages in the stream is captured if it passes all filter options.
 
-Each TCP packet with payload will be tagged as DNS with the support of having
-the DNS length arrive before the message in an own packet.
+Each TCP packet with payload will be tagged as DNS, unless
+.Fl o Ar reassemble_tcp=yes
+is used, with the support of having the DNS length arrive before the message
+in an own packet.
 Ongoing TCP connections can be inspected by using extended option
 .Fl o Ar parse_ongoing_tcp=yes .
 TCP packets are processed as they arrive so missing, unaligned data or DNS
@@ -494,6 +492,22 @@ Each TCP packet with payload will be tagged as DNS.
 Allow the TCP state to be reseted, this is used in diagnostic output and
 plugins when parsing the DNS in a TCP packet fails to try and recover from
 missing or unaligned data.
+.It reassemble_tcp=yes
+Enable reassembly of TCP packets, this will not parse each packet as an own
+DNS message but will store TCP segments until they can be reassembled.
+It will expect the DNS message length to come first and then wait for the
+full length of data to arrive until passing to outputs and plugins.
+Since the number of saved segments are limited and fixed, if the TCP steam
+becomes corrupt then processing may stop.
+Recovering from this can be done by enabling
+.Ar allow_reset_tcpstate=yes
+which will reset state and free all saved segments to try and start over.
+.It reassemble_tcp_faultreset=<num>
+This controls the number of faults that can happen before the state is
+reseted (as described above), faults are if the segments buffer are full or
+if the sequence is outside the TCP window.
+The default is zero which means it will reset the state as soon as the
+segment buffer is full.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:

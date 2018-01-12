@@ -70,7 +70,7 @@ enum dump_format {
 \
     0, 0, 0, 0, 0, 0, 0, \
 \
-    0, 0 \
+    0, 0, 0, 0 \
 }
 
 /* clang-format on */
@@ -104,8 +104,10 @@ struct options {
     size_t max_ipv6_fragments;
     size_t max_ipv6_fragments_per_packet;
 
-    int parse_ongoing_tcp;
-    int allow_reset_tcpstate;
+    int    parse_ongoing_tcp;
+    int    allow_reset_tcpstate;
+    int    reassemble_tcp;
+    size_t reassemble_tcp_faultreset;
 };
 
 int option_parse(options_t* options, const char* option);

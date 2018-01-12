@@ -37,6 +37,7 @@
 #include "tcpstate.h"
 #include "iaddr.h"
 #include "log.h"
+#include "tcpreasm.h"
 
 #define MAX_TCP_IDLE_TIME 600
 #define MAX_TCP_IDLE_COUNT 4096
@@ -105,6 +106,9 @@ void tcpstate_discard(tcpstate_ptr tcpstate, const char* msg)
         fprintf(stderr, "discarding packet: %s\n", msg);
     if (tcpstate) {
         UNLINK(tcpstates, tcpstate, link);
+        if (tcpstate->reasm) {
+            tcpreasm_free(tcpstate->reasm);
+        }
         free(tcpstate);
         tcpstate_count--;
         return;
@@ -128,5 +132,10 @@ void tcpstate_reset(tcpstate_ptr tcpstate, const char* msg)
         tcpstate->maxdiff = 0;
         tcpstate->dnslen  = 0;
         tcpstate->lastdns = tcpstate->currseq + tcpstate->currlen;
+
+        if (tcpstate->reasm) {
+            tcpreasm_reset(tcpstate->reasm);
+            tcpstate->reasm->seq_start = tcpstate->start;
+        }
     }
 }

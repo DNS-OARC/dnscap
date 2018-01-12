@@ -41,6 +41,7 @@
 #include "dumper.h"
 #include "endpoint.h"
 #include "tcpstate.h"
+#include "tcpreasm.h"
 
 extern tcpstate_ptr _curr_tcpstate; /* from tcpstate.c */
 
@@ -430,7 +431,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
     const u_char* dnspkt = 0;
     unsigned      proto, sport, dport;
     iaddr         from, to, initiator, responder;
-    int           response;
+    int           response, m;
     unsigned      flags    = DNSCAP_OUTPUT_ISLAYER;
     tcpstate_ptr  tcpstate = NULL;
     size_t        len, dnslen = 0;
@@ -549,6 +550,9 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             /* End of stream; deallocate the tcpstate. */
             if (tcpstate) {
                 UNLINK(tcpstates, tcpstate, link);
+                if (tcpstate->reasm) {
+                    tcpreasm_free(tcpstate->reasm);
+                }
                 free(tcpstate);
                 tcpstate_count--;
             }
@@ -602,7 +606,33 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             tcpstate->dnslen   = 0;
             tcpstate->lastdns  = seq;
         }
-        if (tcpstate) {
+        if (tcpstate && options.reassemble_tcp) {
+            if (!tcpstate->reasm) {
+                if (!(tcpstate->reasm = calloc(1, sizeof(tcpreasm_t)))) {
+                    logerr("out of memory, TCP reassembly failed");
+                    return;
+                }
+                tcpstate->reasm->seq_start = tcpstate->start;
+            }
+            if (options.allow_reset_tcpstate) {
+                if (tcpstate->reasm_faults > options.reassemble_tcp_faultreset) {
+                    if (dumptrace >= 3)
+                        fprintf(stderr, "fault reset ");
+                    tcpstate_reset(tcpstate, "too many reassembly faults");
+                    tcpstate->reasm->seq_start = seq;
+                    tcpstate->reasm_faults     = 0;
+                }
+                if (dumptrace >= 3)
+                    fprintf(stderr, "reassemble\n");
+                if (pcap_handle_tcp_segment(pkt, len, seq, tcpstate)) {
+                    tcpstate->reasm_faults++;
+                }
+            } else {
+                if (dumptrace >= 3)
+                    fprintf(stderr, "reassemble\n");
+                (void)pcap_handle_tcp_segment(pkt, len, seq, tcpstate);
+            }
+        } else if (tcpstate) {
             uint32_t seqdiff = seq - tcpstate->start;
 
             tcpstate->currseq = seq;
@@ -748,156 +778,181 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         return;
     }
 
-    /* Application. */
-    if (dnslen < sizeof dns) {
-        tcpstate_discard(tcpstate, "too small");
-        return;
-    }
-    memcpy(&dns, dnspkt, sizeof dns);
+    for (m = 0;; m++) {
+        if (tcpstate && tcpstate->reasm) {
+            if (m >= MAX_TCP_DNS_MSG)
+                return;
+            if (!tcpstate->reasm->dnsmsg[m])
+                continue;
+            dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
+            dnspkt = tcpstate->reasm->dnsmsg[m]->dnspkt;
+            flags |= DNSCAP_OUTPUT_ISDNS;
+            if (tcpstate->reasm->dnsmsg[m]->segments_seen > 1) {
+                /* emulate dnslen in own packet */
+                _curr_tcpstate = tcpstate;
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+                _curr_tcpstate = 0;
+            }
+        }
 
-    /* Policy filtering. */
-    if (dns.qr == 0 && dport == dns_port) {
-        if ((dir_wanted & DIR_INITIATE) == 0) {
-            tcpstate_discard(tcpstate, "unwanted dir=i");
+        /* Application. */
+        if (dnslen < sizeof dns) {
+            tcpstate_discard(tcpstate, "too small");
             return;
         }
-        initiator = from;
-        responder = to;
-        response  = FALSE;
-    } else if (dns.qr != 0 && sport == dns_port) {
-        if ((dir_wanted & DIR_RESPONSE) == 0) {
-            tcpstate_discard(tcpstate, "unwanted dir=r");
-            return;
-        }
-        initiator = to;
-        responder = from;
-        response  = TRUE;
-    } else {
-        tcpstate_discard(tcpstate, "unwanted direction/port");
-        return;
-    }
-    if ((!EMPTY(initiators) && !ep_present(&initiators, initiator)) || (!EMPTY(responders) && !ep_present(&responders, responder))) {
-        tcpstate_discard(tcpstate, "unwanted host");
-        return;
-    }
-    if ((!EMPTY(not_initiators) && ep_present(&not_initiators, initiator)) || (!EMPTY(not_responders) && ep_present(&not_responders, responder))) {
-        tcpstate_discard(tcpstate, "missing required host");
-        return;
-    }
-    if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
-        tcpstate_discard(tcpstate, "unwanted opcode");
-        return;
-    }
-    if (response) {
-        int match_tc    = (dns.tc != 0 && err_wanted & ERR_TRUNC);
-        int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
+        memcpy(&dns, dnspkt, sizeof dns);
 
-        if (!match_tc && !match_rcode) {
-            tcpstate_discard(tcpstate, "unwanted error code");
+        /* Policy filtering. */
+        if (dns.qr == 0 && dport == dns_port) {
+            if ((dir_wanted & DIR_INITIATE) == 0) {
+                tcpstate_discard(tcpstate, "unwanted dir=i");
+                return;
+            }
+            initiator = from;
+            responder = to;
+            response  = FALSE;
+        } else if (dns.qr != 0 && sport == dns_port) {
+            if ((dir_wanted & DIR_RESPONSE) == 0) {
+                tcpstate_discard(tcpstate, "unwanted dir=r");
+                return;
+            }
+            initiator = to;
+            responder = from;
+            response  = TRUE;
+        } else {
+            tcpstate_discard(tcpstate, "unwanted direction/port");
             return;
         }
-        if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
-            tcpstate_discard(tcpstate, "dropped response due to -Y");
+        if ((!EMPTY(initiators) && !ep_present(&initiators, initiator)) || (!EMPTY(responders) && !ep_present(&responders, responder))) {
+            tcpstate_discard(tcpstate, "unwanted host");
             return;
         }
-    }
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-    if (!EMPTY(myregexes)) {
-        int     match, negmatch;
-        ns_msg  msg;
-        ns_sect s;
+        if ((!EMPTY(not_initiators) && ep_present(&not_initiators, initiator)) || (!EMPTY(not_responders) && ep_present(&not_responders, responder))) {
+            tcpstate_discard(tcpstate, "missing required host");
+            return;
+        }
+        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
+            tcpstate_discard(tcpstate, "unwanted opcode");
+            return;
+        }
+        if (response) {
+            int match_tc    = (dns.tc != 0 && err_wanted & ERR_TRUNC);
+            int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
 
-        match    = -1;
-        negmatch = -1;
-        if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
-            /* DNS message may have padding, try get actual size */
-            if (errno == EMSGSIZE) {
-                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
-                    tcpstate_discard(tcpstate, "failed parse");
-                    return;
-                }
-            } else {
-                tcpstate_discard(tcpstate, "failed parse");
+            if (!match_tc && !match_rcode) {
+                tcpstate_discard(tcpstate, "unwanted error code");
+                return;
+            }
+            if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
+                tcpstate_discard(tcpstate, "dropped response due to -Y");
                 return;
             }
         }
-        /* Look at each section of the message:
-             question, answer, authority, additional */
-        for (s = ns_s_qd; s < ns_s_max; s++) {
-            char        pres[SNAPLEN * 4];
-            const char* look;
-            int         count, n;
-            ns_rr       rr;
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
+        if (!EMPTY(myregexes)) {
+            int     match, negmatch;
+            ns_msg  msg;
+            ns_sect s;
 
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            count = ns_msg_count(msg, s);
-            for (n = 0; n < count; n++) {
-                myregex_ptr myregex;
-
-                if (ns_parserr(&msg, s, n, &rr) < 0) {
-                    tcpstate_discard(tcpstate, "failed parse");
-                    return;
-                }
-                if (s == ns_s_qd) {
-                    look = ns_rr_name(rr);
-                } else {
-                    if (ns_sprintrr(&msg, &rr, NULL, ".",
-                            pres, sizeof pres)
-                        < 0) {
+            match    = -1;
+            negmatch = -1;
+            if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
+                /* DNS message may have padding, try get actual size */
+                if (errno == EMSGSIZE) {
+                    size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                    if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
                         tcpstate_discard(tcpstate, "failed parse");
                         return;
                     }
-                    look = pres;
+                } else {
+                    tcpstate_discard(tcpstate, "failed parse");
+                    return;
                 }
-                for (myregex = HEAD(myregexes);
-                     myregex != NULL;
-                     myregex = NEXT(myregex, link)) {
-                    if (myregex->not) {
-                        if (negmatch < 0)
-                            negmatch = 0;
-                    } else {
-                        if (match < 0)
-                            match = 0;
+            }
+            /* Look at each section of the message:
+                 question, answer, authority, additional */
+            for (s = ns_s_qd; s < ns_s_max; s++) {
+                char        pres[SNAPLEN * 4];
+                const char* look;
+                int         count, n;
+                ns_rr       rr;
+
+                /* Look at each RR in the section (or each QNAME in
+                   the question section). */
+                count = ns_msg_count(msg, s);
+                for (n = 0; n < count; n++) {
+                    myregex_ptr myregex;
+
+                    if (ns_parserr(&msg, s, n, &rr) < 0) {
+                        tcpstate_discard(tcpstate, "failed parse");
+                        return;
                     }
+                    if (s == ns_s_qd) {
+                        look = ns_rr_name(rr);
+                    } else {
+                        if (ns_sprintrr(&msg, &rr, NULL, ".",
+                                pres, sizeof pres)
+                            < 0) {
+                            tcpstate_discard(tcpstate, "failed parse");
+                            return;
+                        }
+                        look = pres;
+                    }
+                    for (myregex = HEAD(myregexes);
+                         myregex != NULL;
+                         myregex = NEXT(myregex, link)) {
+                        if (myregex->not) {
+                            if (negmatch < 0)
+                                negmatch = 0;
+                        } else {
+                            if (match < 0)
+                                match = 0;
+                        }
 
-                    if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                        if (myregex->not)
-                            negmatch++;
-                        else
-                            match++;
+                        if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
+                            if (myregex->not)
+                                negmatch++;
+                            else
+                                match++;
 
-                        if (dumptrace >= 2)
-                            fprintf(stderr,
-                                "; \"%s\" %s~ /%s/ %d %d\n",
-                                look,
-                                myregex->not? "!" : "",
-                                myregex->str,
-                                match,
-                                negmatch);
+                            if (dumptrace >= 2)
+                                fprintf(stderr,
+                                    "; \"%s\" %s~ /%s/ %d %d\n",
+                                    look,
+                                    myregex->not? "!" : "",
+                                    myregex->str,
+                                    match,
+                                    negmatch);
+                        }
                     }
                 }
             }
+            /*
+             * Fail if any negative matching or if no match, match can be -1 which
+             * indicates that there are only negative matching
+             */
+            if (negmatch > 0 || match == 0) {
+                tcpstate_discard(tcpstate, "failed regex match");
+                return;
+            }
         }
-        /*
-         * Fail if any negative matching or if no match, match can be -1 which
-         * indicates that there are only negative matching
-         */
-        if (negmatch > 0 || match == 0) {
-            tcpstate_discard(tcpstate, "failed regex match");
-            return;
-        }
-    }
 #endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 
-    /*
-     * TODO: Policy hiding.
-     */
+        /*
+         * TODO: Policy hiding.
+         */
 
-    _curr_tcpstate = tcpstate;
-    output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
-    _curr_tcpstate = 0;
+        _curr_tcpstate = tcpstate;
+        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
+        _curr_tcpstate = 0;
+
+        if (tcpstate && tcpstate->reasm) {
+            free(tcpstate->reasm->dnsmsg[m]);
+            tcpstate->reasm->dnsmsg[m] = 0;
+            tcpstate->reasm->dnsmsgs--;
+        } else
+            break;
+    }
 }
 
 void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
@@ -908,7 +963,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     unsigned        proto, sport, dport;
     iaddr           from, to, initiator, responder;
     struct ip6_hdr* ipv6;
-    int             response;
+    int             response, m;
     unsigned        flags    = 0;
     struct udphdr*  udp      = NULL;
     struct tcphdr*  tcp      = NULL;
@@ -1107,7 +1162,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         offset = tcp->th_off * 4;
         pkt += offset;
         len -= offset;
-#if 1
+
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
             fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] ", ProgramName,
@@ -1131,6 +1186,9 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             /* End of stream; deallocate the tcpstate. */
             if (tcpstate) {
                 UNLINK(tcpstates, tcpstate, link);
+                if (tcpstate->reasm) {
+                    tcpreasm_free(tcpstate->reasm);
+                }
                 free(tcpstate);
                 tcpstate_count--;
             }
@@ -1179,7 +1237,33 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             tcpstate->dnslen   = 0;
             tcpstate->lastdns  = seq;
         }
-        if (tcpstate) {
+        if (tcpstate && options.reassemble_tcp) {
+            if (!tcpstate->reasm) {
+                if (!(tcpstate->reasm = calloc(1, sizeof(tcpreasm_t)))) {
+                    logerr("out of memory, TCP reassembly failed");
+                    return;
+                }
+                tcpstate->reasm->seq_start = tcpstate->start;
+            }
+            if (options.allow_reset_tcpstate) {
+                if (tcpstate->reasm_faults > options.reassemble_tcp_faultreset) {
+                    if (dumptrace >= 3)
+                        fprintf(stderr, "fault reset ");
+                    tcpstate_reset(tcpstate, "too many reassembly faults");
+                    tcpstate->reasm->seq_start = seq;
+                    tcpstate->reasm_faults     = 0;
+                }
+                if (dumptrace >= 3)
+                    fprintf(stderr, "reassemble\n");
+                if (pcap_handle_tcp_segment(pkt, len, seq, tcpstate)) {
+                    tcpstate->reasm_faults++;
+                }
+            } else {
+                if (dumptrace >= 3)
+                    fprintf(stderr, "reassemble\n");
+                (void)pcap_handle_tcp_segment(pkt, len, seq, tcpstate);
+            }
+        } else if (tcpstate) {
             uint32_t seqdiff  = seq - tcpstate->start;
             tcpstate->currseq = seq;
             tcpstate->currlen = len;
@@ -1305,218 +1389,243 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
              * discard this stream. */
             return;
         }
-#endif
         break;
     }
     default:
         return;
     }
 
-    /* Application. */
-    if (dnslen < sizeof dns) {
-        tcpstate_discard(tcpstate, "too small");
-        return;
-    }
-    memcpy(&dns, dnspkt, sizeof dns);
+    for (m = 0;; m++) {
+        if (tcpstate && tcpstate->reasm) {
+            if (m >= MAX_TCP_DNS_MSG)
+                return;
+            if (!tcpstate->reasm->dnsmsg[m])
+                continue;
+            dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
+            dnspkt = tcpstate->reasm->dnsmsg[m]->dnspkt;
+            flags |= DNSCAP_OUTPUT_ISDNS;
+            if (tcpstate->reasm->dnsmsg[m]->segments_seen > 1) {
+                /* emulate dnslen in own packet */
+                _curr_tcpstate = tcpstate;
+                output(descr, from, to, proto, flags, sport, dport, ts,
+                    pkt_copy, olen, NULL, 0);
+                _curr_tcpstate = 0;
+            }
+        }
 
-    /* Policy filtering. */
-    if (dns.qr == 0 && dport == dns_port) {
-        if ((dir_wanted & DIR_INITIATE) == 0) {
-            tcpstate_discard(tcpstate, "unwanted dir=i");
+        /* Application. */
+        if (dnslen < sizeof dns) {
+            tcpstate_discard(tcpstate, "too small");
             return;
         }
-        initiator = from;
-        responder = to;
-        response  = FALSE;
-    } else if (dns.qr != 0 && sport == dns_port) {
-        if ((dir_wanted & DIR_RESPONSE) == 0) {
-            tcpstate_discard(tcpstate, "unwanted dir=r");
-            return;
-        }
-        initiator = to;
-        responder = from;
-        response  = TRUE;
-    } else {
-        tcpstate_discard(tcpstate, "unwanted direction/port");
-        return;
-    }
-    if ((!EMPTY(initiators) && !ep_present(&initiators, initiator)) || (!EMPTY(responders) && !ep_present(&responders, responder))) {
-        tcpstate_discard(tcpstate, "unwanted host");
-        return;
-    }
-    if ((!EMPTY(not_initiators) && ep_present(&not_initiators, initiator)) || (!EMPTY(not_responders) && ep_present(&not_responders, responder))) {
-        tcpstate_discard(tcpstate, "missing required host");
-        return;
-    }
-    if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
-        tcpstate_discard(tcpstate, "unwanted opcode");
-        return;
-    }
-    if (response) {
-        int match_tc    = (dns.tc != 0 && err_wanted & ERR_TRUNC);
-        int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
+        memcpy(&dns, dnspkt, sizeof dns);
 
-        if (!match_tc && !match_rcode) {
-            tcpstate_discard(tcpstate, "unwanted error code");
+        /* Policy filtering. */
+        if (dns.qr == 0 && dport == dns_port) {
+            if ((dir_wanted & DIR_INITIATE) == 0) {
+                tcpstate_discard(tcpstate, "unwanted dir=i");
+                return;
+            }
+            initiator = from;
+            responder = to;
+            response  = FALSE;
+        } else if (dns.qr != 0 && sport == dns_port) {
+            if ((dir_wanted & DIR_RESPONSE) == 0) {
+                tcpstate_discard(tcpstate, "unwanted dir=r");
+                return;
+            }
+            initiator = to;
+            responder = from;
+            response  = TRUE;
+        } else {
+            tcpstate_discard(tcpstate, "unwanted direction/port");
             return;
         }
-        if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
-            tcpstate_discard(tcpstate, "dropped response due to -Y");
+        if ((!EMPTY(initiators) && !ep_present(&initiators, initiator)) || (!EMPTY(responders) && !ep_present(&responders, responder))) {
+            tcpstate_discard(tcpstate, "unwanted host");
             return;
         }
-    }
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-    if (!EMPTY(myregexes)) {
-        int     match, negmatch;
-        ns_msg  msg;
-        ns_sect s;
+        if ((!EMPTY(not_initiators) && ep_present(&not_initiators, initiator)) || (!EMPTY(not_responders) && ep_present(&not_responders, responder))) {
+            tcpstate_discard(tcpstate, "missing required host");
+            return;
+        }
+        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
+            tcpstate_discard(tcpstate, "unwanted opcode");
+            return;
+        }
+        if (response) {
+            int match_tc    = (dns.tc != 0 && err_wanted & ERR_TRUNC);
+            int match_rcode = err_wanted & (ERR_RCODE_BASE << dns.rcode);
 
-        match    = -1;
-        negmatch = -1;
-        if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
-            /* DNS message may have padding, try get actual size */
-            if (errno == EMSGSIZE) {
-                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
-                    tcpstate_discard(tcpstate, "failed parse");
-                    return;
-                }
-            } else {
-                tcpstate_discard(tcpstate, "failed parse");
+            if (!match_tc && !match_rcode) {
+                tcpstate_discard(tcpstate, "unwanted error code");
+                return;
+            }
+            if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
+                tcpstate_discard(tcpstate, "dropped response due to -Y");
                 return;
             }
         }
-        /* Look at each section of the message:
-             question, answer, authority, additional */
-        for (s = ns_s_qd; s < ns_s_max; s++) {
-            char        pres[SNAPLEN * 4];
-            const char* look;
-            int         count, n;
-            ns_rr       rr;
+#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
+        if (!EMPTY(myregexes)) {
+            int     match, negmatch;
+            ns_msg  msg;
+            ns_sect s;
 
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            count = ns_msg_count(msg, s);
-            for (n = 0; n < count; n++) {
-                myregex_ptr myregex;
-
-                if (ns_parserr(&msg, s, n, &rr) < 0) {
-                    tcpstate_discard(tcpstate, "failed parse");
-                    return;
-                }
-                if (s == ns_s_qd) {
-                    look = ns_rr_name(rr);
-                } else {
-                    if (ns_sprintrr(&msg, &rr, NULL, ".",
-                            pres, sizeof pres)
-                        < 0) {
+            match    = -1;
+            negmatch = -1;
+            if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
+                /* DNS message may have padding, try get actual size */
+                if (errno == EMSGSIZE) {
+                    size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                    if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
                         tcpstate_discard(tcpstate, "failed parse");
                         return;
                     }
-                    look = pres;
+                } else {
+                    tcpstate_discard(tcpstate, "failed parse");
+                    return;
                 }
-                for (myregex = HEAD(myregexes);
-                     myregex != NULL;
-                     myregex = NEXT(myregex, link)) {
-                    if (myregex->not) {
-                        if (negmatch < 0)
-                            negmatch = 0;
-                    } else {
-                        if (match < 0)
-                            match = 0;
+            }
+            /* Look at each section of the message:
+                 question, answer, authority, additional */
+            for (s = ns_s_qd; s < ns_s_max; s++) {
+                char        pres[SNAPLEN * 4];
+                const char* look;
+                int         count, n;
+                ns_rr       rr;
+
+                /* Look at each RR in the section (or each QNAME in
+                   the question section). */
+                count = ns_msg_count(msg, s);
+                for (n = 0; n < count; n++) {
+                    myregex_ptr myregex;
+
+                    if (ns_parserr(&msg, s, n, &rr) < 0) {
+                        tcpstate_discard(tcpstate, "failed parse");
+                        return;
                     }
+                    if (s == ns_s_qd) {
+                        look = ns_rr_name(rr);
+                    } else {
+                        if (ns_sprintrr(&msg, &rr, NULL, ".",
+                                pres, sizeof pres)
+                            < 0) {
+                            tcpstate_discard(tcpstate, "failed parse");
+                            return;
+                        }
+                        look = pres;
+                    }
+                    for (myregex = HEAD(myregexes);
+                         myregex != NULL;
+                         myregex = NEXT(myregex, link)) {
+                        if (myregex->not) {
+                            if (negmatch < 0)
+                                negmatch = 0;
+                        } else {
+                            if (match < 0)
+                                match = 0;
+                        }
 
-                    if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                        if (myregex->not)
-                            negmatch++;
-                        else
-                            match++;
+                        if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
+                            if (myregex->not)
+                                negmatch++;
+                            else
+                                match++;
 
-                        if (dumptrace >= 2)
-                            fprintf(stderr,
-                                "; \"%s\" %s~ /%s/ %d %d\n",
-                                look,
-                                myregex->not? "!" : "",
-                                myregex->str,
-                                match,
-                                negmatch);
+                            if (dumptrace >= 2)
+                                fprintf(stderr,
+                                    "; \"%s\" %s~ /%s/ %d %d\n",
+                                    look,
+                                    myregex->not? "!" : "",
+                                    myregex->str,
+                                    match,
+                                    negmatch);
+                        }
                     }
                 }
             }
+            /*
+             * Fail if any negative matching or if no match, match can be -1 which
+             * indicates that there are only negative matching
+             */
+            if (negmatch > 0 || match == 0) {
+                tcpstate_discard(tcpstate, "failed regex match");
+                return;
+            }
         }
-        /*
-         * Fail if any negative matching or if no match, match can be -1 which
-         * indicates that there are only negative matching
-         */
-        if (negmatch > 0 || match == 0) {
-            tcpstate_discard(tcpstate, "failed regex match");
-            return;
-        }
-    }
 #endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 
-    /* Policy hiding. */
-    if (end_hide != 0) {
-        switch (from.af) {
-        case AF_INET: {
-            void *    init_addr, *resp_addr;
-            uint16_t* init_port;
+        /* Policy hiding. */
+        if (end_hide != 0) {
+            switch (from.af) {
+            case AF_INET: {
+                void *    init_addr, *resp_addr;
+                uint16_t* init_port;
 
-            if (dns.qr == 0) {
-                init_addr = (void*)&ip->ip_src;
-                resp_addr = (void*)&ip->ip_dst;
-                init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
-            } else {
-                init_addr = (void*)&ip->ip_dst;
-                resp_addr = (void*)&ip->ip_src;
-                init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
+                if (dns.qr == 0) {
+                    init_addr = (void*)&ip->ip_src;
+                    resp_addr = (void*)&ip->ip_dst;
+                    init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
+                } else {
+                    init_addr = (void*)&ip->ip_dst;
+                    resp_addr = (void*)&ip->ip_src;
+                    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
+                }
+
+                if ((end_hide & END_INITIATOR) != 0) {
+                    memcpy(init_addr, HIDE_INET, sizeof(struct in_addr));
+                    *init_port = htons(HIDE_PORT);
+                }
+                if ((end_hide & END_RESPONDER) != 0)
+                    memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
+
+                ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
+                if (udp)
+                    udp->uh_sum = 0U;
+                break;
             }
+            case AF_INET6: {
+                void *    init_addr, *resp_addr;
+                uint16_t* init_port;
 
-            if ((end_hide & END_INITIATOR) != 0) {
-                memcpy(init_addr, HIDE_INET, sizeof(struct in_addr));
-                *init_port = htons(HIDE_PORT);
+                if (dns.qr == 0) {
+                    init_addr = (void*)&ipv6->ip6_src;
+                    resp_addr = (void*)&ipv6->ip6_dst;
+                    init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
+                } else {
+                    init_addr = (void*)&ipv6->ip6_dst;
+                    resp_addr = (void*)&ipv6->ip6_src;
+                    init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
+                }
+
+                if ((end_hide & END_INITIATOR) != 0) {
+                    memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
+                    *init_port = htons(HIDE_PORT);
+                }
+                if ((end_hide & END_RESPONDER) != 0)
+                    memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
+
+                if (udp)
+                    udp->uh_sum = 0U;
+                break;
             }
-            if ((end_hide & END_RESPONDER) != 0)
-                memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
+            default:
+                abort();
+            }
+        }
+        _curr_tcpstate = tcpstate;
+        output(descr, from, to, proto, flags, sport, dport, ts,
+            pkt_copy, olen, dnspkt, dnslen);
+        _curr_tcpstate = 0;
 
-            ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
-            if (udp)
-                udp->uh_sum = 0U;
+        if (tcpstate && tcpstate->reasm) {
+            free(tcpstate->reasm->dnsmsg[m]);
+            tcpstate->reasm->dnsmsg[m] = 0;
+            tcpstate->reasm->dnsmsgs--;
+        } else
             break;
-        }
-        case AF_INET6: {
-            void *    init_addr, *resp_addr;
-            uint16_t* init_port;
-
-            if (dns.qr == 0) {
-                init_addr = (void*)&ipv6->ip6_src;
-                resp_addr = (void*)&ipv6->ip6_dst;
-                init_port = tcp ? &tcp->th_sport : &udp->uh_sport;
-            } else {
-                init_addr = (void*)&ipv6->ip6_dst;
-                resp_addr = (void*)&ipv6->ip6_src;
-                init_port = tcp ? &tcp->th_dport : &udp->uh_dport;
-            }
-
-            if ((end_hide & END_INITIATOR) != 0) {
-                memcpy(init_addr, HIDE_INET6, sizeof(struct in6_addr));
-                *init_port = htons(HIDE_PORT);
-            }
-            if ((end_hide & END_RESPONDER) != 0)
-                memcpy(resp_addr, HIDE_INET6, sizeof(struct in6_addr));
-
-            if (udp)
-                udp->uh_sum = 0U;
-            break;
-        }
-        default:
-            abort();
-        }
     }
-    _curr_tcpstate = tcpstate;
-    output(descr, from, to, proto, flags, sport, dport, ts,
-        pkt_copy, olen, dnspkt, dnslen);
-    _curr_tcpstate = 0;
 }
 
 uint16_t in_checksum(const u_char* ptr, size_t len)

@@ -241,6 +241,55 @@ struct vlan {
 typedef struct vlan* vlan_ptr;
 typedef LIST(struct vlan) vlan_list;
 
+#define MAX_TCP_WINDOW_SIZE (0xFFFF << 14)
+#define MAX_TCP_MSGS 8
+#define MAX_TCP_SEGS 8
+#define MAX_TCP_HOLES 8
+#define MAX_TCP_DNS_MSG 8
+
+typedef struct tcphole    tcphole_t;
+typedef struct tcp_msgbuf tcp_msgbuf_t;
+typedef struct tcp_segbuf tcp_segbuf_t;
+typedef struct tcpdnsmsg  tcpdnsmsg_t;
+typedef struct tcpreasm   tcpreasm_t;
+
+struct tcphole {
+    uint16_t start;
+    uint16_t len;
+};
+
+struct tcp_msgbuf {
+    uint32_t  seq;
+    uint16_t  dnslen;
+    tcphole_t hole[MAX_TCP_HOLES];
+    int       holes;
+    u_char    buf[];
+};
+
+struct tcp_segbuf {
+    uint32_t seq;
+    uint16_t len;
+    u_char   buf[];
+};
+
+struct tcpdnsmsg {
+    size_t   segments_seen;
+    uint16_t dnslen;
+    u_char   dnspkt[];
+};
+
+struct tcpreasm {
+    uint32_t      seq_start;
+    size_t        msgbufs;
+    u_char        dnslen_buf[2];
+    u_char        dnslen_bytes_seen_mask;
+    tcp_msgbuf_t* msgbuf[MAX_TCP_MSGS];
+    tcp_segbuf_t* segbuf[MAX_TCP_SEGS];
+    size_t        segments_seen;
+    size_t        dnsmsgs;
+    tcpdnsmsg_t*  dnsmsg[MAX_TCP_DNS_MSG];
+};
+
 struct tcpstate {
     LINK(struct tcpstate)
     link;
@@ -255,6 +304,9 @@ struct tcpstate {
     uint32_t lastdns;
     uint32_t currseq;
     size_t   currlen;
+
+    tcpreasm_t* reasm;
+    size_t      reasm_faults;
 };
 typedef struct tcpstate* tcpstate_ptr;
 typedef LIST(struct tcpstate) tcpstate_list;
