@@ -207,6 +207,17 @@ int option_parse(options_t* options, const char* option)
             options->allow_reset_tcpstate = 1;
             return 0;
         }
+    } else if (have("reassemble_tcp")) {
+        if (!strcmp(argument, "yes")) {
+            options->reassemble_tcp = 1;
+            return 0;
+        }
+    } else if (have("reassemble_tcp_faultreset")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->reassemble_tcp_faultreset = s;
+            return 0;
+        }
     }
 
     return 1;
