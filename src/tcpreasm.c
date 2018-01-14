@@ -45,7 +45,7 @@
         fprintf(stderr, "\n"); \
     }
 #define dsyslogf(a, b...) logerr(b)
-#define nptohs(p) ((((uint8_t*)(p))[0] << 8) | ((uint8_t*)(p))[1])
+#define nptohs(p) (((((uint8_t*)(p))[0] << 8) | ((uint8_t*)(p))[1]) & 0xffff)
 
 /*
  * Originally from DSC:
