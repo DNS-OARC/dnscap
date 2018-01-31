@@ -147,13 +147,16 @@ void rssm_usage()
     fprintf(stderr,
         "\nrssm.so options:\n"
         "\t-w <name>  write basic counters to <name>.<timesec>.<timeusec>\n"
-        "\t-s <name>  write source IPs to <name>.<timesec>.<timeusec>\n");
+        "\t-s <name>  write source IPs to <name>.<timesec>.<timeusec>\n"
+        "\t-D         don't fork on close\n");
 }
+
+static int dont_fork_on_close = 0;
 
 void rssm_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "w:s:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "w:s:D")) != EOF) {
         switch (c) {
         case 'w':
             if (counts_prefix)
@@ -164,6 +167,9 @@ void rssm_getopt(int* argc, char** argv[])
             if (sources_prefix)
                 free(sources_prefix);
             sources_prefix = strdup(optarg);
+            break;
+        case 'D':
+            dont_fork_on_close = 1;
             break;
         default:
             rssm_usage();
@@ -204,6 +210,7 @@ void rssm_save_counts(const char* sbuf)
         logerr("asprintf: out of memory");
         return;
     }
+    fprintf(stderr, "rssm: saving counts in %s\n", tbuf);
     fp = fopen(tbuf, "w");
     if (!fp) {
         logerr("%s: %s", sbuf, strerror(errno));
@@ -249,6 +256,7 @@ void rssm_save_counts(const char* sbuf)
                 i, counts.rcodes[i]);
     fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
     fclose(fp);
+    fprintf(stderr, "rssm: done\n");
     free(tbuf);
 }
 
@@ -262,6 +270,7 @@ void rssm_save_sources(const char* sbuf)
         logerr("asprintf: out of memory");
         return;
     }
+    fprintf(stderr, "rssm: saving %u sources in %s\n", counts.sources.num_addrs, tbuf);
     fp = fopen(tbuf, "w");
     if (!fp) {
         logerr("%s: %s", tbuf, strerror(errno));
@@ -271,6 +280,7 @@ void rssm_save_sources(const char* sbuf)
         fprintf(fp, "%s %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
     }
     fclose(fp);
+    fprintf(stderr, "rssm: done\n");
     free(tbuf);
 }
 
@@ -282,6 +292,16 @@ int rssm_close(my_bpftimeval ts)
 {
     char  sbuf[265];
     pid_t pid;
+
+    if (dont_fork_on_close) {
+        strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t*)&open_ts.tv_sec));
+        clos_ts = ts;
+        rssm_save_counts(sbuf);
+        if (sources_prefix)
+            rssm_save_sources(sbuf);
+        return 0;
+    }
+
     pid = fork();
     if (pid < 0) {
         logerr("rssm.so: fork: %s", strerror(errno));
