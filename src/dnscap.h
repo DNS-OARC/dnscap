@@ -288,6 +288,10 @@ struct tcpreasm {
     size_t        segments_seen;
     size_t        dnsmsgs;
     tcpdnsmsg_t*  dnsmsg[MAX_TCP_DNS_MSG];
+    uint32_t      seq_bfb;
+    tcp_segbuf_t* bfb_seg[MAX_TCP_SEGS];
+    u_char*       bfb_buf;
+    size_t        bfb_at;
 };
 
 struct tcpstate {

@@ -508,6 +508,15 @@ reseted (as described above), faults are if the segments buffer are full or
 if the sequence is outside the TCP window.
 The default is zero which means it will reset the state as soon as the
 segment buffer is full.
+.It reassemble_tcp_bfbparsedns=yes
+Enable an experimental additional layer of reassemble that uses libbind to
+parse the payload before accepting it.
+If the DNS is invalid it will move 2 bytes within the payload and treat it
+as a new payload, taking the DNS length again and restart the process.
+Requires that
+.Nm
+was compiled with libbind and
+.Ar reassemble_tcp=yes .
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:

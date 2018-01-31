@@ -36,6 +36,7 @@
 
 #include "tcpreasm.h"
 #include "log.h"
+#include "network.h"
 
 #include <stdlib.h>
 
@@ -46,6 +47,8 @@
     }
 #define dsyslogf(a, b...) logerr(b)
 #define nptohs(p) ((((uint8_t*)(p))[0] << 8) | ((uint8_t*)(p))[1])
+
+#define BFB_BUF_SIZE (0xffff + 0xffff + 2 + 2)
 
 /*
  * Originally from DSC:
@@ -76,13 +79,171 @@
  *
  */
 
-static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen)
+static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen, uint32_t seq)
 {
     int m;
 
+#if HAVE_NS_INITPARSE
+    if (options.reassemble_tcp_bfbparsedns) {
+        int    s;
+        ns_msg msg;
+        size_t at, len;
+
+        if (!t->bfb_buf && !(t->bfb_buf = malloc(BFB_BUF_SIZE))) {
+            dfprintf(1, "dns_protocol_handler: no memory for bfb_buf");
+            return 1;
+        }
+
+        /* if this is the first segment, add it to the processing buffer
+           and move up to next wanted segment */
+        if (seq == t->seq_bfb + 2) {
+            dfprintf(1, "dns_protocol_handler: first bfb_seg: seq = %u, len = %d", seq, dnslen);
+            if ((BFB_BUF_SIZE - t->bfb_at) < (dnslen + 2)) {
+                dfprintf(1, "dns_protocol_handler: out of space in bfb_buf");
+                return 1;
+            }
+
+            t->bfb_buf[t->bfb_at++] = dnslen >> 8;
+            t->bfb_buf[t->bfb_at++] = dnslen & 0xff;
+            memcpy(&t->bfb_buf[t->bfb_at], segment, dnslen);
+            t->bfb_at += dnslen;
+            t->seq_bfb += 2 + dnslen;
+        } else {
+            /* add segment for later processing */
+            dfprintf(1, "dns_protocol_handler: add bfb_seg: seq = %u, len = %d", seq, dnslen);
+            for (s = 0;; s++) {
+                if (s >= MAX_TCP_SEGS) {
+                    dfprintf(1, "dns_protocol_handler: out of bfbsegs");
+                    return 1;
+                }
+                if (t->bfb_seg[s])
+                    continue;
+                t->bfb_seg[s]      = calloc(1, sizeof(tcp_segbuf_t) + dnslen);
+                t->bfb_seg[s]->seq = seq;
+                t->bfb_seg[s]->len = dnslen;
+                memcpy(t->bfb_seg[s]->buf, segment, dnslen);
+                dfprintf(1, "dns_protocol_handler: new bfbseg %d: seq = %u, len = %d",
+                    s, t->bfb_seg[s]->seq, t->bfb_seg[s]->len);
+                break;
+            }
+            return 0;
+        }
+
+        for (;;) {
+            /* process the buffer, extract dnslen and try and parse */
+            for (at = 0, len = t->bfb_at;;) {
+                dfprintf(1, "dns_protocol_handler: processing at = %lu, len = %lu", at, len);
+                if (len < 2) {
+                    dfprintf(1, "dns_protocol_handler: bfb need more for dnslen");
+                    break;
+                }
+                dnslen = nptohs(&t->bfb_buf[at]) & 0xffff;
+                if (dnslen > 11) {
+                    /* 12 bytes minimum DNS header, other lengths should be invalid */
+                    if (len < dnslen + 2) {
+                        dfprintf(1, "dns_protocol_handler: bfb need %lu more", dnslen - len);
+                        break;
+                    }
+
+                    if (!ns_initparse(&t->bfb_buf[at + 2], dnslen, &msg)) {
+                        dfprintf(1, "dns_protocol_handler: dns at %lu len %u", at + 2, dnslen);
+
+                        for (m = 0; t->dnsmsg[m];) {
+                            if (++m >= MAX_TCP_DNS_MSG) {
+                                dfprintf(1, "dns_protocol_handler: %s", "out of dnsmsgs");
+                                return 1;
+                            }
+                        }
+                        if (!(t->dnsmsg[m] = calloc(1, sizeof(tcpdnsmsg_t) + dnslen))) {
+                            dsyslogf(LOG_ERR, "out of memory for dnsmsg (%d)", dnslen);
+                            return 1;
+                        }
+                        t->dnsmsgs++;
+                        t->dnsmsg[m]->dnslen = dnslen;
+                        memcpy(t->dnsmsg[m]->dnspkt, &t->bfb_buf[at + 2], dnslen);
+                        dfprintf(1, "dns_protocol_handler: new dnsmsg %d: dnslen = %d", m, dnslen);
+
+                        at += 2 + dnslen;
+                        len -= 2 + dnslen;
+                        continue;
+                    }
+                    if (errno == EMSGSIZE) {
+                        size_t l = calcdnslen(&t->bfb_buf[at + 2], dnslen);
+                        if (l > 0 && l < dnslen && !ns_initparse(&t->bfb_buf[at + 2], l, &msg)) {
+                            dfprintf(1, "dns_protocol_handler: dns at %lu len %u (real len %lu)", at + 2, dnslen, l);
+
+                            for (m = 0; t->dnsmsg[m];) {
+                                if (++m >= MAX_TCP_DNS_MSG) {
+                                    dfprintf(1, "dns_protocol_handler: %s", "out of dnsmsgs");
+                                    return 1;
+                                }
+                            }
+                            if (!(t->dnsmsg[m] = calloc(1, sizeof(tcpdnsmsg_t) + dnslen))) {
+                                dsyslogf(LOG_ERR, "out of memory for dnsmsg (%d)", dnslen);
+                                return 1;
+                            }
+                            t->dnsmsgs++;
+                            t->dnsmsg[m]->dnslen = dnslen;
+                            memcpy(t->dnsmsg[m]->dnspkt, &t->bfb_buf[at + 2], dnslen);
+                            dfprintf(1, "dns_protocol_handler: new dnsmsg %d: dnslen = %d", m, dnslen);
+
+                            at += 2 + dnslen;
+                            len -= 2 + dnslen;
+                            continue;
+                        }
+                    }
+                }
+                dfprintf(1, "dns_protocol_handler: bfb dns parse failed at %lu", at);
+                at += 2;
+                len -= 2;
+            }
+
+            /* check for leftovers in the buffer */
+            if (!len) {
+                dfprintf(1, "dns_protocol_handler: bfb all buf parsed, reset at");
+                t->bfb_at = 0;
+            } else if (len && at) {
+                dfprintf(1, "dns_protocol_handler: bfb move %lu len %lu", at, len);
+                memmove(t->bfb_buf, &t->bfb_buf[at], len);
+                t->bfb_at = len;
+            }
+
+            dfprintf(1, "dns_protocol_handler: bfb fill at %lu", t->bfb_at);
+            /* see if we can fill the buffer */
+            for (s = 0;; s++) {
+                if (s >= MAX_TCP_SEGS) {
+                    dfprintf(1, "dns_protocol_handler: bfb need next seg");
+                    return 0;
+                }
+                if (!t->bfb_seg[s])
+                    continue;
+
+                if (t->bfb_seg[s]->seq == t->seq_bfb + 2) {
+                    tcp_segbuf_t* seg = t->bfb_seg[s];
+                    dfprintf(1, "dns_protocol_handler: next bfb_seg %d: seq = %u, len = %d", s, seg->seq, seg->len);
+                    if ((BFB_BUF_SIZE - t->bfb_at) < (seg->len + 2)) {
+                        dfprintf(1, "dns_protocol_handler: out of space in bfb_buf");
+                        return 1;
+                    }
+                    t->bfb_seg[s]           = 0;
+                    t->bfb_buf[t->bfb_at++] = seg->len >> 8;
+                    t->bfb_buf[t->bfb_at++] = seg->len & 0xff;
+                    memcpy(&t->bfb_buf[t->bfb_at], seg->buf, seg->len);
+                    t->bfb_at += seg->len;
+                    t->seq_bfb += 2 + seg->len;
+                    free(seg);
+                    break;
+                }
+            }
+            len = t->bfb_at;
+        }
+        return 0;
+    }
+#endif
+
     for (m = 0; t->dnsmsg[m];) {
         if (++m >= MAX_TCP_DNS_MSG) {
-            dfprintf(1, "pcap_handle_tcp_segment: %s", "out of dnsmsgs");
+            dfprintf(1, "dns_protocol_handler: %s", "out of dnsmsgs");
             return 1;
         }
     }
@@ -95,7 +256,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen)
     t->dnsmsg[m]->segments_seen = t->segments_seen;
     t->dnsmsg[m]->dnslen        = dnslen;
     memcpy(t->dnsmsg[m]->dnspkt, segment, dnslen);
-    dfprintf(1, "pcap_handle_tcp_segment: new dnsmsg %d: dnslen = %d", m, dnslen);
+    dfprintf(1, "dns_protocol_handler: new dnsmsg %d: dnslen = %d", m, dnslen);
     t->segments_seen = 0;
     return 0;
 }
@@ -147,7 +308,7 @@ int pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr
         if (len >= dnslen) {
             /* this segment contains a complete message - avoid the reassembly
              * buffer and just handle the message immediately */
-            ret = dns_protocol_handler(tcpstate, segment, dnslen);
+            ret = dns_protocol_handler(tcpstate, segment, dnslen, seq);
 
             tcpstate->dnslen_bytes_seen_mask = 0; /* go back for another message in this tcp connection */
             /* handle the trailing part of the segment? */
@@ -314,7 +475,7 @@ int pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr
     if (tcpstate->msgbuf[m]->holes == 0) {
         /* We now have a completely reassembled dns message */
         dfprintf(2, "pcap_handle_tcp_segment: %s", "reassembly to dns_protocol_handler");
-        ret |= dns_protocol_handler(tcpstate, tcpstate->msgbuf[m]->buf, tcpstate->msgbuf[m]->dnslen);
+        ret |= dns_protocol_handler(tcpstate, tcpstate->msgbuf[m]->buf, tcpstate->msgbuf[m]->dnslen, tcpstate->msgbuf[m]->seq);
         tcpstate->dnslen_bytes_seen_mask = 0; /* go back for another message in this tcp connection */
         free(tcpstate->msgbuf[m]);
         tcpstate->msgbuf[m] = NULL;
@@ -345,12 +506,16 @@ void tcpreasm_free(tcpreasm_t* tcpreasm)
             if (tcpreasm->segbuf[i]) {
                 free(tcpreasm->segbuf[i]);
             }
+            if (tcpreasm->bfb_seg[i]) {
+                free(tcpreasm->bfb_seg[i]);
+            }
         }
         for (i = 0; i < MAX_TCP_DNS_MSG; i++) {
             if (tcpreasm->dnsmsg[i]) {
                 free(tcpreasm->dnsmsg[i]);
             }
         }
+        free(tcpreasm->bfb_buf);
         free(tcpreasm);
     }
 }
@@ -368,6 +533,9 @@ void tcpreasm_reset(tcpreasm_t* tcpreasm)
         for (i = 0; i < MAX_TCP_SEGS; i++) {
             if (tcpreasm->segbuf[i]) {
                 free(tcpreasm->segbuf[i]);
+            }
+            if (tcpreasm->bfb_seg[i]) {
+                free(tcpreasm->bfb_seg[i]);
             }
         }
         for (i = 0; i < MAX_TCP_DNS_MSG; i++) {

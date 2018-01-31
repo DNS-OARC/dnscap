@@ -736,4 +736,14 @@ void parse_args(int argc, char* argv[])
     if (!options.use_layers && (options.defrag_ipv4 || options.defrag_ipv6)) {
         usage("can't defragment IP packets without use_layers=yes");
     }
+
+    if (options.reassemble_tcp_bfbparsedns) {
+#if HAVE_NS_INITPARSE
+        if (!options.reassemble_tcp) {
+            usage("can't do byte for byte parsing of DNS without reassemble_tcp=yes");
+        }
+#else
+        usage("not compiled with libbind, needed for reassemble_tcp_bfbparsedns=yes");
+#endif
+    }
 }

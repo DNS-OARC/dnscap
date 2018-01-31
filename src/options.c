@@ -218,6 +218,11 @@ int option_parse(options_t* options, const char* option)
             options->reassemble_tcp_faultreset = s;
             return 0;
         }
+    } else if (have("reassemble_tcp_bfbparsedns")) {
+        if (!strcmp(argument, "yes")) {
+            options->reassemble_tcp_bfbparsedns = 1;
+            return 0;
+        }
     }
 
     return 1;
