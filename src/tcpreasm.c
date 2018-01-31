@@ -45,7 +45,7 @@
         fprintf(stderr, "\n"); \
     }
 #define dsyslogf(a, b...) logerr(b)
-#define nptohs(p) (((((uint8_t*)(p))[0] << 8) | ((uint8_t*)(p))[1]) & 0xffff)
+#define nptohs(p) ((((uint8_t*)(p))[0] << 8) | ((uint8_t*)(p))[1])
 
 /*
  * Originally from DSC:
@@ -131,7 +131,7 @@ int pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr
 
     if (3 == tcpstate->dnslen_bytes_seen_mask) {
         /* We have the dnslen stored now */
-        dnslen = nptohs(tcpstate->dnslen_buf);
+        dnslen = nptohs(tcpstate->dnslen_buf) & 0xffff;
         /*
          * Next we poison the mask to indicate we are in to the message body.
          * If one doesn't remember we're past the then,
