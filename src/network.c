@@ -613,6 +613,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     return;
                 }
                 tcpstate->reasm->seq_start = tcpstate->start;
+                tcpstate->reasm->seq_bfb   = tcpstate->start;
             }
             if (options.allow_reset_tcpstate) {
                 if (tcpstate->reasm_faults > options.reassemble_tcp_faultreset) {
@@ -620,6 +621,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                         fprintf(stderr, "fault reset ");
                     tcpstate_reset(tcpstate, "too many reassembly faults");
                     tcpstate->reasm->seq_start = seq;
+                    tcpstate->reasm->seq_bfb   = seq;
                     tcpstate->reasm_faults     = 0;
                 }
                 if (dumptrace >= 3)
@@ -1244,6 +1246,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     return;
                 }
                 tcpstate->reasm->seq_start = tcpstate->start;
+                tcpstate->reasm->seq_bfb   = tcpstate->start;
             }
             if (options.allow_reset_tcpstate) {
                 if (tcpstate->reasm_faults > options.reassemble_tcp_faultreset) {
@@ -1251,6 +1254,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                         fprintf(stderr, "fault reset ");
                     tcpstate_reset(tcpstate, "too many reassembly faults");
                     tcpstate->reasm->seq_start = seq;
+                    tcpstate->reasm->seq_bfb   = seq;
                     tcpstate->reasm_faults     = 0;
                 }
                 if (dumptrace >= 3)

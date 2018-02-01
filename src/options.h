@@ -70,7 +70,7 @@ enum dump_format {
 \
     0, 0, 0, 0, 0, 0, 0, \
 \
-    0, 0, 0, 0 \
+    0, 0, 0, 0, 0 \
 }
 
 /* clang-format on */
@@ -108,6 +108,7 @@ struct options {
     int    allow_reset_tcpstate;
     int    reassemble_tcp;
     size_t reassemble_tcp_faultreset;
+    int    reassemble_tcp_bfbparsedns;
 };
 
 int option_parse(options_t* options, const char* option);
