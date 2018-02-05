@@ -67,13 +67,13 @@ void prepare_bpft(void)
     }
 
     /*
- * Model
- * (vlan) and (transport)
- * (vlan) and ((icmp) or (frags) or (dns))
- * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
- * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
- * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
- */
+     * Model
+     * (vlan) and (transport)
+     * (vlan) and ((icmp) or (frags) or (dns))
+     * (vlan) and ((icmp) or ((frags) or (ports) and (hosts)))
+     * (vlan) and ((icmp) or ((frags) or ((tcp) or (udp)) and (hosts)))
+     * [(vlan) and] ( [(icmp) or] ([(frags) or] ( [(tcp) or] (udp) ) [and (hosts)] ) )
+     */
 
     /* Make a BPF program to do early course kernel-level filtering. */
     INIT_LIST(bpfl);
@@ -84,11 +84,11 @@ void prepare_bpft(void)
     if (wanticmp) {
         len += text_add(&bpfl, "( ip proto 1 or ip proto 58 ) or ");
     }
+    len += text_add(&bpfl, "( "); /* ( dns ...  */
+    len += text_add(&bpfl, "( "); /* ( ports ...  */
     if (wantfrags) {
         len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ");
     }
-    len += text_add(&bpfl, "( "); /* ( dns ...  */
-    len += text_add(&bpfl, "( "); /* ( ports ...  */
     if (wanttcp) {
         len += text_add(&bpfl, "( tcp port %d ) or ", dns_port);
         /* tcp packets can be filtered by initiators/responders, but
