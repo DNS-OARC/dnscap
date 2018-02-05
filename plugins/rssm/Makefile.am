@@ -13,6 +13,8 @@ rssm_la_SOURCES = rssm.c
 nodist_rssm_la_SOURCES = hashtbl.c
 BUILT_SOURCES = hashtbl.c
 rssm_la_LDFLAGS = -module -avoid-version
+TESTS = test1.sh
+EXTRA_DIST = $(TESTS) test1.gold
 endif
 
 hashtbl.c: $(top_srcdir)/src/hashtbl.c

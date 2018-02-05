@@ -64,16 +64,23 @@
 
 static logerr_t*     logerr;
 static my_bpftimeval open_ts;
-static my_bpftimeval clos_ts;
+static my_bpftimeval close_ts;
 #define COUNTS_PREFIX_DEFAULT "rssm"
-static char* counts_prefix  = 0;
-static char* sources_prefix = 0;
+static char* counts_prefix            = 0;
+static char* sources_prefix           = 0;
+static char* aggregated_prefix        = 0;
+static int   dont_fork_on_close       = 0;
+static int   sources_into_counters    = 0;
+static int   aggregated_into_counters = 0;
+static char* service_name             = 0;
+static int   rssac002v3_yaml          = 0;
 
 output_t rssm_output;
 
 #define MAX_SIZE_INDEX 4096
 #define MSG_SIZE_SHIFT 4
 #define MAX_TBL_ADDRS 2000000
+#define MAX_TBL_ADDRS2 200000
 #define MAX_RCODE (1 << 12)
 
 typedef struct {
@@ -83,21 +90,31 @@ typedef struct {
     unsigned int num_addrs;
 } my_hashtbl;
 
+typedef struct {
+    hashtbl*     tbl;
+    iaddr        addrs[MAX_TBL_ADDRS2];
+    uint64_t     count[MAX_TBL_ADDRS2];
+    unsigned int num_addrs;
+} my_hashtbl2;
+
 struct {
-    uint64_t   dns_udp_queries_received_ipv4;
-    uint64_t   dns_udp_queries_received_ipv6;
-    uint64_t   dns_tcp_queries_received_ipv4;
-    uint64_t   dns_tcp_queries_received_ipv6;
-    uint64_t   dns_udp_responses_sent_ipv4;
-    uint64_t   dns_udp_responses_sent_ipv6;
-    uint64_t   dns_tcp_responses_sent_ipv4;
-    uint64_t   dns_tcp_responses_sent_ipv6;
-    uint64_t   udp_query_size[MAX_SIZE_INDEX];
-    uint64_t   tcp_query_size[MAX_SIZE_INDEX];
-    uint64_t   udp_response_size[MAX_SIZE_INDEX];
-    uint64_t   tcp_response_size[MAX_SIZE_INDEX];
-    uint64_t   rcodes[MAX_RCODE];
-    my_hashtbl sources;
+    uint64_t    dns_udp_queries_received_ipv4;
+    uint64_t    dns_udp_queries_received_ipv6;
+    uint64_t    dns_tcp_queries_received_ipv4;
+    uint64_t    dns_tcp_queries_received_ipv6;
+    uint64_t    dns_udp_responses_sent_ipv4;
+    uint64_t    dns_udp_responses_sent_ipv6;
+    uint64_t    dns_tcp_responses_sent_ipv4;
+    uint64_t    dns_tcp_responses_sent_ipv6;
+    uint64_t    udp_query_size[MAX_SIZE_INDEX];
+    uint64_t    tcp_query_size[MAX_SIZE_INDEX];
+    uint64_t    udp_response_size[MAX_SIZE_INDEX];
+    uint64_t    tcp_response_size[MAX_SIZE_INDEX];
+    uint64_t    rcodes[MAX_RCODE];
+    my_hashtbl  sources;
+    my_hashtbl2 aggregated;
+    uint64_t    num_ipv4_sources;
+    uint64_t    num_ipv6_sources;
 } counts;
 
 static unsigned int
@@ -147,26 +164,55 @@ void rssm_usage()
     fprintf(stderr,
         "\nrssm.so options:\n"
         "\t-w <name>  write basic counters to <name>.<timesec>.<timeusec>\n"
+        "\t-Y         use RSSAC002v3 YAML format when writing counters, the\n"
+        "\t           file will contain multiple YAML documents, one for each\n"
+        "\t           RSSAC002v3 metric\n"
+        "\t           Used with; -S adds custom metric \"dnscap-rssm-sources\"\n"
+        "\t           and -A adds \"dnscap-rssm-aggregated-sources\"\n"
+        "\t-n <name>  the service name to use in RSSAC002v3 YAML\n"
+        "\t-S         write source IPs into counters file with the prefix\n"
+        "\t           \"source\" or ...\n"
         "\t-s <name>  write source IPs to <name>.<timesec>.<timeusec>\n"
+        "\t-A         write aggregated IPv6(/64) sources into counters file\n"
+        "\t           with the prefix \"aggregated-source\" or ...\n"
+        "\t-a <name>  write aggregated IPv6(/64) sources to\n"
+        "\t           <name>.<timesec>.<timeusec>\n"
         "\t-D         don't fork on close\n");
 }
-
-static int dont_fork_on_close = 0;
 
 void rssm_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "w:s:D")) != EOF) {
+    while ((c = getopt(*argc, *argv, "w:Yn:Ss:Aa:D")) != EOF) {
         switch (c) {
         case 'w':
             if (counts_prefix)
                 free(counts_prefix);
             counts_prefix = strdup(optarg);
             break;
+        case 'Y':
+            rssac002v3_yaml = 1;
+            break;
+        case 'n':
+            if (service_name)
+                free(service_name);
+            service_name = strdup(optarg);
+            break;
+        case 'S':
+            sources_into_counters = 1;
+            break;
         case 's':
             if (sources_prefix)
                 free(sources_prefix);
             sources_prefix = strdup(optarg);
+            break;
+        case 'A':
+            aggregated_into_counters = 1;
+            break;
+        case 'a':
+            if (aggregated_prefix)
+                free(aggregated_prefix);
+            aggregated_prefix = strdup(optarg);
             break;
         case 'D':
             dont_fork_on_close = 1;
@@ -175,6 +221,21 @@ void rssm_getopt(int* argc, char** argv[])
             rssm_usage();
             exit(1);
         }
+    }
+    if (sources_into_counters && sources_prefix) {
+        fprintf(stderr, "rssm: -S and -s can not be used at the same time!\n");
+        rssm_usage();
+        exit(1);
+    }
+    if (aggregated_into_counters && aggregated_prefix) {
+        fprintf(stderr, "rssm: -A and -a can not be used at the same time!\n");
+        rssm_usage();
+        exit(1);
+    }
+    if (rssac002v3_yaml && !service_name) {
+        fprintf(stderr, "rssm: service name (-n) needed for RSSAC002v3 YAML (-Y) output!\n");
+        rssm_usage();
+        exit(1);
     }
 }
 
@@ -193,8 +254,13 @@ int rssm_open(my_bpftimeval ts)
     open_ts = ts;
     if (counts.sources.tbl)
         hash_destroy(counts.sources.tbl);
+    if (counts.aggregated.tbl)
+        hash_destroy(counts.aggregated.tbl);
     memset(&counts, 0, sizeof(counts));
     if (!(counts.sources.tbl = hash_create(65536, iaddr_hash, iaddr_cmp, 0))) {
+        return -1;
+    }
+    if (!(counts.aggregated.tbl = hash_create(4096, iaddr_hash, iaddr_cmp, 0))) {
         return -1;
     }
     return 0;
@@ -214,47 +280,144 @@ void rssm_save_counts(const char* sbuf)
     fp = fopen(tbuf, "w");
     if (!fp) {
         logerr("%s: %s", sbuf, strerror(errno));
+        free(tbuf);
         return;
     }
-    fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
-    fprintf(fp, "last-packet-time %ld\n", (long)clos_ts.tv_sec);
-    fprintf(fp, "dns-udp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv4);
-    fprintf(fp, "dns-udp-queries-received-ipv6 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv6);
-    fprintf(fp, "dns-tcp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv4);
-    fprintf(fp, "dns-tcp-queries-received-ipv6 %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv6);
-    fprintf(fp, "dns-udp-responses-sent-ipv4 %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv4);
-    fprintf(fp, "dns-udp-responses-sent-ipv6 %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv6);
-    fprintf(fp, "dns-tcp-responses-sent-ipv4 %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv4);
-    fprintf(fp, "dns-tcp-responses-sent-ipv6 %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv6);
-    for (i = 0; i < MAX_SIZE_INDEX; i++)
-        if (counts.udp_query_size[i])
-            fprintf(fp, "dns-udp-query-size %d-%d %" PRIu64 "\n",
-                i << MSG_SIZE_SHIFT,
-                ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                counts.udp_query_size[i]);
-    for (i = 0; i < MAX_SIZE_INDEX; i++)
-        if (counts.tcp_query_size[i])
-            fprintf(fp, "dns-tcp-query-size %d-%d %" PRIu64 "\n",
-                i << MSG_SIZE_SHIFT,
-                ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                counts.tcp_query_size[i]);
-    for (i = 0; i < MAX_SIZE_INDEX; i++)
-        if (counts.udp_response_size[i])
-            fprintf(fp, "dns-udp-response-size %d-%d %" PRIu64 "\n",
-                i << MSG_SIZE_SHIFT,
-                ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                counts.udp_response_size[i]);
-    for (i = 0; i < MAX_SIZE_INDEX; i++)
-        if (counts.tcp_response_size[i])
-            fprintf(fp, "dns-tcp-response-size %d-%d %" PRIu64 "\n",
-                i << MSG_SIZE_SHIFT,
-                ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                counts.tcp_response_size[i]);
-    for (i = 0; i < MAX_RCODE; i++)
-        if (counts.rcodes[i])
-            fprintf(fp, "dns-rcode %d %" PRIu64 "\n",
-                i, counts.rcodes[i]);
-    fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
+    if (rssac002v3_yaml) {
+        char tz[21];
+        if (!strftime(tz, sizeof(tz), "%Y-%m-%dT%H:%M:%SZ", gmtime((time_t*)&open_ts.tv_sec))) {
+            logerr("rssm: strftime failed");
+            fclose(fp);
+            free(tbuf);
+            return;
+        }
+
+        fprintf(fp, "---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: traffic-volume\n", service_name, tz);
+        fprintf(fp, "dns-udp-queries-received-ipv4: %" PRIu64 "\n", counts.dns_udp_queries_received_ipv4);
+        fprintf(fp, "dns-udp-queries-received-ipv6: %" PRIu64 "\n", counts.dns_udp_queries_received_ipv6);
+        fprintf(fp, "dns-tcp-queries-received-ipv4: %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv4);
+        fprintf(fp, "dns-tcp-queries-received-ipv6: %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv6);
+        fprintf(fp, "dns-udp-responses-sent-ipv4: %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv4);
+        fprintf(fp, "dns-udp-responses-sent-ipv6: %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv6);
+        fprintf(fp, "dns-tcp-responses-sent-ipv4: %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv4);
+        fprintf(fp, "dns-tcp-responses-sent-ipv6: %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv6);
+
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: traffic-sizes\n", service_name, tz);
+        fprintf(fp, "udp-request-sizes:\n");
+        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+            if (counts.udp_query_size[i]) {
+                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.udp_query_size[i]);
+            }
+        }
+        fprintf(fp, "udp-response-sizes:\n");
+        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+            if (counts.udp_response_size[i]) {
+                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.udp_response_size[i]);
+            }
+        }
+        fprintf(fp, "tcp-request-sizes:\n");
+        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+            if (counts.tcp_query_size[i]) {
+                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.tcp_query_size[i]);
+            }
+        }
+        fprintf(fp, "tcp-response-sizes:\n");
+        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+            if (counts.tcp_response_size[i]) {
+                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.tcp_response_size[i]);
+            }
+        }
+
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: rcode-volume\n", service_name, tz);
+        for (i = 0; i < MAX_RCODE; i++) {
+            if (counts.rcodes[i]) {
+                fprintf(fp, "%d: %" PRIu64 "\n", i, counts.rcodes[i]);
+            }
+        }
+
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: unique-sources\n", service_name, tz);
+        fprintf(fp, "num-sources-ipv4: %" PRIu64 "\n", counts.num_ipv4_sources);
+        fprintf(fp, "num-sources-ipv6: %" PRIu64 "\n", counts.num_ipv6_sources);
+        fprintf(fp, "num-sources-ipv6-aggregate: %u\n", counts.aggregated.num_addrs);
+
+        if (sources_into_counters) {
+            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: dnscap-rssm-sources\n", service_name, tz);
+            fprintf(fp, "sources:\n");
+            for (i = 0; i < counts.sources.num_addrs; i++) {
+                fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
+            }
+        }
+
+        if (aggregated_into_counters) {
+            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: dnscap-rssm-aggregated-sources\n", service_name, tz);
+            fprintf(fp, "aggregated-sources:\n");
+            for (i = 0; i < counts.aggregated.num_addrs; i++) {
+                fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
+            }
+        }
+    } else {
+        fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
+        fprintf(fp, "last-packet-time %ld\n", (long)close_ts.tv_sec);
+        fprintf(fp, "dns-udp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv4);
+        fprintf(fp, "dns-udp-queries-received-ipv6 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv6);
+        fprintf(fp, "dns-tcp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv4);
+        fprintf(fp, "dns-tcp-queries-received-ipv6 %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv6);
+        fprintf(fp, "dns-udp-responses-sent-ipv4 %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv4);
+        fprintf(fp, "dns-udp-responses-sent-ipv6 %" PRIu64 "\n", counts.dns_udp_responses_sent_ipv6);
+        fprintf(fp, "dns-tcp-responses-sent-ipv4 %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv4);
+        fprintf(fp, "dns-tcp-responses-sent-ipv6 %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv6);
+        for (i = 0; i < MAX_SIZE_INDEX; i++)
+            if (counts.udp_query_size[i])
+                fprintf(fp, "dns-udp-query-size %d-%d %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.udp_query_size[i]);
+        for (i = 0; i < MAX_SIZE_INDEX; i++)
+            if (counts.tcp_query_size[i])
+                fprintf(fp, "dns-tcp-query-size %d-%d %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.tcp_query_size[i]);
+        for (i = 0; i < MAX_SIZE_INDEX; i++)
+            if (counts.udp_response_size[i])
+                fprintf(fp, "dns-udp-response-size %d-%d %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.udp_response_size[i]);
+        for (i = 0; i < MAX_SIZE_INDEX; i++)
+            if (counts.tcp_response_size[i])
+                fprintf(fp, "dns-tcp-response-size %d-%d %" PRIu64 "\n",
+                    i << MSG_SIZE_SHIFT,
+                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                    counts.tcp_response_size[i]);
+        for (i = 0; i < MAX_RCODE; i++)
+            if (counts.rcodes[i])
+                fprintf(fp, "dns-rcode %d %" PRIu64 "\n",
+                    i, counts.rcodes[i]);
+        fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
+        if (sources_into_counters) {
+            for (i = 0; i < counts.sources.num_addrs; i++) {
+                fprintf(fp, "source %s %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
+            }
+        }
+        if (aggregated_into_counters) {
+            for (i = 0; i < counts.aggregated.num_addrs; i++) {
+                fprintf(fp, "aggregated-source %s %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
+            }
+        }
+    }
     fclose(fp);
     fprintf(stderr, "rssm: done\n");
     free(tbuf);
@@ -274,10 +437,36 @@ void rssm_save_sources(const char* sbuf)
     fp = fopen(tbuf, "w");
     if (!fp) {
         logerr("%s: %s", tbuf, strerror(errno));
+        free(tbuf);
         return;
     }
     for (i = 0; i < counts.sources.num_addrs; i++) {
         fprintf(fp, "%s %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
+    }
+    fclose(fp);
+    fprintf(stderr, "rssm: done\n");
+    free(tbuf);
+}
+
+void rssm_save_aggregated(const char* sbuf)
+{
+    FILE* fp;
+    char* tbuf = 0;
+    int   i;
+    i = asprintf(&tbuf, "%s.%s.%06lu", aggregated_prefix, sbuf, (u_long)open_ts.tv_usec);
+    if (i < 1 || !tbuf) {
+        logerr("asprintf: out of memory");
+        return;
+    }
+    fprintf(stderr, "rssm: saving %u aggregated in %s\n", counts.aggregated.num_addrs, tbuf);
+    fp = fopen(tbuf, "w");
+    if (!fp) {
+        logerr("%s: %s", tbuf, strerror(errno));
+        free(tbuf);
+        return;
+    }
+    for (i = 0; i < counts.aggregated.num_addrs; i++) {
+        fprintf(fp, "%s %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
     }
     fclose(fp);
     fprintf(stderr, "rssm: done\n");
@@ -295,10 +484,12 @@ int rssm_close(my_bpftimeval ts)
 
     if (dont_fork_on_close) {
         strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t*)&open_ts.tv_sec));
-        clos_ts = ts;
+        close_ts = ts;
         rssm_save_counts(sbuf);
         if (sources_prefix)
             rssm_save_sources(sbuf);
+        if (aggregated_prefix)
+            rssm_save_aggregated(sbuf);
         return 0;
     }
 
@@ -322,30 +513,61 @@ int rssm_close(my_bpftimeval ts)
     }
     /* grandchild (2nd gen) continues */
     strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t*)&open_ts.tv_sec));
-    clos_ts = ts;
+    close_ts = ts;
     rssm_save_counts(sbuf);
     if (sources_prefix)
         rssm_save_sources(sbuf);
+    if (aggregated_prefix)
+        rssm_save_aggregated(sbuf);
     exit(0);
 }
 
 static void
-hash_find_or_add(iaddr ia, my_hashtbl* t)
+find_or_add(iaddr ia)
 {
-    uint64_t* c = hash_find(&ia, t->tbl);
+    uint64_t* c = hash_find(&ia, counts.sources.tbl);
     if (c) {
         (*c)++;
-        return;
+    } else {
+        if (counts.sources.num_addrs == MAX_TBL_ADDRS)
+            return;
+        counts.sources.addrs[counts.sources.num_addrs] = ia;
+        if (hash_add(&counts.sources.addrs[counts.sources.num_addrs], &counts.sources.count[counts.sources.num_addrs], counts.sources.tbl)) {
+            logerr("rssm.so: unable to add address to hash");
+            return;
+        }
+        counts.sources.count[counts.sources.num_addrs]++;
+        counts.sources.num_addrs++;
+        if (ia.af == AF_INET) {
+            counts.num_ipv4_sources++;
+        } else {
+            counts.num_ipv6_sources++;
+        }
     }
-    if (t->num_addrs == MAX_TBL_ADDRS)
-        return;
-    t->addrs[t->num_addrs] = ia;
-    if (hash_add(&t->addrs[t->num_addrs], &t->count[t->num_addrs], t->tbl)) {
-        logerr("rssm.so: unable to add address to hash");
-        return;
+
+    if (ia.af == AF_INET6) {
+        iaddr v6agg = ia;
+        int   i;
+
+        for (i = 8; i < 16 && i < sizeof(v6agg.u.a6.s6_addr); i++) {
+            v6agg.u.a6.s6_addr[i] = 0;
+        }
+
+        c = hash_find(&v6agg, counts.aggregated.tbl);
+        if (c) {
+            (*c)++;
+        } else {
+            if (counts.aggregated.num_addrs == MAX_TBL_ADDRS2)
+                return;
+            counts.aggregated.addrs[counts.aggregated.num_addrs] = v6agg;
+            if (hash_add(&counts.aggregated.addrs[counts.aggregated.num_addrs], &counts.aggregated.count[counts.aggregated.num_addrs], counts.aggregated.tbl)) {
+                logerr("rssm.so: unable to add aggregated address to hash");
+                return;
+            }
+            counts.aggregated.count[counts.aggregated.num_addrs]++;
+            counts.aggregated.num_addrs++;
+        }
     }
-    t->count[t->num_addrs]++;
-    t->num_addrs++;
 }
 
 void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
@@ -360,7 +582,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
         dnslen  = MAX_SIZE_INDEX - 1;
     HEADER* dns = (HEADER*)payload;
     if (0 == dns->qr) {
-        hash_find_or_add(from, &counts.sources);
+        find_or_add(from);
         if (IPPROTO_UDP == proto) {
             counts.udp_query_size[dnslen]++;
         } else if (IPPROTO_TCP == proto) {
