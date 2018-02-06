@@ -4,7 +4,7 @@ compiler:
   - gcc
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y libpcap-dev libldns-dev libbind-dev
+  - sudo apt-get install -y libpcap-dev libldns-dev libbind-dev libyaml-perl
 install: ./autogen.sh
 script:
   - ./configure
