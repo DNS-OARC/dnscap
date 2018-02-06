@@ -1,0 +1,222 @@
+#!/usr/bin/env perl
+#
+# Copyright (c) 2018, OARC, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+use strict;
+use warnings;
+use YAML;
+
+unless (scalar @ARGV > 1) {
+    print "usage: dnscap-rssm-rssac002 [--no-recompile|--keep-dnscap-rssm|--sort] <YAML files to merge...>\n";
+    exit(1);
+}
+
+my %service = ();
+my $earliest_start_period;
+my $recompile = 1;
+my $keep_dnscap_rssm = 0;
+my $sort = 0;
+
+foreach my $file (@ARGV) {
+    if ($file eq '--no-recompile') {
+        $recompile = 0;
+        next;
+    } elsif ($file eq '--keep-dnscap-rssm') {
+        $keep_dnscap_rssm = 1;
+        next;
+    } elsif ($file eq '--sort') {
+        $sort = 1;
+        next;
+    }
+    foreach my $doc (YAML::LoadFile($file)) {
+        my $version = delete $doc->{version};
+        my $service = delete $doc->{service};
+        my $start_period = delete $doc->{'start-period'};
+        my $metric = delete $doc->{metric};
+        unless ($version) {
+            die "$file: not valid RSSAC002 YAML, missing version";
+        }
+        unless ($service) {
+            die "$file: not valid RSSAC002 YAML, missing service";
+        }
+        unless ($start_period) {
+            die "$file: not valid RSSAC002 YAML, missing start-period";
+        }
+        unless ($metric) {
+            die "$file: not valid RSSAC002 YAML, missing metric";
+        }
+        unless ($version eq 'rssac002v3') {
+            die "$file: unsupported RSSAC002 version $version";
+        }
+
+        push(@{$service{$service}->{$metric}}, $doc);
+
+        if (!$earliest_start_period or $start_period lt $earliest_start_period) {
+            $earliest_start_period = $start_period;
+        }
+    }
+}
+
+foreach my $service (keys %service) {
+    foreach my $metric (keys %{$service{$service}}) {
+        my %doc = ();
+        foreach (@{$service{$service}->{$metric}}) {
+            eval {
+                merge(\%doc, $_);
+            };
+            if ($@) {
+                die "service $service metric $metric: $@";
+            }
+        }
+        $service{$service}->{$metric} = \%doc;
+    }
+}
+
+if ($recompile) {
+    foreach my $service (keys %service) {
+        my ($ipv4, $ipv6, $aggregated) = (0, 0, 0);
+        my $metric;
+
+        if ($keep_dnscap_rssm) {
+            $metric = $service{$service}->{'dnscap-rssm-sources'};
+        } else {
+            $metric = delete $service{$service}->{'dnscap-rssm-sources'};
+        }
+        if ($metric) {
+            if (ref($metric->{sources}) eq 'HASH') {
+                foreach my $ip (keys %{$metric->{sources}}) {
+                    if ($ip =~ /:/o) {
+                        $ipv6++;
+                    } else {
+                        $ipv4++;
+                    }
+                }
+            }
+        }
+
+        if ($keep_dnscap_rssm) {
+            $metric = $service{$service}->{'dnscap-rssm-aggregated-sources'};
+        } else {
+            $metric = delete $service{$service}->{'dnscap-rssm-aggregated-sources'};
+        }
+        if ($metric) {
+            if (ref($metric->{'aggregated-sources'}) eq 'HASH') {
+                my @keys = keys %{$metric->{'aggregated-sources'}};
+                $aggregated += scalar @keys;
+            }
+        }
+
+        $service{$service}->{'unique-sources'} = {
+            'num-sources-ipv4' => $ipv4,
+            'num-sources-ipv6' => $ipv6,
+            'num-sources-ipv6-aggregate' => $aggregated,
+        };
+    }
+}
+
+# Produce RSSAC002v3 output outselves since it contains "quirks"
+if ($sort) {
+    foreach my $service (sort keys %service) {
+        foreach my $metric (sort keys %{$service{$service}}) {
+            print "---\n";
+            print "version: rssac002v3\n";
+            print "service: $service\n";
+            print "start-period: '$earliest_start_period'\n";
+            print "metric: $metric\n";
+            output($service{$service}->{$metric}, '');
+            print "\n";
+        }
+    }
+} else {
+    foreach my $service (keys %service) {
+        foreach my $metric (keys %{$service{$service}}) {
+            print "---\n";
+            print "version: rssac002v3\n";
+            print "service: $service\n";
+            print "start-period: '$earliest_start_period'\n";
+            print "metric: $metric\n";
+            output($service{$service}->{$metric}, '');
+            print "\n";
+        }
+    }
+}
+
+sub output {
+    my ( $doc, $indent ) = @_;
+    my @keys;
+    if ($sort) {
+        @keys = sort {
+            if ($a =~ /^\d+\-\d+$/o) {
+                my ($aa) = split(/\-/o, $a, 2);
+                my ($bb) = split(/\-/o, $b, 2);
+                $aa <=> $bb;
+            } else {
+                $a cmp $b;
+            }
+        } keys %$doc;
+    } else {
+        @keys = keys %$doc;
+    }
+    foreach my $key (@keys) {
+        if (ref($doc->{$key}) eq 'HASH') {
+            print $indent.$key.":\n";
+            output($doc->{$key}, $indent.'  ');
+        } else {
+            print $indent.$key.': '.(defined($doc->{$key})?$doc->{$key}:'')."\n";
+        }
+    }
+}
+
+sub merge {
+    my ( $doc, $measurements ) = @_;
+
+    foreach my $key (keys %$measurements) {
+        if (ref($doc->{$key}) eq 'HASH') {
+            unless (ref($measurements->{$key}) eq 'HASH') {
+                die "invalid measurement types for key $key: not a hash";
+            }
+            eval {
+                merge($doc->{$key}, $measurements->{$key});
+            };
+            die $@ if ($@);
+            next;
+        }
+        if (defined($doc->{$key})) {
+            if (defined($measurements->{$key}) and $measurements->{$key} ne '') {
+                $doc->{$key} += $measurements->{$key};
+            }
+        } else {
+            $doc->{$key} = $measurements->{$key};
+        }
+    }
+}

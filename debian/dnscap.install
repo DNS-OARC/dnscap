@@ -1,5 +1,7 @@
 usr/share/man/man1/dnscap.1
+usr/share/man/man1/dnscap-rssm-rssac002.1
 usr/bin/dnscap
+usr/bin/dnscap-rssm-rssac002
 usr/lib/dnscap/pcapdump.so
 usr/lib/dnscap/txtout.so
 usr/lib/dnscap/rssm.so

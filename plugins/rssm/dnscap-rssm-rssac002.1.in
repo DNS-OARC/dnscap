@@ -1,0 +1,98 @@
+.\" Copyright (c) 2017-2018, OARC, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH dnscap-rssm-rssac002 1 "dnscap-v@PACKAGE_VERSION@" "dnscap RSSAC002v3 Tool"
+.SH NAME
+dnscap-rssm-rssac002 \- Combine RSSAC002v3 YAML files
+.SH SYNOPSIS
+.B dnscap-rssm-rssac002
+[
+.B \--no-recompile
+.B \--keep-dnscap-rssm
+.B \--sort
+]
+.I files...
+.SH DESCRIPTION
+This Perl script will merge and remove metric specific to this plugin and
+replace others to fill in correct values for the new time period.
+The earliest
+.I start-period
+found will be used for all metrics.
+.LP
+.B NOTE
+no parsing of
+.I start-period
+is performed, it is up to the operator to only give input files related
+to the same 24 hour period.
+.SH OPTIONS
+.TP
+.B \--no-recompile
+Disabled the combining of metrics and the removal of metrics specific to
+this plugin.
+.TP
+.B \--keep-dnscap-rssm
+Do the combining but keep the metrics specific to this plugin.
+.TP
+.B \--sort
+Output will always start with
+.IR version: ,
+.IR service: ,
+.I start-period:
+and
+.IR metric: ,
+rest of the values are not ordered by label.
+This option enabled sorting of them, which is not required by the
+specification but may help in debugging and testing cases.
+.SH SEE ALSO
+.BR dnscap (1)
+.SH AUTHORS
+Jerry Lundström, DNS-OARC
+.LP
+Maintained by DNS-OARC
+.LP
+.RS
+.I https://www.dns-oarc.net/
+.RE
+.LP
+.SH BUGS
+For issues and feature requests please use:
+.LP
+.RS
+\fI@PACKAGE_URL@\fP
+.RE
+.LP
+For question and help please use:
+.LP
+.RS
+\fI@PACKAGE_BUGREPORT@\fP
+.RE
+.LP

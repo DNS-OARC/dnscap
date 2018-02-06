@@ -17,6 +17,7 @@ BuildRequires:  zlib-devel
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  libtool
+BuildRequires:  perl-YAML
 
 %description
 dnscap is a network capture utility designed specifically for DNS
