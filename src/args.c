@@ -40,21 +40,24 @@
 #include "log.h"
 #include "tcpstate.h"
 
-#ifdef __OpenBSD__
-/* OpenBSD need file local functions for export to loaded modules */
+/*
+ * OpenBSD and Debian Stretch i386 need file local functions for export
+ * to loaded modules, so use this for all platforms.
+ */
 void* _tcpstate_getcurr(void)
 {
     return (void*)tcpstate_getcurr();
 }
+
 void _tcpstate_reset(void* tcpstate, const char* msg)
 {
     tcpstate_reset((tcpstate_ptr)tcpstate, msg);
 }
+
 const char* _ia_str(iaddr ia)
 {
     return ia_str(ia);
 }
-#endif
 
 #ifdef __linux__
 extern char* strptime(const char*, const char*, struct tm*);
@@ -558,15 +561,9 @@ void parse_args(int argc, char* argv[])
             p->extension = dlsym(p->handle, sn);
             if (p->extension) {
                 (*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
-#ifdef __OpenBSD__
                 (*p->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
                 (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
                 (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
-#else
-                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)ia_str);
-                (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)tcpstate_getcurr);
-                (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)tcpstate_reset);
-#endif
             }
             snprintf(sn, sizeof(sn), "%s_getopt", p->name);
             p->getopt = dlsym(p->handle, sn);
