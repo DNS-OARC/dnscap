@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,26 @@
 #include "endpoint.h"
 #include "iaddr.h"
 #include "log.h"
+#include "tcpstate.h"
+
+/*
+ * OpenBSD and Debian Stretch i386 need file local functions for export
+ * to loaded modules, so use this for all platforms.
+ */
+void* _tcpstate_getcurr(void)
+{
+    return (void*)tcpstate_getcurr();
+}
+
+void _tcpstate_reset(void* tcpstate, const char* msg)
+{
+    tcpstate_reset((tcpstate_ptr)tcpstate, msg);
+}
+
+const char* _ia_str(iaddr ia)
+{
+    return ia_str(ia);
+}
 
 #ifdef __linux__
 extern char* strptime(const char*, const char*, struct tm*);
@@ -541,7 +561,9 @@ void parse_args(int argc, char* argv[])
             p->extension = dlsym(p->handle, sn);
             if (p->extension) {
                 (*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
-                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)ia_str);
+                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
+                (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", p->name);
             p->getopt = dlsym(p->handle, sn);
@@ -710,5 +732,15 @@ void parse_args(int argc, char* argv[])
 
     if (!options.use_layers && (options.defrag_ipv4 || options.defrag_ipv6)) {
         usage("can't defragment IP packets without use_layers=yes");
+    }
+
+    if (options.reassemble_tcp_bfbparsedns) {
+#if HAVE_NS_INITPARSE
+        if (!options.reassemble_tcp) {
+            usage("can't do byte for byte parsing of DNS without reassemble_tcp=yes");
+        }
+#else
+        usage("not compiled with libbind, needed for reassemble_tcp_bfbparsedns=yes");
+#endif
     }
 }

@@ -1,0 +1,441 @@
+[60] 2017-12-11 13:59:04.949707 [#0 dnsotcp-many1pkt.pcap-dist 4095] \
+	[172.17.0.9].48613 [8.8.8.8].53 
+[60] 2017-12-11 13:59:04.953026 [#1 dnsotcp-many1pkt.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.9].48613 
+[142] 2017-12-11 13:59:04.953122 [#2 dnsotcp-many1pkt.pcap-dist 4095] \
+	[172.17.0.9].48613 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[142] 2017-12-11 13:59:04.953122 [#2 dnsotcp-many1pkt.pcap-dist 4095] \
+	[172.17.0.9].48613 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[142] 2017-12-11 13:59:04.953122 [#2 dnsotcp-many1pkt.pcap-dist 4095] \
+	[172.17.0.9].48613 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[109] 2017-12-11 13:59:04.956698 [#5 dnsotcp-many1pkt.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.9].48613  \
+	dns QUERY,NOERROR,4815,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,47,172.217.22.174 0 \
+	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0] \
+	
+[52] 2017-12-11 13:59:04.957247 [#6 dnsotcp-many1pkt.pcap-dist 4095] \
+	[172.17.0.9].48613 [8.8.8.8].53 
+[52] 2017-12-11 13:59:04.960230 [#7 dnsotcp-many1pkt.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.9].48613 
+[60] 2018-01-10 11:22:41.543825 [#0 dnsotcp-manyopkts.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[60] 2018-01-10 11:22:41.548834 [#1 dnsotcp-manyopkts.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388 
+[97] 2018-01-10 11:22:41.548947 [#2 dnsotcp-manyopkts.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[97] 2018-01-10 11:22:41.552406 [#3 dnsotcp-manyopkts.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:41.552406 [#3 dnsotcp-manyopkts.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[97] 2018-01-10 11:22:41.552406 [#3 dnsotcp-manyopkts.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[60] 2018-01-10 11:22:41.543825 [#0 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[60] 2018-01-10 11:22:41.548834 [#1 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388 
+[80] 2018-01-10 11:22:41.552406 [#2 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:41.552406 [#2 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59311,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:41.555912 [#4 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,59311,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,58,216.58.211.142 0 0
+[97] 2018-01-10 11:22:41.600183 [#5 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:41.600183 [#5 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,35665,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:41.616460 [#7 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,35665,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21599,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21599,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21599,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21599,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:41.659921 [#8 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:41.659921 [#8 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,5337,rd \
+	1 google.com,IN,A 0 0 0
+[97] 2018-01-10 11:22:42.047148 [#10 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.047148 [#10 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25433,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[80] 2018-01-10 11:22:42.097899 [#12 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.097899 [#12 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,63798,rd \
+	1 google.com,IN,A 0 0 0
+[97] 2018-01-10 11:22:42.145005 [#14 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.145005 [#14 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,8470,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[80] 2018-01-10 11:22:42.192777 [#16 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.192777 [#16 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,60258,rd \
+	1 google.com,IN,A 0 0 0
+[97] 2018-01-10 11:22:42.240395 [#18 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.240395 [#18 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,44985,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.245103 [#20 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,44985,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.290257 [#21 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.290257 [#21 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,45512,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.293978 [#23 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,45512,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.337985 [#24 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.337985 [#24 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,22980,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.341559 [#26 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,22980,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.385009 [#27 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.385009 [#27 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,1834,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.389082 [#29 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,1834,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.433458 [#30 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.433458 [#30 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25431,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.438748 [#32 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,25431,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.484005 [#33 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.484005 [#33 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,48432,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.487697 [#35 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,48432,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.532414 [#36 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.532414 [#36 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,47411,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.537574 [#38 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,47411,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.583021 [#39 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.583021 [#39 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,12038,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.586898 [#41 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,12038,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[80] 2018-01-10 11:22:42.630221 [#42 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.630221 [#42 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,11614,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.633808 [#44 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,11614,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[80] 2018-01-10 11:22:42.679168 [#45 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.679168 [#45 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59173,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.682888 [#47 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,59173,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[80] 2018-01-10 11:22:42.727254 [#48 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.727254 [#48 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,45535,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.732703 [#50 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,45535,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.777184 [#51 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.777184 [#51 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,60808,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.781053 [#53 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,60808,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.824222 [#54 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.824222 [#54 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,64325,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.828050 [#56 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,64325,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.872186 [#57 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.872186 [#57 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25543,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.875911 [#59 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,25543,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21598,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:42.920231 [#60 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:42.920231 [#60 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,20736,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:42.923917 [#62 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,20736,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,57,216.58.211.142 0 0
+[97] 2018-01-10 11:22:42.968961 [#63 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:42.968961 [#63 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,25911,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:42.972662 [#65 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,25911,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.017364 [#66 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.017364 [#66 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,64358,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.022591 [#68 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,64358,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[97] 2018-01-10 11:22:43.066765 [#69 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:43.066765 [#69 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,37698,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:43.070349 [#71 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,37698,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.114332 [#72 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.114332 [#72 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,54706,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.119538 [#74 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,54706,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[97] 2018-01-10 11:22:43.163857 [#75 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:43.163857 [#75 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,32142,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:43.167576 [#77 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,32142,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.211417 [#78 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.211417 [#78 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,41808,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.216686 [#80 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,41808,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[97] 2018-01-10 11:22:43.260995 [#81 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:43.260995 [#81 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,18886,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:43.265047 [#83 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,18886,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.310017 [#84 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.310017 [#84 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,10624,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.313596 [#86 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,10624,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[97] 2018-01-10 11:22:43.356802 [#87 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:43.356802 [#87 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,33139,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:43.360685 [#89 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,33139,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.406308 [#90 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.406308 [#90 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,61415,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.410191 [#92 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,61415,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[97] 2018-01-10 11:22:43.454193 [#93 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[97] 2018-01-10 11:22:43.454193 [#93 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,59258,rd \
+	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
+[197] 2018-01-10 11:22:43.458191 [#95 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,59258,qr|rd|ra \
+	1 206.218.58.216.in-addr.arpa,IN,PTR \
+	4 206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f206.1e100.net \
+	206.218.58.216.in-addr.arpa,IN,PTR,21597,dfw06s47-in-f14.1e100.net 0 0
+[80] 2018-01-10 11:22:43.503242 [#96 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[80] 2018-01-10 11:22:43.503242 [#96 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53  \
+	dns QUERY,NOERROR,17700,rd \
+	1 google.com,IN,A 0 0 0
+[98] 2018-01-10 11:22:43.506884 [#98 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388  \
+	dns QUERY,NOERROR,17700,qr|rd|ra \
+	1 google.com,IN,A \
+	1 google.com,IN,A,56,216.58.211.142 0 0
+[52] 2018-01-10 11:22:43.507821 [#99 dnso1tcp-bighole.pcap-dist 4095] \
+	[172.17.0.8].51388 [8.8.8.8].53 
+[52] 2018-01-10 11:22:43.511351 [#100 dnso1tcp-bighole.pcap-dist 4095] \
+	[8.8.8.8].53 [172.17.0.8].51388 

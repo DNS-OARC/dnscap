@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -195,6 +195,32 @@ int option_parse(options_t* options, const char* option)
         s = strtoul(argument, &p, 0);
         if (p && !*p && s > 0) {
             options->max_ipv6_fragments_per_packet = s;
+            return 0;
+        }
+    } else if (have("parse_ongoing_tcp")) {
+        if (!strcmp(argument, "yes")) {
+            options->parse_ongoing_tcp = 1;
+            return 0;
+        }
+    } else if (have("allow_reset_tcpstate")) {
+        if (!strcmp(argument, "yes")) {
+            options->allow_reset_tcpstate = 1;
+            return 0;
+        }
+    } else if (have("reassemble_tcp")) {
+        if (!strcmp(argument, "yes")) {
+            options->reassemble_tcp = 1;
+            return 0;
+        }
+    } else if (have("reassemble_tcp_faultreset")) {
+        s = strtoul(argument, &p, 0);
+        if (p && !*p && s > 0) {
+            options->reassemble_tcp_faultreset = s;
+            return 0;
+        }
+    } else if (have("reassemble_tcp_bfbparsedns")) {
+        if (!strcmp(argument, "yes")) {
+            options->reassemble_tcp_bfbparsedns = 1;
             return 0;
         }
     }

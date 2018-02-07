@@ -119,13 +119,21 @@ not tested against filter options that require a DNS header such as
 .Fl s ,
 and
 .Fl e .
-The first DNS header in the stream is captured if it passes all filter
-options.
-All subsequent non-empty packets in the stream, regardless of DNS message
-boundaries, will be captured if and only if the first DNS header passed all
-filter options.
-TCP packets will usually not be printable with
-.Fl g .
+All DNS messages in the stream is captured if it passes all filter options.
+
+Each TCP packet with payload will be tagged as DNS, unless
+.Fl o Ar reassemble_tcp=yes
+is used, with the support of having the DNS length arrive before the message
+in an own packet.
+Ongoing TCP connections can be inspected by using extended option
+.Fl o Ar parse_ongoing_tcp=yes .
+TCP packets are processed as they arrive so missing, unaligned data or DNS
+message split over multiple packets will produce parsing errors.
+Using extended option
+.Fl o Ar allow_reset_tcpstate=yes
+may allow
+.Nm
+to recover from these scenarios.
 .It Fl I
 Select ICMP and ICMPv6 packets.
 .It Fl i Ar if
@@ -476,6 +484,39 @@ Set the maximum fragmented IPv6 packets to track for reassembly, if the limit
 is reach then all other fragmented packets will not be reassembled.
 .It max_ipv6_fragments_per_packet=<num>
 Set the maximum fragments per tracked IPv6 packet to keep for reassembly.
+.It parse_ongoing_tcp=yes
+Enable state tracking when a new TCP stream is found but no SYN/ACK has been
+seen.
+Each TCP packet with payload will be tagged as DNS.
+.It allow_reset_tcpstate=yes
+Allow the TCP state to be reseted, this is used in diagnostic output and
+plugins when parsing the DNS in a TCP packet fails to try and recover from
+missing or unaligned data.
+.It reassemble_tcp=yes
+Enable reassembly of TCP packets, this will not parse each packet as an own
+DNS message but will store TCP segments until they can be reassembled.
+It will expect the DNS message length to come first and then wait for the
+full length of data to arrive until passing to outputs and plugins.
+Since the number of saved segments are limited and fixed, if the TCP steam
+becomes corrupt then processing may stop.
+Recovering from this can be done by enabling
+.Ar allow_reset_tcpstate=yes
+which will reset state and free all saved segments to try and start over.
+.It reassemble_tcp_faultreset=<num>
+This controls the number of faults that can happen before the state is
+reseted (as described above), faults are if the segments buffer are full or
+if the sequence is outside the TCP window.
+The default is zero which means it will reset the state as soon as the
+segment buffer is full.
+.It reassemble_tcp_bfbparsedns=yes
+Enable an experimental additional layer of reassemble that uses libbind to
+parse the payload before accepting it.
+If the DNS is invalid it will move 2 bytes within the payload and treat it
+as a new payload, taking the DNS length again and restart the process.
+Requires that
+.Nm
+was compiled with libbind and
+.Ar reassemble_tcp=yes .
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:
@@ -599,7 +640,7 @@ For question and help please use:
 was written by Paul Vixie (ISC) with help from Duane Wessels,
 Kevin Brintnall, and others too numerous to mention.
 .Sh LICENSE
-Copyright (c) 2016-2017, OARC, Inc.
+Copyright (c) 2016-2018, OARC, Inc.
 All rights reserved.
 .Pp
 Redistribution and use in source and binary forms, with or without

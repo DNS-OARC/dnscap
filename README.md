@@ -35,12 +35,12 @@ is needed under OpenBSD for various `arpa/nameser*` include headers, see
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev
+apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl
 ```
 
 To install the dependencies under CentOS (with EPEL enabled):
 ```
-yum install -y libpcap-devel ldns-devel openssl-devel bind-devel zlib-devel
+yum install -y libpcap-devel ldns-devel openssl-devel bind-devel zlib-devel perl-YAML
 ```
 
 For the following OS you will need to install some of the dependencies
@@ -48,12 +48,12 @@ from source or Ports, these instructions are not included.
 
 To install some of the dependencies under FreeBSD 10+ using `pkg`:
 ```
-pkg install -y libpcap ldns
+pkg install -y libpcap ldns p5-YAML
 ```
 
 To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
-pkg_add libldns
+pkg_add libldns p5-YAML
 ```
 
 ## Building from source tarball

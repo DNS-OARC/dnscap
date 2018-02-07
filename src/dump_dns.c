@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include "dump_dns.h"
 #include "network.h"
+#include "tcpstate.h"
 
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_NAME_UNCOMPRESS && HAVE_P_RCODE
 
@@ -112,9 +113,10 @@ static void dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
 void dump_dns(const u_char* payload, size_t paylen,
     FILE* trace, const char* endline)
 {
-    u_int       opcode, rcode, id;
-    const char* sep;
-    ns_msg      msg;
+    u_int        opcode, rcode, id;
+    const char*  sep;
+    ns_msg       msg;
+    tcpstate_ptr tcpstate;
 
     fprintf(trace, " %sdns ", endline);
     if (ns_initparse(payload, paylen, &msg) < 0) {
@@ -123,10 +125,14 @@ void dump_dns(const u_char* payload, size_t paylen,
             size_t dnslen = calcdnslen(payload, paylen);
             if (dnslen > 0 && dnslen < paylen && ns_initparse(payload, dnslen, &msg) < 0) {
                 fputs(strerror(errno), trace);
+                if ((tcpstate = tcpstate_getcurr()))
+                    tcpstate_reset(tcpstate, strerror(errno));
                 return;
             }
         } else {
             fputs(strerror(errno), trace);
+            if ((tcpstate = tcpstate_getcurr()))
+                tcpstate_reset(tcpstate, strerror(errno));
             return;
         }
     }
@@ -158,9 +164,10 @@ void dump_dns(const u_char* payload, size_t paylen,
 static void
 dump_dns_sect(ns_msg* msg, ns_sect sect, FILE* trace, const char* endline)
 {
-    int         rrnum, rrmax;
-    const char* sep;
-    ns_rr       rr;
+    int          rrnum, rrmax;
+    const char*  sep;
+    ns_rr        rr;
+    tcpstate_ptr tcpstate;
 
     rrmax = ns_msg_count(*msg, sect);
     if (rrmax == 0) {
@@ -171,7 +178,9 @@ dump_dns_sect(ns_msg* msg, ns_sect sect, FILE* trace, const char* endline)
     sep = "";
     for (rrnum = 0; rrnum < rrmax; rrnum++) {
         if (ns_parserr(msg, sect, rrnum, &rr)) {
-            fputs(strerror(errno), trace);
+            fprintf(trace, " %s", strerror(errno));
+            if ((tcpstate = tcpstate_getcurr()))
+                tcpstate_reset(tcpstate, strerror(errno));
             return;
         }
         fprintf(trace, " %s", sep);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,13 +140,21 @@ int txtout_close(my_bpftimeval ts)
     return 0;
 }
 
-ia_str_t ia_str = 0;
+ia_str_t           ia_str           = 0;
+tcpstate_getcurr_t tcpstate_getcurr = 0;
+tcpstate_reset_t   tcpstate_reset   = 0;
 
 void txtout_extension(int ext, void* arg)
 {
     switch (ext) {
     case DNSCAP_EXT_IA_STR:
         ia_str = (ia_str_t)arg;
+        break;
+    case DNSCAP_EXT_TCPSTATE_GETCURR:
+        tcpstate_getcurr = (tcpstate_getcurr_t)arg;
+        break;
+    case DNSCAP_EXT_TCPSTATE_RESET:
+        tcpstate_reset = (tcpstate_reset_t)arg;
         break;
     }
 }
@@ -162,15 +170,23 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
     if (opt_s) {
         if (flags & DNSCAP_OUTPUT_ISDNS) {
             ns_msg msg;
-            int    qdcount;
+            int    qdcount, err = 0;
             ns_rr  rr;
-            ns_initparse(payload, payloadlen, &msg);
+            if (ns_initparse(payload, payloadlen, &msg) < 0) {
+                if (tcpstate_getcurr && tcpstate_reset)
+                    tcpstate_reset(tcpstate_getcurr(), "");
+                return;
+            }
             qdcount = ns_msg_count(msg, ns_s_qd);
 
-            if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr) && ns_rr_class(rr) == 1) {
+            if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr)) && ns_rr_class(rr) == 1) {
                 fprintf(out, "%s %s\n",
                     p_type(ns_rr_type(rr)),
                     ns_rr_name(rr));
+            }
+            if (err < 0) {
+                if (tcpstate_getcurr && tcpstate_reset)
+                    tcpstate_reset(tcpstate_getcurr(), "");
             }
         }
         return;
@@ -186,9 +202,15 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
 
     if (flags & DNSCAP_OUTPUT_ISDNS) {
         ns_msg msg;
-        int    qdcount;
+        int    qdcount, err = 0;
         ns_rr  rr;
-        ns_initparse(payload, payloadlen, &msg);
+        if (ns_initparse(payload, payloadlen, &msg) < 0) {
+            if (tcpstate_getcurr && tcpstate_reset)
+                tcpstate_reset(tcpstate_getcurr(), "");
+            fprintf(out, "\n");
+            return;
+        }
+
         /*
          * DNS Header
          */
@@ -212,11 +234,15 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
             fprintf(out, "CD|");
 
         qdcount = ns_msg_count(msg, ns_s_qd);
-        if (qdcount > 0 && 0 == ns_parserr(&msg, ns_s_qd, 0, &rr)) {
+        if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr))) {
             fprintf(out, " %s %s %s",
                 p_class(ns_rr_class(rr)),
                 p_type(ns_rr_type(rr)),
                 ns_rr_name(rr));
+        }
+        if (err < 0) {
+            if (tcpstate_getcurr && tcpstate_reset)
+                tcpstate_reset(tcpstate_getcurr(), "");
         }
     }
     /*

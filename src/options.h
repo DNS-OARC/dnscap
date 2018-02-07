@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, OARC, Inc.
+ * Copyright (c) 2016-2018, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,9 @@ enum dump_format {
 \
     0, \
 \
-    0, 0, 0, 0, 0, 0, 0 \
+    0, 0, 0, 0, 0, 0, 0, \
+\
+    0, 0, 0, 0, 0 \
 }
 
 /* clang-format on */
@@ -101,6 +103,12 @@ struct options {
     int    defrag_ipv6;
     size_t max_ipv6_fragments;
     size_t max_ipv6_fragments_per_packet;
+
+    int    parse_ongoing_tcp;
+    int    allow_reset_tcpstate;
+    int    reassemble_tcp;
+    size_t reassemble_tcp_faultreset;
+    int    reassemble_tcp_bfbparsedns;
 };
 
 int option_parse(options_t* options, const char* option);

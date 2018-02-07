@@ -1,0 +1,58 @@
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: traffic-volume
+dns-udp-queries-received-ipv4: 41
+dns-udp-queries-received-ipv6: 0
+dns-tcp-queries-received-ipv4: 0
+dns-tcp-queries-received-ipv6: 0
+dns-udp-responses-sent-ipv4: 41
+dns-udp-responses-sent-ipv6: 0
+dns-tcp-responses-sent-ipv4: 0
+dns-tcp-responses-sent-ipv6: 0
+
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: traffic-sizes
+udp-request-sizes:
+  16-31: 24
+  32-47: 17
+udp-response-sizes:
+  176-191: 24
+  256-271: 17
+tcp-request-sizes:
+tcp-response-sizes:
+
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: rcode-volume
+0: 41
+
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: unique-sources
+num-sources-ipv4: 1
+num-sources-ipv6: 0
+num-sources-ipv6-aggregate: 0
+
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: dnscap-rssm-sources
+sources:
+  172.17.0.10: 41
+
+---
+version: rssac002v3
+service: test1
+start-period: '2016-10-20T15:23:01Z'
+metric: dnscap-rssm-aggregated-sources
+aggregated-sources:
