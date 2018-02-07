@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.7.1
+Version:        1.8.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -54,6 +54,82 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Feb 07 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.8.0-1
+- Release 1.8.0
+  * This release updates the TCP stream code in order to be able to look
+    at more then just the first query, for handling already ongoing TCP
+    connections without having seen SYN/ACK and for reassembly of the TCP
+    stream prior of parsing it for DNS with an additional layer of parsing
+    (see `reassemble_tcp_bfbparsedns`).
+  * Updates to the Root Server Scaling Measurement (RSSM) plugin have also
+    been made to bring it up to date with RSSAC002v3 specification, be
+    able to output the YAML format described and an additional script to
+    merge YAML files if the interval is less then the RSSAC002v3 24 hour
+    period. See "Updates to the RSSM plugin" below and
+    `plugins/rssm/README.md`.
+  * New extended options:
+    - `parse_ongoing_tcp`: Start tracking TCP connections even if SYN/ACK
+      has not been seen
+    - `allow_reset_tcpstate`: Allow external reset of TCP state
+    - `reassemble_tcp`: Use to enable TCP stream reassembly
+    - `reassemble_tcp_faultreset`: Number of faults before reseting TCP
+      state when reassembly is enabled
+    - `reassemble_tcp_bfbparsedns`: Enable an experimental additional layer
+      of reassemble that uses `libbind` to parse the payload before accepting
+      it. If the DNS is invalid it will move 2 bytes within the payload and
+      treat it as a new payload, taking the DNS length again and restart
+      the process. Requires `libbind` and `reassemble_tcp`.
+  * New extension functions for plugins:
+    - `DNSCAP_EXT_TCPSTATE_GETCURR`: Function to get a pointer for the
+      current TCP state
+    - `DNSCAP_EXT_TCPSTATE_RESET`: Function to reset a TCP state
+  * New features:
+    - Parse additional DNS queries in TCP connections
+    - `-g` and the `txtout` plugin will reset TCP state (if allowed) on
+      failure to parse DNS
+  * Bugfixes:
+    - Fix `-g` output, separate error message with a space
+    - Fix TCP packets wrongfully flagged as DNS when using layers.
+    - Fix TCP debug output when using layers, `ia_str()` is not safe to call
+      twice in the same `printf` because of local buffer.
+    - Fix exported extension functions, need to be file local
+  * New tests for:
+    - Multiple DNS queries in one TCP connection
+    - Query over TCP without SYN
+    - Queries over TCP with first query missing length
+    - Queries over TCP with middle payloads missing
+    - Add test with TCP stream that missing multiple packets in the middle
+  * Updates to the RSSM plugin (`plugins/rssm`):
+    - Add info about saving counts and sources
+    - Fix memory leak on `fopen()` errors
+    - Update to RSSAC002v3 specification
+    - New options:
+      - `-D` to disable forking on close
+      - `-Y`: Use RSSAC002v3 YAML format when writing counters, the file
+        will contain multiple YAML documents, one for each RSSAC002v3 metric
+        Used with; -S adds custom metric `dnscap-rssm-sources` and -A adds
+        `dnscap-rssm-aggregated-sources`
+      - `-n`: Set the service name to use in RSSAC002v3 YAML
+      - `-S`: Write source IPs into counters file with the prefix `source`
+      - `-A`: Write aggregated IPv6(/64) sources into counters file with
+        the prefix `aggregated-source`
+      - `-a`: Write aggregated IPv6(/64) sources to
+        `<name>.<timesec>.<timeusec>`
+    - Add `dnscap-rssm-rssac002` Perl script for merging RSSAC002v3 YAML files
+    - Add README.md for the plugin man-page for `dnscap-rssm-rssac002`
+    - Add test for YAML output and merging of YAML files
+  * Commits:
+    c7058c8 Use file local functions for all extensions
+    66b352d RSSM RSSAC002v3 YAML Tool
+    b09efc2 `plugins/rssm` RSSAC002v3
+    709aba6 Fix #89: Add additional reassembly layers that parses the
+            payload byte for byte for valid DNS
+    04fa013 Fix CID 1463944 (again)
+    b1cf623 RSSM saving data and forking
+    fb23305 Fix CID 1463944
+    0fca1a8 Issue #89: TCP stream reassemble
+    bb6428c CID 1463814: Check `ns_initparse()` for errors
+    a57066f Fix #88: TCP handling
 * Wed Dec 27 2017 Jerry Lundström <lundstrom.jerry@gmail.com> 1.7.1-1
 - Release 1.7.1
   * The library used for parsing DNS (libbind) is unable to parse DNS
