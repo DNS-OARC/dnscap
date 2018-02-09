@@ -48,6 +48,7 @@
 #include "dnscap_common.h"
 
 static logerr_t* logerr;
+static int       opt_a = 0;
 static char*     opt_o = 0;
 static int       opt_s = 0;
 static FILE*     out   = 0;
@@ -58,6 +59,7 @@ void txtout_usage()
 {
     fprintf(stderr,
         "\ntxtout.so options:\n"
+        "\t-a         output only source IP addresses\n"
         "\t-o <arg>   output file name\n"
         "\t-s         short output, only QTYPE/QNAME for IN\n");
 }
@@ -69,8 +71,11 @@ void txtout_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "so:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "aso:")) != EOF) {
         switch (c) {
+        case 'a':
+            opt_a = 1;
+            break;
         case 'o':
             if (opt_o)
                 free(opt_o);
@@ -164,6 +169,30 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
     const u_char* pkt_copy, unsigned olen,
     const u_char* payload, unsigned payloadlen)
 {
+    /*
+     * Short output, only print source address for IN records
+     */
+    if (opt_a) {
+        if (flags & DNSCAP_OUTPUT_ISDNS) {
+            ns_msg msg;
+            int    qdcount, err = 0;
+            ns_rr  rr;
+            if (ns_initparse(payload, payloadlen, &msg) < 0) {
+                if (tcpstate_getcurr && tcpstate_reset)
+                    tcpstate_reset(tcpstate_getcurr(), "");
+                return;
+            }
+            qdcount = ns_msg_count(msg, ns_s_qd);
+            if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr)) && ns_rr_class(rr) == 1) {
+                fprintf(out, "%s\n", ia_str(from));
+            }
+            if (err < 0) {
+                if (tcpstate_getcurr && tcpstate_reset)
+                    tcpstate_reset(tcpstate_getcurr(), "");
+            }
+        }
+        return;
+    }
     /*
      * Short output, only print QTYPE and QNAME for IN records
      */
