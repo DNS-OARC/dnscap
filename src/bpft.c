@@ -79,22 +79,23 @@ void prepare_bpft(void)
     INIT_LIST(bpfl);
     len = 0;
     if (!EMPTY(vlans_excl))
-        len += text_add(&bpfl, "vlan and ");
-    len += text_add(&bpfl, "( "); /* ( transports ...  */
+        len += text_add(&bpfl, "vlan and ("); /* vlan and ( transports ...  */
+    else
+        len += text_add(&bpfl, "("); /* ( transports ...  */
     if (wanticmp) {
-        len += text_add(&bpfl, "( ip proto 1 or ip proto 58 ) or ");
+        len += text_add(&bpfl, " ( ip proto 1 or ip proto 58 ) or");
     }
     if (wantfrags) {
-        len += text_add(&bpfl, "( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or ");
+        len += text_add(&bpfl, " ( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or");
     }
-    len += text_add(&bpfl, "( "); /* ( dns ...  */
-    len += text_add(&bpfl, "( "); /* ( ports ...  */
+    len += text_add(&bpfl, " ("); /* ( dns ...  */
+    len += text_add(&bpfl, " ("); /* ( ports ...  */
     if (wanttcp) {
-        len += text_add(&bpfl, "( tcp port %d ) or ", dns_port);
+        len += text_add(&bpfl, " ( tcp port %d ) or", dns_port);
         /* tcp packets can be filtered by initiators/responders, but
          * not mbs/mbc. */
     }
-    len += text_add(&bpfl, "( udp port %d", dns_port);
+    len += text_add(&bpfl, " ( udp port %d", dns_port);
     if (!v6bug) {
         if (udp10_mbc != 0)
             len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
@@ -114,17 +115,17 @@ void prepare_bpft(void)
         if (err_wanted != ERR_NO) {
             len += text_add(&bpfl, " and (");
             if ((err_wanted & ERR_TRUNC) != 0) {
-                len += text_add(&bpfl,
-                    "udp[10] & 0x%x = 0x%x or ",
-                    UDP10_TC_MASK, UDP10_TC_MASK);
+                len += text_add(&bpfl, " udp[10] & 0x%x = 0x%x or", UDP10_TC_MASK, UDP10_TC_MASK);
             }
-            len += text_add(&bpfl,
-                "0x%x << (udp[11] & 0xf) & 0x%x != 0) ",
-                ERR_RCODE_BASE, err_wanted);
+            len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
         }
     }
-    len += text_add(&bpfl, ") "); /*  ... udp 53 ) */
-    len += text_add(&bpfl, ") "); /*  ... ports ) */
+    len += text_add(&bpfl, " )"); /*  ... udp 53 ) */
+    len += text_add(&bpfl, " )"); /*  ... ports ) */
+    if (options.bpf_hosts_apply_all) {
+        len += text_add(&bpfl, " )"); /*  ... dns ) */
+        len += text_add(&bpfl, " )"); /* ... transport ) */
+    }
     if (!EMPTY(initiators) || !EMPTY(responders)) {
         const char* or = "or", *lp = "(", *sep;
         endpoint_ptr ep;
@@ -165,8 +166,10 @@ void prepare_bpft(void)
         }
         len += text_add(&bpfl, " )");
     }
-    len += text_add(&bpfl, ") "); /*  ... dns ) */
-    len += text_add(&bpfl, ")"); /* ... transport ) */
+    if (!options.bpf_hosts_apply_all) {
+        len += text_add(&bpfl, " )"); /*  ... dns ) */
+        len += text_add(&bpfl, " )"); /* ... transport ) */
+    }
     if (extra_bpf)
         len += text_add(&bpfl, " and ( %s )", extra_bpf);
 
@@ -179,11 +182,11 @@ void prepare_bpft(void)
     text_free(&bpfl);
     if (!EMPTY(vlans_incl)) {
         static char* bpft_vlan;
-        len       = 2 * strlen(bpft) + strlen("() or (vlan and ())");
-        bpft_vlan = calloc(len + 1, sizeof(char));
+        len       = (2 * strlen(bpft)) + 64; /* add enough for the extra in snprintf() below */
+        bpft_vlan = calloc(len, sizeof(char));
         assert(bpft_vlan != NULL);
-        sprintf(bpft_vlan, "(%s) or (vlan and (%s))", bpft, bpft);
-        bpft = realloc(bpft, len + 1);
+        snprintf(bpft_vlan, len, "( %s ) or ( vlan and ( %s ) )", bpft, bpft);
+        bpft = realloc(bpft, len);
         assert(bpft != NULL);
         strcpy(bpft, bpft_vlan);
         free(bpft_vlan);
