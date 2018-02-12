@@ -517,6 +517,11 @@ Requires that
 .Nm
 was compiled with libbind and
 .Ar reassemble_tcp=yes .
+.It bpf_hosts_apply_all=yes
+This changes the BPF generation so that any host restriction will come
+after ICMP, fragments, ports or DNS section to allow it to apply for ICMP
+and fragments also.
+The default behavior is to only apply hosts to the ports or DNS section.
 .El
 .Sh OUTPUT FORMATS
 The following output format are supported:

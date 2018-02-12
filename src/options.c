@@ -223,6 +223,11 @@ int option_parse(options_t* options, const char* option)
             options->reassemble_tcp_bfbparsedns = 1;
             return 0;
         }
+    } else if (have("bpf_hosts_apply_all")) {
+        if (!strcmp(argument, "yes")) {
+            options->bpf_hosts_apply_all = 1;
+            return 0;
+        }
     }
 
     return 1;
