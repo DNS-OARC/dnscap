@@ -575,13 +575,21 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
 {
+    unsigned  dnslen;
+    ldns_pkt* pkt = 0;
+
     if (!(flags & DNSCAP_OUTPUT_ISDNS))
         return;
-    unsigned dnslen = payloadlen >> MSG_SIZE_SHIFT;
+
+    if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
+        return;
+    }
+
+    dnslen = payloadlen >> MSG_SIZE_SHIFT;
     if (dnslen >= MAX_SIZE_INDEX)
-        dnslen  = MAX_SIZE_INDEX - 1;
-    HEADER* dns = (HEADER*)payload;
-    if (0 == dns->qr) {
+        dnslen = MAX_SIZE_INDEX - 1;
+
+    if (!ldns_pkt_qr(pkt)) {
         find_or_add(from);
         if (IPPROTO_UDP == proto) {
             counts.udp_query_size[dnslen]++;
@@ -602,7 +610,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
             }
         }
     } else {
-        uint16_t rcode = dns->rcode;
+        uint16_t rcode = ldns_pkt_get_rcode(pkt);
         if (IPPROTO_UDP == proto) {
             counts.udp_response_size[dnslen]++;
         } else if (IPPROTO_TCP == proto) {
@@ -621,13 +629,11 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_tcp_responses_sent_ipv6++;
             }
         }
-        if (dns->arcount) {
-            ldns_pkt* pkt = 0;
-            if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, payload, payloadlen)) {
-                rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
-                ldns_pkt_free(pkt);
-            }
+        if (ldns_pkt_arcount(pkt)) {
+            rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
         }
         counts.rcodes[rcode]++;
     }
+
+    ldns_pkt_free(pkt);
 }
