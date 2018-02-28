@@ -1,3 +1,28 @@
+2018-02-28 Jerry Lundström
+
+    Release 1.9.0
+
+    This release adds a new option to change how the Berkeley Packet Filter
+    is generated to include the host restrictions for all selections,
+    previously this restriction would only apply to specific parts.
+
+    Additional tweaks to the RSSM plugin has been made to conform to the
+    RSSAC002v3 specification. One noticeable change is that the plugin now
+    requires the DNS to be parsed before counted, any error in the parsing
+    will result in the message being left out of the statistics.
+
+    Changes:
+    - Fix spacing in BPF filter to look better
+    - Fix #146: Add `bpf_hosts_apply_all`, apply any host restriction to all
+    - `plugin/rssm`:
+      - Remove quoting of `start-period` and correctly handle empty hashes
+      - Issue #152, Issue #91: Parse DNS before processing RSSM counters
+    - `plugin/rssm/dnscap-rssm-rssac002`: Use `YAML::Dump()` for output
+
+    47d892b Issue #152: RSSM YAML output
+    d4f1466 Issue #152, Issue #91: Parse DNS before processing RSSM counters
+    68fc1ff BPF, `bpf_hosts_apply_all`
+
 2018-02-07 Jerry Lundström
 
     Release 1.8.0

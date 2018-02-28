@@ -144,55 +144,42 @@ if ($recompile) {
     }
 }
 
-# Produce RSSAC002v3 output outselves since it contains "quirks"
 if ($sort) {
+    my $first = 1;
+    $YAML::SortKeys = 1;
     foreach my $service (sort keys %service) {
         foreach my $metric (sort keys %{$service{$service}}) {
-            print "---\n";
-            print "version: rssac002v3\n";
-            print "service: $service\n";
-            print "start-period: '$earliest_start_period'\n";
-            print "metric: $metric\n";
-            output($service{$service}->{$metric}, '');
-            print "\n";
+            if ($first) {
+                $first = 0;
+            } else {
+                print "\n";
+            }
+            print YAML::Dump({
+                version => "rssac002v3",
+                service => $service,
+                'start-period' => $earliest_start_period,
+                metric => $metric,
+                %{ $service{$service}->{$metric} },
+            });
         }
     }
 } else {
+    my $first = 1;
+    $YAML::SortKeys = 0;
     foreach my $service (keys %service) {
         foreach my $metric (keys %{$service{$service}}) {
-            print "---\n";
-            print "version: rssac002v3\n";
-            print "service: $service\n";
-            print "start-period: '$earliest_start_period'\n";
-            print "metric: $metric\n";
-            output($service{$service}->{$metric}, '');
-            print "\n";
-        }
-    }
-}
-
-sub output {
-    my ( $doc, $indent ) = @_;
-    my @keys;
-    if ($sort) {
-        @keys = sort {
-            if ($a =~ /^\d+\-\d+$/o) {
-                my ($aa) = split(/\-/o, $a, 2);
-                my ($bb) = split(/\-/o, $b, 2);
-                $aa <=> $bb;
+            if ($first) {
+                $first = 0;
             } else {
-                $a cmp $b;
+                print "\n";
             }
-        } keys %$doc;
-    } else {
-        @keys = keys %$doc;
-    }
-    foreach my $key (@keys) {
-        if (ref($doc->{$key}) eq 'HASH') {
-            print $indent.$key.":\n";
-            output($doc->{$key}, $indent.'  ');
-        } else {
-            print $indent.$key.': '.(defined($doc->{$key})?$doc->{$key}:'')."\n";
+            print YAML::Dump({
+                version => "rssac002v3",
+                service => $service,
+                'start-period' => $earliest_start_period,
+                metric => $metric,
+                %{ $service{$service}->{$metric} },
+            });
         }
     }
 }

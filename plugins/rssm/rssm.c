@@ -292,7 +292,7 @@ void rssm_save_counts(const char* sbuf)
             return;
         }
 
-        fprintf(fp, "---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: traffic-volume\n", service_name, tz);
+        fprintf(fp, "---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: traffic-volume\n", service_name, tz);
         fprintf(fp, "dns-udp-queries-received-ipv4: %" PRIu64 "\n", counts.dns_udp_queries_received_ipv4);
         fprintf(fp, "dns-udp-queries-received-ipv6: %" PRIu64 "\n", counts.dns_udp_queries_received_ipv6);
         fprintf(fp, "dns-tcp-queries-received-ipv4: %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv4);
@@ -302,69 +302,117 @@ void rssm_save_counts(const char* sbuf)
         fprintf(fp, "dns-tcp-responses-sent-ipv4: %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv4);
         fprintf(fp, "dns-tcp-responses-sent-ipv6: %" PRIu64 "\n", counts.dns_tcp_responses_sent_ipv6);
 
-        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: traffic-sizes\n", service_name, tz);
-        fprintf(fp, "udp-request-sizes:\n");
-        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: traffic-sizes\n", service_name, tz);
+        i = 0;
+        for (; i < MAX_SIZE_INDEX; i++) {
             if (counts.udp_query_size[i]) {
-                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
-                    i << MSG_SIZE_SHIFT,
-                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                    counts.udp_query_size[i]);
+                break;
             }
         }
-        fprintf(fp, "udp-response-sizes:\n");
-        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+        if (i < MAX_SIZE_INDEX) {
+            fprintf(fp, "udp-request-sizes:\n");
+            for (; i < MAX_SIZE_INDEX; i++) {
+                if (counts.udp_query_size[i]) {
+                    fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                        i << MSG_SIZE_SHIFT,
+                        ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                        counts.udp_query_size[i]);
+                }
+            }
+        } else {
+            fprintf(fp, "udp-request-sizes: {}\n");
+        }
+        i = 0;
+        for (; i < MAX_SIZE_INDEX; i++) {
             if (counts.udp_response_size[i]) {
-                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
-                    i << MSG_SIZE_SHIFT,
-                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                    counts.udp_response_size[i]);
+                break;
             }
         }
-        fprintf(fp, "tcp-request-sizes:\n");
-        for (i = 0; i < MAX_SIZE_INDEX; i++) {
+        if (i < MAX_SIZE_INDEX) {
+            fprintf(fp, "udp-response-sizes:\n");
+            for (; i < MAX_SIZE_INDEX; i++) {
+                if (counts.udp_response_size[i]) {
+                    fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                        i << MSG_SIZE_SHIFT,
+                        ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                        counts.udp_response_size[i]);
+                }
+            }
+        } else {
+            fprintf(fp, "udp-response-sizes: {}\n");
+        }
+        i = 0;
+        for (; i < MAX_SIZE_INDEX; i++) {
             if (counts.tcp_query_size[i]) {
-                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
-                    i << MSG_SIZE_SHIFT,
-                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                    counts.tcp_query_size[i]);
+                break;
             }
         }
-        fprintf(fp, "tcp-response-sizes:\n");
-        for (i = 0; i < MAX_SIZE_INDEX; i++) {
-            if (counts.tcp_response_size[i]) {
-                fprintf(fp, "  %d-%d: %" PRIu64 "\n",
-                    i << MSG_SIZE_SHIFT,
-                    ((i + 1) << MSG_SIZE_SHIFT) - 1,
-                    counts.tcp_response_size[i]);
+        if (i < MAX_SIZE_INDEX) {
+            fprintf(fp, "tcp-request-sizes:\n");
+            for (; i < MAX_SIZE_INDEX; i++) {
+                if (counts.tcp_query_size[i]) {
+                    fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                        i << MSG_SIZE_SHIFT,
+                        ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                        counts.tcp_query_size[i]);
+                }
             }
+        } else {
+            fprintf(fp, "tcp-request-sizes: {}\n");
+        }
+        i = 0;
+        for (; i < MAX_SIZE_INDEX; i++) {
+            if (counts.tcp_response_size[i]) {
+                break;
+            }
+        }
+        if (i < MAX_SIZE_INDEX) {
+            fprintf(fp, "tcp-response-sizes:\n");
+            for (; i < MAX_SIZE_INDEX; i++) {
+                if (counts.tcp_response_size[i]) {
+                    fprintf(fp, "  %d-%d: %" PRIu64 "\n",
+                        i << MSG_SIZE_SHIFT,
+                        ((i + 1) << MSG_SIZE_SHIFT) - 1,
+                        counts.tcp_response_size[i]);
+                }
+            }
+        } else {
+            fprintf(fp, "tcp-response-sizes: {}\n");
         }
 
-        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: rcode-volume\n", service_name, tz);
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: rcode-volume\n", service_name, tz);
         for (i = 0; i < MAX_RCODE; i++) {
             if (counts.rcodes[i]) {
                 fprintf(fp, "%d: %" PRIu64 "\n", i, counts.rcodes[i]);
             }
         }
 
-        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: unique-sources\n", service_name, tz);
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: unique-sources\n", service_name, tz);
         fprintf(fp, "num-sources-ipv4: %" PRIu64 "\n", counts.num_ipv4_sources);
         fprintf(fp, "num-sources-ipv6: %" PRIu64 "\n", counts.num_ipv6_sources);
         fprintf(fp, "num-sources-ipv6-aggregate: %u\n", counts.aggregated.num_addrs);
 
         if (sources_into_counters) {
-            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: dnscap-rssm-sources\n", service_name, tz);
-            fprintf(fp, "sources:\n");
-            for (i = 0; i < counts.sources.num_addrs; i++) {
-                fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
+            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: dnscap-rssm-sources\n", service_name, tz);
+            if (counts.sources.num_addrs) {
+                fprintf(fp, "sources:\n");
+                for (i = 0; i < counts.sources.num_addrs; i++) {
+                    fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.sources.addrs[i]), counts.sources.count[i]);
+                }
+            } else {
+                fprintf(fp, "sources: {}\n");
             }
         }
 
         if (aggregated_into_counters) {
-            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: '%s'\nmetric: dnscap-rssm-aggregated-sources\n", service_name, tz);
-            fprintf(fp, "aggregated-sources:\n");
-            for (i = 0; i < counts.aggregated.num_addrs; i++) {
-                fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
+            fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: dnscap-rssm-aggregated-sources\n", service_name, tz);
+            if (counts.aggregated.num_addrs) {
+                fprintf(fp, "aggregated-sources:\n");
+                for (i = 0; i < counts.aggregated.num_addrs; i++) {
+                    fprintf(fp, "  %s: %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
+                }
+            } else {
+                fprintf(fp, "aggregated-sources: {}\n");
             }
         }
     } else {
@@ -575,13 +623,21 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
 {
+    unsigned  dnslen;
+    ldns_pkt* pkt = 0;
+
     if (!(flags & DNSCAP_OUTPUT_ISDNS))
         return;
-    unsigned dnslen = payloadlen >> MSG_SIZE_SHIFT;
+
+    if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
+        return;
+    }
+
+    dnslen = payloadlen >> MSG_SIZE_SHIFT;
     if (dnslen >= MAX_SIZE_INDEX)
-        dnslen  = MAX_SIZE_INDEX - 1;
-    HEADER* dns = (HEADER*)payload;
-    if (0 == dns->qr) {
+        dnslen = MAX_SIZE_INDEX - 1;
+
+    if (!ldns_pkt_qr(pkt)) {
         find_or_add(from);
         if (IPPROTO_UDP == proto) {
             counts.udp_query_size[dnslen]++;
@@ -602,7 +658,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
             }
         }
     } else {
-        uint16_t rcode = dns->rcode;
+        uint16_t rcode = ldns_pkt_get_rcode(pkt);
         if (IPPROTO_UDP == proto) {
             counts.udp_response_size[dnslen]++;
         } else if (IPPROTO_TCP == proto) {
@@ -621,13 +677,11 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_tcp_responses_sent_ipv6++;
             }
         }
-        if (dns->arcount) {
-            ldns_pkt* pkt = 0;
-            if (LDNS_STATUS_OK == ldns_wire2pkt(&pkt, payload, payloadlen)) {
-                rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
-                ldns_pkt_free(pkt);
-            }
+        if (ldns_pkt_arcount(pkt)) {
+            rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
         }
         counts.rcodes[rcode]++;
     }
+
+    ldns_pkt_free(pkt);
 }

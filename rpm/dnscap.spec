@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.8.0
+Version:        1.9.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -54,6 +54,26 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Feb 28 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.9.0-1
+- Release 1.9.0
+  * This release adds a new option to change how the Berkeley Packet Filter
+    is generated to include the host restrictions for all selections,
+    previously this restriction would only apply to specific parts.
+  * Additional tweaks to the RSSM plugin has been made to conform to the
+    RSSAC002v3 specification. One noticeable change is that the plugin now
+    requires the DNS to be parsed before counted, any error in the parsing
+    will result in the message being left out of the statistics.
+  * Changes:
+    - Fix spacing in BPF filter to look better
+    - Fix #146: Add `bpf_hosts_apply_all`, apply any host restriction to all
+    - `plugin/rssm`:
+      - Remove quoting of `start-period` and correctly handle empty hashes
+      - Issue #152, Issue #91: Parse DNS before processing RSSM counters
+    - `plugin/rssm/dnscap-rssm-rssac002`: Use `YAML::Dump()` for output
+  * Commits:
+    47d892b Issue #152: RSSM YAML output
+    d4f1466 Issue #152, Issue #91: Parse DNS before processing RSSM counters
+    68fc1ff BPF, `bpf_hosts_apply_all`
 * Wed Feb 07 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.8.0-1
 - Release 1.8.0
   * This release updates the TCP stream code in order to be able to look
