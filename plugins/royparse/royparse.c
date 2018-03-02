@@ -122,6 +122,7 @@ int royparse_start(logerr_t* a_logerr)
     } else {
         r_out = stdout;
     }
+    setbuf(r_out, 0);
 
     return 0;
 }
@@ -132,7 +133,8 @@ void royparse_stop()
         pcap_close(pd);
         pcap_dump_close(q_out);
     }
-    fclose(r_out);
+    if (r_out != stdout)
+        fclose(r_out);
 }
 
 int royparse_open(my_bpftimeval ts)
