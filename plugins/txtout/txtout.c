@@ -105,6 +105,7 @@ int txtout_start(logerr_t* a_logerr)
     } else {
         out = stdout;
     }
+    setbuf(out, 0);
     return 0;
 }
 
@@ -115,7 +116,8 @@ void txtout_stop()
      * is exiting normally.  It might be used to clean up state,
      * free memory, etc.
      */
-    fclose(out);
+    if (out != stdout)
+        fclose(out);
 }
 
 int txtout_open(my_bpftimeval ts)
