@@ -43,26 +43,30 @@
 
 #include "dnscap_common.h"
 
-output_t anonzero_output;
-
-extern int is_responder(iaddr ia);
+static uint16_t port = 53;
 
 void anonzero_usage()
 {
     fprintf(stderr,
         "\nanonzero.so options:\n"
-        "\t           n/a\n");
+        "\t-u <port>    dns port (default: 53)\n");
 }
 
 void anonzero_getopt(int* argc, char** argv[])
 {
-    /*
-     * The "getopt" function will be called from the parent to
-     * process plugin options.
-     */
     int c;
-    while ((c = getopt(*argc, *argv, "fx:")) != EOF) {
+    unsigned long ul;
+    char *p;
+    while ((c = getopt(*argc, *argv, "u:")) != EOF) {
         switch (c) {
+        case 'u':
+            ul = strtoul(optarg, &p, 0);
+            if (*p != '\0' || ul < 1U || ul > 65535U) {
+                fprintf(stderr, "port must be an integer 1..65535");
+                exit(1);
+            }
+            port = (uint16_t)ul;
+            break;
         default:
             anonzero_usage();
             exit(1);
@@ -95,10 +99,10 @@ static void truncate_iaddr(iaddr* ip)
 
     if (AF_INET == ip->af) {
         /* overwrite the last octet of the address */
-	p[3] = 0;
+        p[3] = 0;
     } else if (AF_INET6 == ip->af) {
         /* overwrite the last 9 octets of the address (/56) */
-	memset(p + 7, 0, 9);
+        memset(p + 7, 0, 9);
     }
 }
 
@@ -107,10 +111,11 @@ void anonzero_output(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
 {
-    if (!is_responder(*from)) {
+    /* assume traffic direction based on port */
+    if (dport == port) {
         truncate_iaddr(from);
     }
-    if (!is_responder(*to)) {
+    if (sport == port) {
         truncate_iaddr(to);
     }
 }
