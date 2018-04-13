@@ -473,10 +473,10 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
     /* Transport. */
     if (packet->have_icmphdr) {
-        output(descr, &from, to, IPPROTO_ICMP, flags, sport, dport, ts, pkt_copy, length, pkt, len);
+        output(descr, from, to, IPPROTO_ICMP, flags, sport, dport, ts, pkt_copy, length, pkt, len);
         return;
     } else if (packet->have_icmpv6hdr) {
-        output(descr, &from, to, IPPROTO_ICMPV6, flags, sport, dport, ts, pkt_copy, length, pkt, len);
+        output(descr, from, to, IPPROTO_ICMPV6, flags, sport, dport, ts, pkt_copy, length, pkt, len);
         return;
     } else if (packet->have_udphdr) {
         proto  = IPPROTO_UDP;
@@ -544,7 +544,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
             /* Always output FIN and RST segments. */
             _curr_tcpstate = tcpstate;
-            output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+            output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
             _curr_tcpstate = 0;
 
             /* End of stream; deallocate the tcpstate. */
@@ -593,7 +593,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
             /* Always output SYN segments. */
             _curr_tcpstate = tcpstate;
-            output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+            output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
             _curr_tcpstate = 0;
 
             return;
@@ -670,7 +670,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 tcpstate->maxdiff = (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
             } else if (tcpstate->lastdns && ((seq == tcpstate->lastdns && len == 1) || seqdiff == 1)) {
@@ -716,7 +716,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 tcpstate->maxdiff = (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
             } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
@@ -761,7 +761,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     tcpstate->maxdiff = seqdiff + (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
             }
@@ -792,7 +792,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             if (tcpstate->reasm->dnsmsg[m]->segments_seen > 1) {
                 /* emulate dnslen in own packet */
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
+                output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, NULL, 0);
                 _curr_tcpstate = 0;
             }
         }
@@ -945,7 +945,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
          */
 
         _curr_tcpstate = tcpstate;
-        output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
+        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, length, dnspkt, dnslen);
         _curr_tcpstate = 0;
 
         if (tcpstate && tcpstate->reasm) {
@@ -1011,7 +1011,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         if ((offset & IP_MF) != 0 || (offset & IP_OFFMASK) != 0) {
             if (wantfrags) {
                 flags |= DNSCAP_OUTPUT_ISFRAG;
-                output(descr, &from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
+                output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
                 return;
             }
             return;
@@ -1061,7 +1061,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             if (nexthdr == IPPROTO_FRAGMENT) {
                 if (wantfrags) {
                     flags |= DNSCAP_OUTPUT_ISFRAG;
-                    output(descr, &from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
+                    output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
                     return;
                 }
                 return;
@@ -1095,7 +1095,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     switch (proto) {
     case IPPROTO_ICMP:
     case IPPROTO_ICMPV6:
-        output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
+        output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
         return;
     case IPPROTO_UDP: {
         if (len < sizeof *udp)
@@ -1182,7 +1182,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             if (dumptrace >= 3)
                 fprintf(stderr, "FIN|RST\n");
             _curr_tcpstate = tcpstate;
-            output(descr, &from, to, proto, flags, sport, dport, ts,
+            output(descr, from, to, proto, flags, sport, dport, ts,
                 pkt_copy, olen, NULL, 0);
             _curr_tcpstate = 0;
             /* End of stream; deallocate the tcpstate. */
@@ -1226,7 +1226,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
             /* Always output SYN segments. */
             _curr_tcpstate = tcpstate;
-            output(descr, &from, to, proto, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
+            output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
             _curr_tcpstate = 0;
 
             return;
@@ -1299,7 +1299,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 tcpstate->maxdiff = (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts,
+                output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
@@ -1340,7 +1340,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 tcpstate->maxdiff = (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts,
+                output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
@@ -1380,7 +1380,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     tcpstate->maxdiff = seqdiff + (uint32_t)len;
 
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts,
+                output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
                 return;
@@ -1411,7 +1411,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             if (tcpstate->reasm->dnsmsg[m]->segments_seen > 1) {
                 /* emulate dnslen in own packet */
                 _curr_tcpstate = tcpstate;
-                output(descr, &from, to, proto, flags, sport, dport, ts,
+                output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
             }
@@ -1619,7 +1619,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             }
         }
         _curr_tcpstate = tcpstate;
-        output(descr, &from, to, proto, flags, sport, dport, ts,
+        output(descr, from, to, proto, flags, sport, dport, ts,
             pkt_copy, olen, dnspkt, dnslen);
         _curr_tcpstate = 0;
 
