@@ -95,7 +95,7 @@ void anonzero_getopt(int* argc, char** argv[])
         case 'u':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul < 1U || ul > 65535U) {
-                fprintf(stderr, "port must be an integer 1..65535");
+                fprintf(stderr, "port must be an integer 1..65535\n");
                 exit(1);
             }
             port = (uint16_t)ul;
@@ -103,7 +103,7 @@ void anonzero_getopt(int* argc, char** argv[])
         case '4':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul < 0U || ul > 32U) {
-                fprintf(stderr, "IPv4 mask must be an integer 0..32");
+                fprintf(stderr, "IPv4 mask must be an integer 0..32\n");
                 exit(1);
             }
             mask4_bits = (int)ul;
@@ -111,7 +111,7 @@ void anonzero_getopt(int* argc, char** argv[])
         case '6':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul < 0U || ul > 32U) {
-                fprintf(stderr, "IPv6 mask must be an integer 0..128");
+                fprintf(stderr, "IPv6 mask must be an integer 0..128\n");
                 exit(1);
             }
             mask6_bits = (int)ul;
