@@ -61,7 +61,8 @@ void anonzero_usage()
 
 static void anonzero_make_mask(uint8_t* p, int bits)
 {
-    for (int i = 0; i < bits; ++i) {
+    int i;
+    for (i = 0; i < bits; ++i) {
         int offset = i / 8;
         int bit = 7 - (i % 8);
         p[offset] |= (1 << bit);
@@ -70,16 +71,17 @@ static void anonzero_make_mask(uint8_t* p, int bits)
 
 static void anonzero_mask_ipaddr(iaddr* ip)
 {
+    int i;
     uint8_t* p = (uint8_t*)(&ip->u);
 
     if (AF_INET == ip->af) {
         uint8_t* q = (uint8_t*)&mask4;
-        for (int i = 0; i < sizeof(mask4); ++i) {
+        for (i = 0; i < sizeof(mask4); ++i) {
             p[i] &= q[i];
         }
     } else if (AF_INET6 == ip->af) {
         uint8_t* q = (uint8_t*)&mask6;
-        for (int i = 0; i < sizeof(mask6); ++i) {
+        for (i = 0; i < sizeof(mask6); ++i) {
             p[i] &= q[i];
         }
     }
