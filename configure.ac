@@ -153,5 +153,6 @@ AC_CONFIG_FILES([
     plugins/txtout/Makefile
     plugins/rzkeychange/Makefile
     plugins/royparse/Makefile
+    plugins/anonzero/Makefile
 ])
 AC_OUTPUT
