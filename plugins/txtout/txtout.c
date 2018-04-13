@@ -161,7 +161,7 @@ void txtout_extension(int ext, void* arg)
     }
 }
 
-void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void txtout_output(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, unsigned olen,
     const u_char* payload, unsigned payloadlen)
@@ -198,8 +198,8 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
      * IP Stuff
      */
     fprintf(out, "%10ld.%06ld", (long)ts.tv_sec, (long)ts.tv_usec);
-    fprintf(out, " %s %u", ia_str(from), sport);
-    fprintf(out, " %s %u", ia_str(to), dport);
+    fprintf(out, " %s %u", ia_str(*from), sport);
+    fprintf(out, " %s %u", ia_str(*to), dport);
     fprintf(out, " %hhu", proto);
 
     if (flags & DNSCAP_OUTPUT_ISDNS) {

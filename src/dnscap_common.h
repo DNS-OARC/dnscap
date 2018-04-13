@@ -79,8 +79,8 @@ typedef int logerr_t(const char* fmt, ...);
  * Prototype for the plugin "output" function
  */
 typedef void output_t(const char* descr,
-    iaddr                         from,
-    iaddr                         to,
+    iaddr*                        from,
+    iaddr*                        to,
     uint8_t                       proto,
     unsigned                      flags,
     unsigned                      sport,

@@ -62,6 +62,10 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
             payloadlen);
     }
 
+    /* Invoke plugins before output, to allow anonymization */
+    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
+        if (p->output)
+            (*p->output)(descr, &from, &to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
     /* Output stage. */
     if (preso) {
         fputs(descr, stderr);
@@ -120,9 +124,6 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
             }
         }
     }
-    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
-        if (p->output)
-            (*p->output)(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
     return;
 }
 

@@ -618,7 +618,7 @@ find_or_add(iaddr ia)
     }
 }
 
-void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void rssm_output(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
@@ -638,19 +638,19 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
         dnslen = MAX_SIZE_INDEX - 1;
 
     if (!ldns_pkt_qr(pkt)) {
-        find_or_add(from);
+        find_or_add(*from);
         if (IPPROTO_UDP == proto) {
             counts.udp_query_size[dnslen]++;
         } else if (IPPROTO_TCP == proto) {
             counts.tcp_query_size[dnslen]++;
         }
-        if (AF_INET == from.af) {
+        if (AF_INET == from->af) {
             if (IPPROTO_UDP == proto) {
                 counts.dns_udp_queries_received_ipv4++;
             } else if (IPPROTO_TCP == proto) {
                 counts.dns_tcp_queries_received_ipv4++;
             }
-        } else if (AF_INET6 == from.af) {
+        } else if (AF_INET6 == from->af) {
             if (IPPROTO_UDP == proto) {
                 counts.dns_udp_queries_received_ipv6++;
             } else if (IPPROTO_TCP == proto) {
@@ -664,13 +664,13 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
         } else if (IPPROTO_TCP == proto) {
             counts.tcp_response_size[dnslen]++;
         }
-        if (AF_INET == from.af) {
+        if (AF_INET == from->af) {
             if (IPPROTO_UDP == proto) {
                 counts.dns_udp_responses_sent_ipv4++;
             } else if (IPPROTO_TCP == proto) {
                 counts.dns_tcp_responses_sent_ipv4++;
             }
-        } else if (AF_INET6 == from.af) {
+        } else if (AF_INET6 == from->af) {
             if (IPPROTO_UDP == proto) {
                 counts.dns_udp_responses_sent_ipv6++;
             } else if (IPPROTO_TCP == proto) {

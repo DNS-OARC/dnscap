@@ -163,7 +163,7 @@ void royparse_normalize(char* str)
     }
 }
 
-void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void royparse_output(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, unsigned olen,
     const u_char* payload, unsigned payloadlen)
@@ -218,7 +218,7 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
                 fprintf(r_out, "ELSE");
             }
 
-            fprintf(r_out, " %s,", royparse_ia_str(to));
+            fprintf(r_out, " %s,", royparse_ia_str(*to));
 
             if (ns_msg_count(msg, ns_s_qd) > 0) {
                 if (ns_parserr(&msg, ns_s_qd, 0, &rr) == 0) {
