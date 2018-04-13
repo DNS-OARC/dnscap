@@ -163,7 +163,7 @@ void royparse_normalize(char* str)
     }
 }
 
-void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void royparse_output(const char* descr, iaddr* from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, unsigned olen,
     const u_char* payload, unsigned payloadlen)

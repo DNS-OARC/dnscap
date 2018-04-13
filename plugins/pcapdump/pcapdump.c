@@ -231,7 +231,7 @@ int pcapdump_close(my_bpftimeval ts)
     return ret;
 }
 
-void pcapdump_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void pcapdump_output(const char* descr, iaddr* from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, const unsigned olen, const u_char* payload, const unsigned payloadlen)
 {

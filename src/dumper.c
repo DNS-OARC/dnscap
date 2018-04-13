@@ -42,7 +42,7 @@
 /*
  * when flags & DNSCAP_OUTPUT_ISDNS, payload points to a DNS packet
  */
-void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
+void output(const char* descr, iaddr* from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
@@ -62,14 +62,18 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
             payloadlen);
     }
 
+    /* Invoke plugins before output, to allow anonymization */
+    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
+        if (p->output)
+            (*p->output)(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
     /* Output stage. */
     if (preso) {
         fputs(descr, stderr);
         if (flags & DNSCAP_OUTPUT_ISFRAG) {
-            fprintf(stderr, ";: [%s] ", ia_str(from));
+            fprintf(stderr, ";: [%s] ", ia_str(*from));
             fprintf(stderr, "-> [%s] (frag)\n", ia_str(to));
         } else {
-            fprintf(stderr, "\t[%s].%u ", ia_str(from), sport);
+            fprintf(stderr, "\t[%s].%u ", ia_str(*from), sport);
             fprintf(stderr, "[%s].%u ", ia_str(to), dport);
             if ((flags & DNSCAP_OUTPUT_ISDNS) && payload)
                 dump_dns(payload, payloadlen, stderr, "\\\n\t");
@@ -87,7 +91,7 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
             if (flush)
                 pcap_dump_flush(dumper);
         } else if (options.dump_format == cbor && (flags & DNSCAP_OUTPUT_ISDNS) && payload) {
-            int ret = output_cbor(from, to, proto, flags, sport, dport, ts, payload, payloadlen);
+            int ret = output_cbor(*from, to, proto, flags, sport, dport, ts, payload, payloadlen);
 
             if (ret == DUMP_CBOR_FLUSH) {
                 if (dumper_close(ts)) {
@@ -103,7 +107,7 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
                 exit(1);
             }
         } else if (options.dump_format == cds) {
-            int ret = output_cds(from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+            int ret = output_cds(*from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
 
             if (ret == DUMP_CDS_FLUSH) {
                 if (dumper_close(ts)) {
@@ -120,9 +124,6 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
             }
         }
     }
-    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
-        if (p->output)
-            (*p->output)(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
     return;
 }
 
