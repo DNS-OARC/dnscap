@@ -388,7 +388,7 @@ keytagsignal_done:
         free(qn_str);
 }
 
-void rzkeychange_output(const char* descr, iaddr* from, iaddr to, uint8_t proto, unsigned flags,
+void rzkeychange_output(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
@@ -399,7 +399,7 @@ void rzkeychange_output(const char* descr, iaddr* from, iaddr to, uint8_t proto,
     if (!(flags & DNSCAP_OUTPUT_ISDNS)) {
         if (IPPROTO_ICMP == proto && payloadlen >= 4) {
             struct icmp* icmp;
-            if (rzkeychange_is_responder && !rzkeychange_is_responder(to))
+            if (rzkeychange_is_responder && !rzkeychange_is_responder(*to))
                 goto done;
             icmp = (void*)payload;
             if (ICMP_UNREACH == icmp->icmp_type) {
@@ -437,7 +437,7 @@ void rzkeychange_output(const char* descr, iaddr* from, iaddr to, uint8_t proto,
         if (LDNS_RR_TYPE_DNSKEY == ldns_rr_get_type(question_rr))
             counts.dnskey++;
     if (keytag_zone != 0)
-        rzkeychange_keytagsignal(pkt, question_rr, to); // 'to' here because plugin should be processing responses
+        rzkeychange_keytagsignal(pkt, question_rr, *to); // 'to' here because plugin should be processing responses
 done:
     ldns_pkt_free(pkt);
 }
