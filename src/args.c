@@ -704,8 +704,6 @@ void parse_args(int argc, char* argv[])
     }
     if (start_time && stop_time && start_time >= stop_time)
         usage("start time must be before stop time");
-    if ((start_time || stop_time) && NULL == dump_base)
-        usage("--B and --E require -w");
 
     if (options.dump_format == cbor) {
         if (!have_cbor_support()) {
