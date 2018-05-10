@@ -47,4 +47,5 @@ EXTRA_DIST = $(TESTS) \
     test7.gold 1qtcpnosyn.pcap dnso1tcp.pcap do1t-nosyn-1nolen.pcap \
     dnso1tcp-midmiss.pcap \
     test8.gold dnsotcp-many1pkt.pcap dnsotcp-manyopkts.pcap \
-    dnso1tcp-bighole.pcap
+    dnso1tcp-bighole.pcap \
+    test9.gold
