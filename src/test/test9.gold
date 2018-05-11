@@ -1,95 +1,8 @@
-[56] 2016-10-20 15:23:01.075993 [#0 dns.pcap-dist 4095] \
-	[172.17.0.10].53199 [8.8.8.8].53  \
-	dns QUERY,NOERROR,59311,rd \
-	1 google.com,IN,A 0 0 0
-[208] 2016-10-20 15:23:01.077982 [#1 dns.pcap-dist 4095] \
-	[8.8.8.8].53 [172.17.0.10].53199  \
-	dns QUERY,NOERROR,59311,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,44,216.58.218.206 \
-	4 google.com,IN,NS,157880,ns4.google.com \
-	google.com,IN,NS,157880,ns3.google.com \
-	google.com,IN,NS,157880,ns1.google.com \
-	google.com,IN,NS,157880,ns2.google.com \
-	4 ns2.google.com,IN,A,157880,216.239.34.10 \
-	ns1.google.com,IN,A,331882,216.239.32.10 \
-	ns3.google.com,IN,A,157880,216.239.36.10 \
-	ns4.google.com,IN,A,157880,216.239.38.10
-[73] 2016-10-20 15:23:01.082865 [#2 dns.pcap-dist 4095] \
-	[172.17.0.10].57822 [8.8.8.8].53  \
-	dns QUERY,NOERROR,35665,rd \
-	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
-[289] 2016-10-20 15:23:01.084107 [#3 dns.pcap-dist 4095] \
-	[8.8.8.8].53 [172.17.0.10].57822  \
-	dns QUERY,NOERROR,35665,qr|rd|ra \
-	1 206.218.58.216.in-addr.arpa,IN,PTR \
-	2 206.218.58.216.in-addr.arpa,IN,PTR,72125,dfw06s47-in-f14.1e100.net \
-	206.218.58.216.in-addr.arpa,IN,PTR,72125,dfw06s47-in-f206.1e100.net \
-	4 218.58.216.in-addr.arpa,IN,NS,71608,ns2.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71608,ns3.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71608,ns1.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71608,ns4.google.com \
-	4 ns1.google.com,IN,A,331882,216.239.32.10 \
-	ns3.google.com,IN,A,157880,216.239.36.10 \
-	ns4.google.com,IN,A,157880,216.239.38.10 \
-	ns2.google.com,IN,A,157880,216.239.34.10
-[56] 2016-10-20 15:23:01.087291 [#4 dns.pcap-dist 4095] \
-	[172.17.0.10].40043 [8.8.8.8].53  \
-	dns QUERY,NOERROR,5337,rd \
-	1 google.com,IN,A 0 0 0
-[208] 2016-10-20 15:23:01.088733 [#5 dns.pcap-dist 4095] \
-	[8.8.8.8].53 [172.17.0.10].40043  \
-	dns QUERY,NOERROR,5337,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,44,216.58.218.206 \
-	4 google.com,IN,NS,157880,ns1.google.com \
-	google.com,IN,NS,157880,ns2.google.com \
-	google.com,IN,NS,157880,ns3.google.com \
-	google.com,IN,NS,157880,ns4.google.com \
-	4 ns2.google.com,IN,A,157880,216.239.34.10 \
-	ns1.google.com,IN,A,331882,216.239.32.10 \
-	ns3.google.com,IN,A,157880,216.239.36.10 \
-	ns4.google.com,IN,A,157880,216.239.38.10
-[56] 2016-10-20 15:23:10.322117 [#6 dns.pcap-dist 4095] \
-	[172.17.0.10].37953 [8.8.8.8].53  \
-	dns QUERY,NOERROR,22982,rd \
-	1 google.com,IN,A 0 0 0
-[208] 2016-10-20 15:23:10.323399 [#7 dns.pcap-dist 4095] \
-	[8.8.8.8].53 [172.17.0.10].37953  \
-	dns QUERY,NOERROR,22982,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,34,216.58.218.206 \
-	4 google.com,IN,NS,157870,ns4.google.com \
-	google.com,IN,NS,157870,ns1.google.com \
-	google.com,IN,NS,157870,ns2.google.com \
-	google.com,IN,NS,157870,ns3.google.com \
-	4 ns2.google.com,IN,A,157870,216.239.34.10 \
-	ns1.google.com,IN,A,331872,216.239.32.10 \
-	ns3.google.com,IN,A,157870,216.239.36.10 \
-	ns4.google.com,IN,A,157870,216.239.38.10
-[73] 2016-10-20 15:23:10.328324 [#8 dns.pcap-dist 4095] \
-	[172.17.0.10].48658 [8.8.8.8].53  \
-	dns QUERY,NOERROR,18718,rd \
-	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
-[289] 2016-10-20 15:23:10.329572 [#9 dns.pcap-dist 4095] \
-	[8.8.8.8].53 [172.17.0.10].48658  \
-	dns QUERY,NOERROR,18718,qr|rd|ra \
-	1 206.218.58.216.in-addr.arpa,IN,PTR \
-	2 206.218.58.216.in-addr.arpa,IN,PTR,72115,dfw06s47-in-f206.1e100.net \
-	206.218.58.216.in-addr.arpa,IN,PTR,72115,dfw06s47-in-f14.1e100.net \
-	4 218.58.216.in-addr.arpa,IN,NS,71598,ns2.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71598,ns3.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71598,ns4.google.com \
-	218.58.216.in-addr.arpa,IN,NS,71598,ns1.google.com \
-	4 ns1.google.com,IN,A,331872,216.239.32.10 \
-	ns3.google.com,IN,A,157870,216.239.36.10 \
-	ns4.google.com,IN,A,157870,216.239.38.10 \
-	ns2.google.com,IN,A,157870,216.239.34.10
-[56] 2016-10-20 15:23:52.860937 [#10 dns.pcap-dist 4095] \
+[56] 2016-10-20 15:23:52.860937 [#0 dns.pcap-dist 4095] \
 	[172.17.0.10].40953 [8.8.8.8].53  \
 	dns QUERY,NOERROR,22531,rd \
 	1 google.com,IN,A 0 0 0
-[208] 2016-10-20 15:23:52.863771 [#11 dns.pcap-dist 4095] \
+[208] 2016-10-20 15:23:52.863771 [#1 dns.pcap-dist 4095] \
 	[8.8.8.8].53 [172.17.0.10].40953  \
 	dns QUERY,NOERROR,22531,qr|rd|ra \
 	1 google.com,IN,A \
@@ -102,11 +15,11 @@
 	ns1.google.com,IN,A,331830,216.239.32.10 \
 	ns3.google.com,IN,A,157828,216.239.36.10 \
 	ns4.google.com,IN,A,157828,216.239.38.10
-[56] 2016-10-20 15:23:59.083869 [#12 dns.pcap-dist 4095] \
+[56] 2016-10-20 15:23:59.083869 [#2 dns.pcap-dist 4095] \
 	[172.17.0.10].45174 [8.8.8.8].53  \
 	dns QUERY,NOERROR,58510,rd \
 	1 google.com,IN,A 0 0 0
-[208] 2016-10-20 15:23:59.086104 [#13 dns.pcap-dist 4095] \
+[208] 2016-10-20 15:23:59.086104 [#3 dns.pcap-dist 4095] \
 	[8.8.8.8].53 [172.17.0.10].45174  \
 	dns QUERY,NOERROR,58510,qr|rd|ra \
 	1 google.com,IN,A \
@@ -119,11 +32,11 @@
 	ns1.google.com,IN,A,331824,216.239.32.10 \
 	ns3.google.com,IN,A,157822,216.239.36.10 \
 	ns4.google.com,IN,A,157822,216.239.38.10
-[73] 2016-10-20 15:23:59.090911 [#14 dns.pcap-dist 4095] \
+[73] 2016-10-20 15:23:59.090911 [#4 dns.pcap-dist 4095] \
 	[172.17.0.10].33916 [8.8.8.8].53  \
 	dns QUERY,NOERROR,45248,rd \
 	1 206.218.58.216.in-addr.arpa,IN,PTR 0 0 0
-[289] 2016-10-20 15:23:59.092204 [#15 dns.pcap-dist 4095] \
+[289] 2016-10-20 15:23:59.092204 [#5 dns.pcap-dist 4095] \
 	[8.8.8.8].53 [172.17.0.10].33916  \
 	dns QUERY,NOERROR,45248,qr|rd|ra \
 	1 206.218.58.216.in-addr.arpa,IN,PTR \

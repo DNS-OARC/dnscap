@@ -109,6 +109,9 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (!firstpkt->have_pkthdr)
         return;
 
+    if (only_offline_pcaps && start_time != 0 && firstpkt->pkthdr.ts.tv_sec < start_time)
+	return;
+
     len = firstpkt->pkthdr.caplen;
 
     last_ts = firstpkt->pkthdr.ts;
@@ -239,6 +242,9 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     size_t     len    = hdr->caplen;
     unsigned   etype, vlan, pf;
     char       descr[200];
+
+    if (only_offline_pcaps && start_time != 0 && hdr->ts.tv_sec < start_time)
+        return;
 
     last_ts = hdr->ts;
     if (stop_time != 0 && hdr->ts.tv_sec >= stop_time) {
