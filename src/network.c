@@ -110,7 +110,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         return;
 
     if (only_offline_pcaps && start_time != 0 && firstpkt->pkthdr.ts.tv_sec < start_time)
-	return;
+        return;
 
     len = firstpkt->pkthdr.caplen;
 
