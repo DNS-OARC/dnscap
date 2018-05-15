@@ -9,10 +9,11 @@ CLEANFILES = test*.log test*.trs \
     vlan11.out \
     dnspad.out \
     test7.out test7.layer.out \
-    test8.out
+    test8.out \
+    test9.out
 
 TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh test6.sh test7.sh \
-    test8.sh
+    test8.sh test9.sh
 
 test1.sh: dns.pcap-dist
 
@@ -32,6 +33,8 @@ test7.sh: 1qtcpnosyn.pcap-dist dnso1tcp.pcap-dist \
 test8.sh: dnsotcp-many1pkt.pcap-dist dnsotcp-manyopkts.pcap-dist \
     dnso1tcp-bighole.pcap-dist
 
+test9.sh: dns.pcap-dist
+
 .pcap.pcap-dist:
 	cp "$<" "$@"
 
@@ -44,4 +47,5 @@ EXTRA_DIST = $(TESTS) \
     test7.gold 1qtcpnosyn.pcap dnso1tcp.pcap do1t-nosyn-1nolen.pcap \
     dnso1tcp-midmiss.pcap \
     test8.gold dnsotcp-many1pkt.pcap dnsotcp-manyopkts.pcap \
-    dnso1tcp-bighole.pcap
+    dnso1tcp-bighole.pcap \
+    test9.gold

@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
     res_init();
     parse_args(argc, argv);
     gettimeofday(&now, 0);
-    if (start_time) {
+    if (!only_offline_pcaps && start_time) {
         if (now.tv_sec < start_time) {
             char       when[100];
             struct tm* tm = gmtime(&start_time);

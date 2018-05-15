@@ -329,30 +329,25 @@ or
 .Fl C
 limits are reached.
 .It Fl B Ar datetime
-When using
-.Fl w ,
-the
-.Fl B
-option tells
+Tell
 .Nm
 to start collecting at a specific time.
 .Ar datetime
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will
 .Xr sleep 3
-until the start time, and then begin capturing packets.
+until the start time, or it will skip all packets related to an earlier
+time if used with an offline
+.Xr pcap 3
+file, and then begin capturing packets.
 .It Fl E Ar datetime
-When using
-.Fl w
-and
-.Fl t ,
-the
-.Fl E
-option tells
+Tell
 .Nm
 to stop collecting at a specific time.
 .Ar datetime
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
-when it sees a packet with timestamp greater than
+when it sees a packet (live or offline
+.Xr pcap 3
+file) with timestamp greater than
 .Ar datetime .
 .It Fl M
 Enable monitor mode on interfaces.
