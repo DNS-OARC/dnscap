@@ -46,6 +46,21 @@ AC_CANONICAL_HOST
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([disable-static])
 
+# Check --enable-warn-all
+AC_ARG_ENABLE([warn-all], [AS_HELP_STRING([--enable-warn-all], [Enable all compiler warnings])], [AX_CFLAGS_WARN_ALL()])
+
+# Check --with-extra-cflags
+AC_ARG_WITH([extra-cflags], [AS_HELP_STRING([--with-extra-cflags=CFLAGS], [Add extra CFLAGS])], [
+  AC_MSG_NOTICE([appending extra CFLAGS... $withval])
+  AS_VAR_APPEND(CFLAGS, [" $withval"])
+])
+
+# Check --with-extra-ldflags
+AC_ARG_WITH([extra-ldflags], [AS_HELP_STRING([--with-extra-ldflags=CFLAGS], [Add extra LDFLAGS])], [
+  AC_MSG_NOTICE([appending extra LDFLAGS... $withval])
+  AS_VAR_APPEND(LDFLAGS, [" $withval"])
+])
+
 # pcap_thread
 AC_ARG_ENABLE(threads,
     [AS_HELP_STRING([--enable-threads],

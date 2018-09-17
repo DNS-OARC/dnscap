@@ -967,7 +967,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     const u_char* opkt, size_t olen)
 {
     u_char          pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char*   dnspkt;
+    const u_char*   dnspkt = 0;
     unsigned        proto, sport, dport;
     iaddr           from, to, initiator, responder;
     struct ip6_hdr* ipv6;
@@ -977,7 +977,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct tcphdr*  tcp      = NULL;
     tcpstate_ptr    tcpstate = NULL;
     struct ip*      ip;
-    size_t          len, dnslen;
+    size_t          len, dnslen = 0;
     HEADER          dns;
 
     if (dumptrace >= 4)
