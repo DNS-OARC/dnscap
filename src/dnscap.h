@@ -32,6 +32,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -48,9 +52,6 @@
 #endif
 
 #ifdef __linux__
-#define __FAVOR_BSD
-#define __USE_GNU
-#define _GNU_SOURCE
 #include <net/ethernet.h>
 #ifdef USE_SECCOMP
 #include <seccomp.h>
