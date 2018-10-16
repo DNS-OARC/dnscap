@@ -689,8 +689,8 @@ void parse_args(int argc, char* argv[])
         }
     }
     if (EMPTY(mypcaps)) {
-        pcap_if_t *pcapdev;
-        int res;
+        pcap_if_t* pcapdev = 0;
+        int        res;
         res = pcap_findalldevs(&pcapdev, errbuf);
         if (res == -1) {
             fprintf(stderr, "%s: pcap_findalldevs: %s\n",
