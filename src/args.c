@@ -689,18 +689,24 @@ void parse_args(int argc, char* argv[])
         }
     }
     if (EMPTY(mypcaps)) {
-        const char* name;
-        name = pcap_lookupdev(errbuf);
-        if (name == NULL) {
-            fprintf(stderr, "%s: pcap_lookupdev: %s\n",
+        pcap_if_t* pcapdev = 0;
+        int        res;
+        res = pcap_findalldevs(&pcapdev, errbuf);
+        if (res == -1) {
+            fprintf(stderr, "%s: pcap_findalldevs: %s\n",
                 ProgramName, errbuf);
+            exit(1);
+        } else if (pcapdev == NULL) {
+            fprintf(stderr, "%s: pcap_findalldevs: no devices found\n",
+                ProgramName);
             exit(1);
         }
         mypcap = calloc(1, sizeof *mypcap);
         assert(mypcap != NULL);
         INIT_LINK(mypcap, link);
-        mypcap->name = (name == NULL) ? NULL : strdup(name);
+        mypcap->name = strdup(pcapdev->name);
         APPEND(mypcaps, mypcap, link);
+        pcap_freealldevs(pcapdev);
     }
     if (start_time && stop_time && start_time >= stop_time)
         usage("start time must be before stop time");
