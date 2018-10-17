@@ -218,6 +218,7 @@ void text_free(text_list* list)
 
     while ((text = HEAD(*list)) != NULL) {
         UNLINK(*list, text, link);
+        free(text->text);
         free(text);
     }
 }
