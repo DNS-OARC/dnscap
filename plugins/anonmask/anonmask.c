@@ -48,8 +48,8 @@ static ia_str_t    anonmask_ia_str    = 0;
 
 static logerr_t*       logerr;
 static int             only_clients = 0, only_servers = 0, mask_port = 53, mask_v4 = 24, mask_v6 = 48;
-static struct in_addr  in4;
-static struct in6_addr in6;
+static struct in_addr  in4  = { INADDR_ANY };
+static struct in6_addr in6  = IN6ADDR_ANY_INIT;
 static uint32_t*       in6p = (uint32_t*)&in6;
 
 enum plugin_type anonmask_type()
@@ -113,14 +113,14 @@ void anonmask_getopt(int* argc, char** argv[])
             break;
         case '4':
             ul = strtoul(optarg, &p, 0);
-            if (*p != '\0' || ul > 32U)
-                usage("IPv4 mask must be an integer 0..32");
+            if (*p != '\0' || ul > 31U)
+                usage("IPv4 mask must be an integer 0..31");
             mask_v4 = (unsigned)ul;
             break;
         case '6':
             ul = strtoul(optarg, &p, 0);
-            if (*p != '\0' || ul > 128U)
-                usage("port must be an integer 0..128");
+            if (*p != '\0' || ul > 127U)
+                usage("port must be an integer 0..127");
             mask_v6 = (unsigned)ul;
             break;
         default:
@@ -133,27 +133,26 @@ void anonmask_getopt(int* argc, char** argv[])
         usage("-c and -s options are mutually exclusive");
     }
 
-    in4.s_addr = htonl(0xffffffff << (32 - mask_v4));
-    if (mask_v6 <= 32) {
-        in6p[0] = htonl(0xffffffff << (32 - mask_v6));
-        in6p[1] = 0;
-        in6p[2] = 0;
-        in6p[3] = 0;
-    } else if (mask_v6 <= 64) {
-        in6p[0] = 0xffffffff;
-        in6p[1] = htonl(0xffffffff << (64 - mask_v6));
-        in6p[2] = 0;
-        in6p[3] = 0;
-    } else if (mask_v6 <= 96) {
-        in6p[0] = 0xffffffff;
-        in6p[1] = 0xffffffff;
-        in6p[2] = htonl(0xffffffff << (96 - mask_v6));
-        in6p[3] = 0;
-    } else {
-        in6p[0] = 0xffffffff;
-        in6p[1] = 0xffffffff;
-        in6p[2] = 0xffffffff;
-        in6p[3] = htonl(0xffffffff << (128 - mask_v6));
+    if (mask_v4) {
+        in4.s_addr = htonl(0xffffffff << (32 - mask_v4));
+    }
+
+    if (mask_v6) {
+        if (mask_v6 <= 32) {
+            in6p[0] = htonl(0xffffffff << (32 - mask_v6));
+        } else if (mask_v6 <= 64) {
+            in6p[0] = 0xffffffff;
+            in6p[1] = htonl(0xffffffff << (64 - mask_v6));
+        } else if (mask_v6 <= 96) {
+            in6p[0] = 0xffffffff;
+            in6p[1] = 0xffffffff;
+            in6p[2] = htonl(0xffffffff << (96 - mask_v6));
+        } else {
+            in6p[0] = 0xffffffff;
+            in6p[1] = 0xffffffff;
+            in6p[2] = 0xffffffff;
+            in6p[3] = htonl(0xffffffff << (128 - mask_v6));
+        }
     }
 }
 
@@ -182,21 +181,21 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
     const u_char* pkt_copy, const unsigned olen,
     const u_char* payload, const unsigned payloadlen)
 {
-    int       set = 0;
     uint32_t* p6;
 
     for (;;) {
         if (only_clients && sport == mask_port) {
+            from = 0;
             break;
         }
         if (only_servers && sport != mask_port) {
+            from = 0;
             break;
         }
 
         switch (from->af) {
         case AF_INET:
             from->u.a4.s_addr &= in4.s_addr;
-            set = 1;
             break;
         case AF_INET6:
             p6 = (uint32_t*)&from->u.a6;
@@ -204,9 +203,9 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
             p6[1] &= in6p[1];
             p6[2] &= in6p[2];
             p6[3] &= in6p[3];
-            set = 1;
             break;
         default:
+            from = 0;
             break;
         }
         break;
@@ -214,16 +213,17 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
 
     for (;;) {
         if (only_clients && dport == mask_port) {
+            to = 0;
             break;
         }
         if (only_servers && dport != mask_port) {
+            to = 0;
             break;
         }
 
         switch (to->af) {
         case AF_INET:
             to->u.a4.s_addr &= in4.s_addr;
-            set = 1;
             break;
         case AF_INET6:
             p6 = (uint32_t*)&to->u.a6;
@@ -231,7 +231,6 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
             p6[1] &= in6p[1];
             p6[2] &= in6p[2];
             p6[3] &= in6p[3];
-            set = 1;
             break;
         default:
             break;
@@ -239,7 +238,7 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
         break;
     }
 
-    if (set && anonmask_set_iaddr) {
+    if (anonmask_set_iaddr && (from || to)) {
         anonmask_set_iaddr(from, to);
     }
 
