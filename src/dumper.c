@@ -49,6 +49,21 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
 {
     struct plugin* p;
 
+    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+        if (p->filter && (*p->filter)(descr, &from, &to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen)) {
+            if (dumptrace >= 3) {
+                fprintf(stderr, "filtered: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
+                    capturedbytes,
+                    proto,
+                    flags & DNSCAP_OUTPUT_ISFRAG ? "yes" : "no",
+                    flags & DNSCAP_OUTPUT_ISDNS ? "yes" : "no",
+                    olen,
+                    payloadlen);
+            }
+            return;
+        }
+    }
+
     msgcount++;
     capturedbytes += olen;
 

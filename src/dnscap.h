@@ -339,14 +339,17 @@ struct plugin {
     LINK(struct plugin)
     link;
 
-    char* name;
-    void* handle;
+    char*            name;
+    void*            handle;
+    enum plugin_type pt;
 
+    type_t(*type);
     int (*start)(logerr_t*);
     void (*stop)();
     int (*open)(my_bpftimeval);
     int (*close)();
     output_t(*output);
+    filter_t(*filter);
     void (*getopt)(int*, char** []);
     void (*usage)();
     void (*extension)(int, void*);
