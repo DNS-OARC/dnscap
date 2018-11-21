@@ -1590,6 +1590,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 if ((end_hide & END_RESPONDER) != 0)
                     memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
 
+                ip->ip_sum = 0;
                 ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
                 if (udp)
                     udp->uh_sum = 0U;
