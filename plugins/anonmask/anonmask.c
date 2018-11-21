@@ -72,7 +72,7 @@ void anonmask_usage()
         "\t-s            Only mask servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s masking, default 53\n"
         "\t-4 <netmask>  The /mask for IPv4 addresses, default /24\n"
-        "\t-6 <netmask>  The /mask for IPv4 addresses, default /48\n");
+        "\t-6 <netmask>  The /mask for IPv6 addresses, default /48\n");
 }
 
 void anonmask_extension(int ext, void* arg)
