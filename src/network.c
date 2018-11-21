@@ -43,6 +43,10 @@
 #include "tcpstate.h"
 #include "tcpreasm.h"
 
+struct ip6_hdr* network_ipv6 = 0;
+struct ip*      network_ip   = 0;
+struct udphdr*  network_udp  = 0;
+
 extern tcpstate_ptr _curr_tcpstate; /* from tcpstate.c */
 
 #define MY_GET32(l, cp)                                          \
@@ -996,7 +1000,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         if (len < sizeof *ip)
             return;
-        ip = (void*)pkt;
+        network_ip = ip = (void*)pkt;
+        network_ipv6    = 0;
         if (ip->ip_v != IPVERSION)
             return;
         proto = ip->ip_p;
@@ -1031,7 +1036,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         if (len < sizeof *ipv6)
             return;
-        ipv6 = (void*)pkt;
+        network_ipv6 = ipv6 = (void*)pkt;
+        network_ip          = 0;
         if ((ipv6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
             return;
 
@@ -1101,12 +1107,13 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     switch (proto) {
     case IPPROTO_ICMP:
     case IPPROTO_ICMPV6:
+        network_udp = 0;
         output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
         return;
     case IPPROTO_UDP: {
         if (len < sizeof *udp)
             return;
-        udp = (void*)pkt;
+        network_udp = udp = (void*)pkt;
         switch (from.af) {
         case AF_INET:
         case AF_INET6:
@@ -1124,6 +1131,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         break;
     }
     case IPPROTO_TCP: {
+        network_udp = 0;
+
         /* TCP processing.
          * We need to capture enough to allow a later analysis to
          * reassemble the TCP stream, but we don't want to keep all

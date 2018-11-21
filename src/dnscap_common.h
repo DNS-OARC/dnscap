@@ -70,6 +70,20 @@ typedef struct {
 } iaddr;
 
 /*
+ * Prototype for the plugin "type" function
+ *
+ * output - Will run plugin's "output" function last when outputting (default
+ *          and same behavior before the existens of a plugin type)
+ * filter - Will run plugin's "filter" function before outputting and won't
+ *          output if the return of that function is non-zero.
+ */
+enum plugin_type {
+    plugin_output,
+    plugin_filter,
+};
+typedef enum plugin_type type_t(void);
+
+/*
  * plugins can call the logerr() function in the main dnscap
  * process.
  */
@@ -91,6 +105,26 @@ typedef void output_t(const char* descr,
     const u_char*                 payload,
     const unsigned                payloadlen);
 
+/*
+ * Prototype for the plugin "filter" function
+ */
+typedef int filter_t(const char* descr,
+    iaddr*                       from,
+    iaddr*                       to,
+    uint8_t                      proto,
+    unsigned                     flags,
+    unsigned                     sport,
+    unsigned                     dport,
+    my_bpftimeval                ts,
+    const u_char*                pkt_copy,
+    const unsigned               olen,
+    const u_char*                payload,
+    const unsigned               payloadlen);
+
+/*
+ * Extensions
+ */
+
 #define DNSCAP_EXT_IS_RESPONDER 1
 typedef int (*is_responder_t)(iaddr ia);
 
@@ -103,9 +137,20 @@ typedef void* (*tcpstate_getcurr_t)(void);
 #define DNSCAP_EXT_TCPSTATE_RESET 4
 typedef void (*tcpstate_reset_t)(void* tcpstate, const char* msg);
 
+#define DNSCAP_EXT_SET_IADDR 5
+typedef void (*set_iaddr_t)(iaddr* from, iaddr* to);
+
+/*
+ * Flags
+ */
+
 #define DNSCAP_OUTPUT_ISFRAG (1 << 0)
 #define DNSCAP_OUTPUT_ISDNS (1 << 1)
 #define DNSCAP_OUTPUT_ISLAYER (1 << 2)
+
+/*
+ * Direction
+ */
 
 #define DIR_INITIATE 0x0001
 #define DIR_RESPONSE 0x0002
