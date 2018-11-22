@@ -6,6 +6,8 @@ if [ -z "$plugin" ]; then
     exit 1
 fi
 
+ln -fs "$srcdir/../../src/test/dns.pcap" dns.pcap-dist
+
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" 2>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -4 16 2>>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -c 2>>test1.out
