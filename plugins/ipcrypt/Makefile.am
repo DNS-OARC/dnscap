@@ -5,9 +5,9 @@ AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/isc \
     $(SECCOMPFLAGS)
 
-pkglib_LTLIBRARIES = anonmask.la
-anonmask_la_SOURCES = anonmask.c
-anonmask_la_LDFLAGS = -module -avoid-version
+pkglib_LTLIBRARIES = ipcrypt.la
+ipcrypt_la_SOURCES = ipcrypt.c
+ipcrypt_la_LDFLAGS = -module -avoid-version
 
 TESTS = test1.sh
 

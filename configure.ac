@@ -169,5 +169,6 @@ AC_CONFIG_FILES([
     plugins/rzkeychange/Makefile
     plugins/royparse/Makefile
     plugins/anonmask/Makefile
+    plugins/ipcrypt/Makefile
 ])
 AC_OUTPUT

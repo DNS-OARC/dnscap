@@ -44,7 +44,6 @@
 #include "dnscap_common.h"
 
 static set_iaddr_t anonmask_set_iaddr = 0;
-static ia_str_t    anonmask_ia_str    = 0;
 
 static logerr_t*       logerr;
 static int             only_clients = 0, only_servers = 0, mask_port = 53, mask_v4 = 24, mask_v6 = 48;
@@ -80,9 +79,6 @@ void anonmask_extension(int ext, void* arg)
     switch (ext) {
     case DNSCAP_EXT_SET_IADDR:
         anonmask_set_iaddr = (set_iaddr_t)arg;
-        break;
-    case DNSCAP_EXT_IA_STR:
-        anonmask_ia_str = (ia_str_t)arg;
         break;
     }
 }
@@ -233,6 +229,7 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
             p6[3] &= in6p[3];
             break;
         default:
+            to = 0;
             break;
         }
         break;
