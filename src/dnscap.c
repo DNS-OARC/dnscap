@@ -48,6 +48,13 @@
 #include "log.h"
 #include "sig.h"
 
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_CONF_H) && defined(HAVE_OPENSSL_ERR_H) && defined(HAVE_OPENSSL_EVP_H)
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#define INIT_OPENSSL 1
+#endif
+
 plugin_list     plugins;
 const char*     ProgramName = "amnesia";
 int             dumptrace   = 0;
@@ -117,6 +124,14 @@ int main(int argc, char* argv[])
 {
     struct plugin* p;
     struct timeval now;
+
+#ifdef INIT_OPENSSL
+    ERR_load_crypto_strings();
+    OpenSSL_add_all_algorithms();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    OPENSSL_config(0);
+#endif
+#endif
 
     res_init();
     parse_args(argc, argv);
@@ -222,5 +237,12 @@ int main(int argc, char* argv[])
             (*p->stop)();
     }
     options_free(&options);
+
+#ifdef INIT_OPENSSL
+    EVP_cleanup();
+    CRYPTO_cleanup_all_ex_data();
+    ERR_free_strings();
+#endif
+
     return 0;
 }
