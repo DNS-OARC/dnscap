@@ -83,6 +83,7 @@ AM_CONDITIONAL([HAVE_LDNS], [test "x$ac_cv_lib_ldns_ldns_wire2pkt" = "xyes"])
 AC_CHECK_LIB([z], [gzopen])
 PKG_CHECK_MODULES([libcrypto], [libcrypto],
     [AC_DEFINE([HAVE_LIBCRYPTO], [1], [Define to 1 if you have libcrypto.])])
+AC_CHECK_LIB([cryptopANT], [scramble_init])
 
 # Check for OS specific libraries
 case "$host_os" in
@@ -109,6 +110,7 @@ AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h cbor.h cbor/cbor.h])
 AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([zlib.h])
 AC_CHECK_HEADERS([openssl/conf.h openssl/evp.h openssl/err.h])
+AC_CHECK_HEADERS([cryptopANT.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
@@ -174,5 +176,7 @@ AC_CONFIG_FILES([
     plugins/anonmask/Makefile
     plugins/ipcrypt/Makefile
 	plugins/anonaes128/Makefile
+	plugins/cryptopan/Makefile
+    plugins/cryptopant/Makefile
 ])
 AC_OUTPUT
