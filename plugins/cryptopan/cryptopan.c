@@ -60,7 +60,7 @@
 static set_iaddr_t cryptopan_set_iaddr = 0;
 
 static logerr_t*     logerr;
-static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v6 = 0;
+static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v6 = 0, decrypt = 0;
 static unsigned char key[16];
 static unsigned char iv[16];
 static unsigned char pad[16];
@@ -90,10 +90,11 @@ void cryptopan_usage()
         "\t-I <file>     Read the 16 first bytes from file and use as IV\n"
         "\t-a <key>      A 16 character long padding\n"
         "\t-A <file>     Read the 16 first bytes from file and use as padding\n"
-        "\t-c            Only encrypt clients (port != 53)\n"
-        "\t-s            Only encrypt servers (port == 53)\n"
+        "\t-D            Decrypt IP addresses\n"
+        "\t-c            Only en/de-crypt clients (port != 53)\n"
+        "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
-        "\t-6            Encrypt IPv6 addresses, not default or recommended\n");
+        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n");
 }
 
 void cryptopan_extension(int ext, void* arg)
@@ -111,7 +112,7 @@ void cryptopan_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:K:i:I:a:A:csp:6")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:K:i:I:a:A:Dcsp:6")) != EOF) {
         switch (c) {
         case '?':
             cryptopan_usage();
@@ -192,6 +193,9 @@ void cryptopan_getopt(int* argc, char** argv[])
             got_pad = 1;
             break;
         }
+        case 'D':
+            decrypt = 1;
+            break;
         case 'c':
             only_clients = 1;
             break;
@@ -226,6 +230,7 @@ void cryptopan_getopt(int* argc, char** argv[])
         fprintf(stderr, "%s:%s:%s\n", ERR_lib_error_string(e), ERR_func_error_string(e), ERR_reason_error_string(e));
         usage("unable to initialize AES128 cipher");
     }
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
     {
         unsigned char outbuf[16 + EVP_MAX_BLOCK_LENGTH];
         int           outlen = 0;
@@ -303,6 +308,36 @@ static inline void _encrypt(uint32_t* in)
 
     *in = htonl(result ^ orig);
 }
+
+static inline void _decrypt(uint32_t* in)
+{
+    unsigned char input[16], outbuf[16 + EVP_MAX_BLOCK_LENGTH];
+    int           outlen = 0, pos;
+    uint32_t      orig, pad4b, mask = 0;
+
+    memcpy(input, pad, 16);
+    orig  = ntohl(*in);
+    pad4b = *(uint32_t*)pad;
+
+    for (pos = 0; pos < 32; pos++) {
+        *(uint32_t*)input = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
+
+        if (!EVP_CipherUpdate(ctx, outbuf, &outlen, input, 16)) {
+            fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
+            exit(1);
+        }
+        if (outlen != 16) {
+            fprintf(stderr, "cryptopan.so: error encrypted result is not 16 bytes\n");
+            exit(1);
+        }
+
+        orig ^= ((ntohl(*(u_int32_t*)outbuf)) & 0x80000000) >> pos;
+        mask >>= 1;
+        mask |= 0x80000000;
+    }
+
+    *in = htonl(orig);
+}
 #endif
 
 int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
@@ -323,14 +358,21 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
 
         switch (from->af) {
         case AF_INET:
-            _encrypt((uint32_t*)&from->u.a4);
+            decrypt ? _decrypt((uint32_t*)&from->u.a4) : _encrypt((uint32_t*)&from->u.a4);
             break;
         case AF_INET6:
             if (encrypt_v6) {
-                _encrypt((uint32_t*)&from->u.a6);
-                _encrypt(((uint32_t*)&from->u.a6) + 4);
-                _encrypt(((uint32_t*)&from->u.a6) + 8);
-                _encrypt(((uint32_t*)&from->u.a6) + 12);
+                if (decrypt) {
+                    _decrypt((uint32_t*)&from->u.a6);
+                    _decrypt(((uint32_t*)&from->u.a6) + 1);
+                    _decrypt(((uint32_t*)&from->u.a6) + 2);
+                    _decrypt(((uint32_t*)&from->u.a6) + 3);
+                } else {
+                    _encrypt((uint32_t*)&from->u.a6);
+                    _encrypt(((uint32_t*)&from->u.a6) + 1);
+                    _encrypt(((uint32_t*)&from->u.a6) + 2);
+                    _encrypt(((uint32_t*)&from->u.a6) + 3);
+                }
                 break;
             }
         default:
@@ -352,14 +394,21 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
 
         switch (to->af) {
         case AF_INET:
-            _encrypt((uint32_t*)&to->u.a4);
+            decrypt ? _decrypt((uint32_t*)&to->u.a4) : _encrypt((uint32_t*)&to->u.a4);
             break;
         case AF_INET6:
             if (encrypt_v6) {
-                _encrypt((uint32_t*)&to->u.a6);
-                _encrypt(((uint32_t*)&to->u.a6) + 4);
-                _encrypt(((uint32_t*)&to->u.a6) + 8);
-                _encrypt(((uint32_t*)&to->u.a6) + 12);
+                if (decrypt) {
+                    _decrypt((uint32_t*)&to->u.a6);
+                    _decrypt(((uint32_t*)&to->u.a6) + 1);
+                    _decrypt(((uint32_t*)&to->u.a6) + 2);
+                    _decrypt(((uint32_t*)&to->u.a6) + 3);
+                } else {
+                    _encrypt((uint32_t*)&to->u.a6);
+                    _encrypt(((uint32_t*)&to->u.a6) + 1);
+                    _encrypt(((uint32_t*)&to->u.a6) + 2);
+                    _encrypt(((uint32_t*)&to->u.a6) + 3);
+                }
                 break;
             }
         default:

@@ -48,7 +48,7 @@
 static set_iaddr_t ipcrypt_set_iaddr = 0;
 
 static logerr_t* logerr;
-static int       only_clients = 0, only_servers = 0, dns_port = 53, iterations = 1, encrypt_v6 = 0;
+static int       only_clients = 0, only_servers = 0, dns_port = 53, iterations = 1, encrypt_v6 = 0, decrypt = 0;
 static uint8_t   key[16];
 
 /*
@@ -79,6 +79,24 @@ static inline void permute_fwd(uint8_t* state)
     state[2] = rotl(state[2], 4);
 }
 
+static inline void permute_bwd(uint8_t* state)
+{
+    state[2] = rotl(state[2], 4);
+    state[1] ^= state[2];
+    state[3] ^= state[0];
+    state[1] = rotl(state[1], 5);
+    state[3] = rotl(state[3], 1);
+    state[0] -= state[3];
+    state[2] -= state[1];
+    state[0] = rotl(state[0], 4);
+    state[1] ^= state[0];
+    state[3] ^= state[2];
+    state[1] = rotl(state[1], 6);
+    state[3] = rotl(state[3], 3);
+    state[0] -= state[1];
+    state[2] -= state[3];
+}
+
 static inline void xor4(uint8_t* x, uint8_t* y)
 {
     *(uint32_t*)x ^= *(uint32_t*)y;
@@ -102,6 +120,20 @@ static inline void _encrypt(uint8_t* ip)
     }
 }
 
+static inline void _decrypt(uint8_t* ip)
+{
+    int i = iterations;
+    for (; i; i--) {
+        xor4(ip, &key[12]);
+        permute_bwd(ip);
+        xor4(ip, &key[8]);
+        permute_bwd(ip);
+        xor4(ip, &key[4]);
+        permute_bwd(ip);
+        xor4(ip, key);
+    }
+}
+
 enum plugin_type ipcrypt_type()
 {
     return plugin_filter;
@@ -120,11 +152,12 @@ void ipcrypt_usage()
         "\t-?            print these instructions and exit\n"
         "\t-k <key>      A 16 character long key\n"
         "\t-f <file>     Read the 16 first bytes from file and use as key\n"
-        "\t-c            Only encrypt clients (port != 53)\n"
-        "\t-s            Only encrypt servers (port == 53)\n"
+        "\t-D            Decrypt IP addresses\n"
+        "\t-c            Only en/de-crypt clients (port != 53)\n"
+        "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
-        "\t-i <num>      Number of encryption iterations, default 1\n"
-        "\t-6            Encrypt IPv6 addresses, not default or recommended\n");
+        "\t-i <num>      Number of en/de-cryption iterations, default 1\n"
+        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n");
 }
 
 void ipcrypt_extension(int ext, void* arg)
@@ -142,7 +175,7 @@ void ipcrypt_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:f:csp:i:6")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:f:Dcsp:i:6")) != EOF) {
         switch (c) {
         case '?':
             ipcrypt_usage();
@@ -173,6 +206,9 @@ void ipcrypt_getopt(int* argc, char** argv[])
             got_key = 1;
             break;
         }
+        case 'D':
+            decrypt = 1;
+            break;
         case 'c':
             only_clients = 1;
             break;
@@ -246,14 +282,21 @@ int ipcrypt_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, uns
 
         switch (from->af) {
         case AF_INET:
-            _encrypt((uint8_t*)&from->u.a4);
+            decrypt ? _decrypt((uint8_t*)&from->u.a4) : _encrypt((uint8_t*)&from->u.a4);
             break;
         case AF_INET6:
             if (encrypt_v6) {
-                _encrypt((uint8_t*)&from->u.a6);
-                _encrypt(((uint8_t*)&from->u.a6) + 4);
-                _encrypt(((uint8_t*)&from->u.a6) + 8);
-                _encrypt(((uint8_t*)&from->u.a6) + 12);
+                if (decrypt) {
+                    _decrypt((uint8_t*)&from->u.a6);
+                    _decrypt(((uint8_t*)&from->u.a6) + 4);
+                    _decrypt(((uint8_t*)&from->u.a6) + 8);
+                    _decrypt(((uint8_t*)&from->u.a6) + 12);
+                } else {
+                    _encrypt((uint8_t*)&from->u.a6);
+                    _encrypt(((uint8_t*)&from->u.a6) + 4);
+                    _encrypt(((uint8_t*)&from->u.a6) + 8);
+                    _encrypt(((uint8_t*)&from->u.a6) + 12);
+                }
                 break;
             }
         default:
@@ -275,14 +318,21 @@ int ipcrypt_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, uns
 
         switch (to->af) {
         case AF_INET:
-            _encrypt((uint8_t*)&to->u.a4);
+            decrypt ? _decrypt((uint8_t*)&to->u.a4) : _encrypt((uint8_t*)&to->u.a4);
             break;
         case AF_INET6:
             if (encrypt_v6) {
-                _encrypt((uint8_t*)&to->u.a6);
-                _encrypt(((uint8_t*)&to->u.a6) + 4);
-                _encrypt(((uint8_t*)&to->u.a6) + 8);
-                _encrypt(((uint8_t*)&to->u.a6) + 12);
+                if (decrypt) {
+                    _decrypt((uint8_t*)&to->u.a6);
+                    _decrypt(((uint8_t*)&to->u.a6) + 4);
+                    _decrypt(((uint8_t*)&to->u.a6) + 8);
+                    _decrypt(((uint8_t*)&to->u.a6) + 12);
+                } else {
+                    _encrypt((uint8_t*)&to->u.a6);
+                    _encrypt(((uint8_t*)&to->u.a6) + 4);
+                    _encrypt(((uint8_t*)&to->u.a6) + 8);
+                    _encrypt(((uint8_t*)&to->u.a6) + 12);
+                }
                 break;
             }
         default:

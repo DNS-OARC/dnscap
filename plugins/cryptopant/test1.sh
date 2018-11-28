@@ -6,13 +6,13 @@ if [ -z "$plugin" ]; then
     exit 1
 fi
 
+ln -fs "$srcdir/../../src/test/dns.pcap" dns.pcap-dist
+
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" 2>test1.out || true
 if grep -q "no cryptopANT support built in" test1.out 2>/dev/null; then
     echo "No cryptopANT support, skipping tests"
     exit 0
 fi
-
-ln -fs "$srcdir/../../src/test/dns.pcap" dns.pcap-dist
 
 ! ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" 2>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" 2>>test1.out
