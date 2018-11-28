@@ -55,7 +55,7 @@
 static set_iaddr_t anonaes128_set_iaddr = 0;
 
 static logerr_t*     logerr;
-static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v4 = 0;
+static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v4 = 0, decrypt = 0;
 static unsigned char key[16];
 static unsigned char iv[16];
 #ifdef USE_OPENSSL
@@ -82,8 +82,9 @@ void anonaes128_usage()
         "\t-K <file>     Read the 16 first bytes from file and use as key\n"
         "\t-i <key>      A 16 character long Initialisation Vector (IV)\n"
         "\t-I <file>     Read the 16 first bytes from file and use as IV\n"
-        "\t-c            Only encrypt clients (port != 53)\n"
-        "\t-s            Only encrypt servers (port == 53)\n"
+        "\t-D            Decrypt IPv6 addresses\n"
+        "\t-c            Only en/de-crypt clients (port != 53)\n"
+        "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
         "\t-4            Encrypt IPv4 addresses, not default or recommended\n");
 }
@@ -103,7 +104,7 @@ void anonaes128_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:K:i:I:csp:4")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:K:i:I:Dcsp:4")) != EOF) {
         switch (c) {
         case '?':
             anonaes128_usage();
@@ -159,6 +160,9 @@ void anonaes128_getopt(int* argc, char** argv[])
             got_iv = 1;
             break;
         }
+        case 'D':
+            decrypt = 1;
+            break;
         case 'c':
             only_clients = 1;
             break;
@@ -183,16 +187,20 @@ void anonaes128_getopt(int* argc, char** argv[])
     if (!got_key || !got_iv) {
         usage("must have key (-k/-K) and IV (-i/-I)");
     }
+    if (decrypt && encrypt_v4) {
+        usage("decryption (-D) can not be done for IPv4 addresses (-4)");
+    }
 
 #ifdef USE_OPENSSL
     if (!(ctx = EVP_CIPHER_CTX_new())) {
         usage("unable to create openssl cipher context");
     }
-    if (!EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, iv, 1)) {
+    if (!EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, iv, decrypt ? 0 : 1)) {
         unsigned long e = ERR_get_error();
         fprintf(stderr, "%s:%s:%s", ERR_lib_error_string(e), ERR_func_error_string(e), ERR_reason_error_string(e));
         usage("unable to initialize AES128 cipher");
     }
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
 #else
     usage("no openssl support built in, can't encrypt IP addresses");
 #endif
@@ -248,11 +256,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
         switch (from->af) {
         case AF_INET6:
             if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&from->u.a6, 16)) {
-                logerr("anonaes128.so: error encrypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+                logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                 exit(1);
             }
             if (outlen != 16) {
-                logerr("anonaes128.so: error encrypted output is not 16 bytes");
+                logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
                 exit(1);
             }
             memcpy(&from->u.a6, outbuf, 16);
@@ -264,11 +272,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
                 memcpy(((uint8_t*)&from->u.a4) + 12, &from->u.a4, 4);
 
                 if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&from->u.a4, 16)) {
-                    logerr("anonaes128.so: error encrypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+                    logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                     exit(1);
                 }
                 if (outlen != 16) {
-                    logerr("anonaes128.so: error encrypted output is not 16 bytes");
+                    logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
                     exit(1);
                 }
                 memcpy(&from->u.a4, outbuf, 4);
@@ -294,11 +302,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
         switch (to->af) {
         case AF_INET6:
             if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&to->u.a6, 16)) {
-                logerr("anonaes128.so: error encrypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+                logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                 exit(1);
             }
             if (outlen != 16) {
-                logerr("anonaes128.so: error encrypted output is not 16 bytes");
+                logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
                 exit(1);
             }
             memcpy(&to->u.a6, outbuf, 16);
@@ -310,11 +318,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
                 memcpy(((uint8_t*)&to->u.a4) + 12, &to->u.a4, 4);
 
                 if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&to->u.a4, 16)) {
-                    logerr("anonaes128.so: error encrypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+                    logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                     exit(1);
                 }
                 if (outlen != 16) {
-                    logerr("anonaes128.so: error encrypted output is not 16 bytes");
+                    logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
                     exit(1);
                 }
                 memcpy(&to->u.a4, outbuf, 4);
