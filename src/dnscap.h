@@ -32,6 +32,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __dnscap_dnscap_h
+#define __dnscap_dnscap_h
+
 #ifdef __linux__
 #define _GNU_SOURCE
 #endif
@@ -211,9 +214,6 @@
 #include "dump_cds.h"
 #include "options.h"
 #include "pcap-thread/pcap_thread.h"
-
-#ifndef __dnscap_dnscap_h
-#define __dnscap_dnscap_h
 
 struct text {
     LINK(struct text)

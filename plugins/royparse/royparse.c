@@ -53,7 +53,7 @@ static logerr_t* logerr;
 static char*     opt_q = 0;
 static char*     opt_r = 0;
 
-pcap_t*        pd;
+pcap_t*        pcap;
 pcap_dumper_t* q_out = 0;
 static FILE*   r_out = 0;
 
@@ -111,8 +111,8 @@ int royparse_start(logerr_t* a_logerr)
     logerr = a_logerr;
 
     if (opt_q) {
-        pd    = pcap_open_dead(DLT_RAW, 65535);
-        q_out = pcap_dump_open(pd, opt_q);
+        pcap  = pcap_open_dead(DLT_RAW, 65535);
+        q_out = pcap_dump_open(pcap, opt_q);
         if (q_out == 0) {
             logerr("%s: %s\n", opt_q, strerror(errno));
             exit(1);
@@ -135,7 +135,7 @@ int royparse_start(logerr_t* a_logerr)
 void royparse_stop()
 {
     if (q_out != 0) {
-        pcap_close(pd);
+        pcap_close(pcap);
         pcap_dump_close(q_out);
     }
     if (r_out != stdout)

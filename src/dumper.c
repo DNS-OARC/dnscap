@@ -160,9 +160,11 @@ int dumper_open(my_bpftimeval ts)
     if (dump_type == to_stdout) {
         t = "-";
     } else if (dump_type == to_file) {
-        char sbuf[64];
+        char      sbuf[64];
+        struct tm tm;
 
-        strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t*)&ts.tv_sec));
+        gmtime_r((time_t*)&ts.tv_sec, &tm);
+        strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
         if (asprintf(&dumpname, "%s.%s.%06lu%s",
                 dump_base, sbuf,
                 (u_long)ts.tv_usec, dump_suffix ? dump_suffix : "")

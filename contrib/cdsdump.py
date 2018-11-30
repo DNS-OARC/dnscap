@@ -58,9 +58,8 @@ def decode_simple_value(self, fp, shareable_index=None):
 
 try:
     from cbor2.types import CBORSimpleValue
-except:
+except Exception:
     CBORSimpleValue = SimpleValue
-    pass
 
 class LastValues(object):
     def __init__(self):
@@ -466,39 +465,39 @@ def parse_ip_header(ip_header, lvl):
         elif ports < 0:
             if reverse:
                 src_port = last.dest_port6 if bits & 1 else last.dest_port4
-                if src_port == None:
+                if src_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
             else:
                 src_port = last.src_port6 if bits & 1 else last.src_port4
-                if src_port == None:
+                if src_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last src port but don't")
             dest_port = -ports - 1
         else:
             src_port = ports
             if reverse:
                 dest_port = last.src_port6 if bits & 1 else last.src_port4
-                if dest_port == None:
+                if dest_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last src port but don't")
             else:
                 dest_port = last.dest_port6 if bits & 1 else last.dest_port4
-                if dest_port == None:
+                if dest_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
     else:
         if reverse:
             src_port = last.dest_port6 if bits & 1 else last.dest_port4
-            if src_port == None:
+            if src_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
         else:
             src_port = last.src_port6 if bits & 1 else last.src_port4
-            if src_port == None:
+            if src_port is None:
                 raise Exception("invalid ip_header.bits, expected to have last src port but don't")
         if reverse:
             dest_port = last.src_port6 if bits & 1 else last.src_port4
-            if dest_port == None:
+            if dest_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last src port but don't")
         else:
             dest_port = last.dest_port6 if bits & 1 else last.dest_port4
-            if dest_port == None:
+            if dest_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
 
     print((" " * lvl)+" src addr: " + socket.inet_ntop(socket.AF_INET6 if bits & 1 else socket.AF_INET, src_addr))
@@ -688,7 +687,7 @@ def main():
                 except Exception as e:
                     if e.__str__().find("index out of range") == -1:
                         raise
-                if obj == None:
+                if obj is None:
                     break
                 if not isinstance(obj, list):
                     raise Exception("Invalid element, expected an array but found: {}".format(type(obj)))

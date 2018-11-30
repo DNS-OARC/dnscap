@@ -138,9 +138,10 @@ int main(int argc, char* argv[])
     gettimeofday(&now, 0);
     if (!only_offline_pcaps && start_time) {
         if (now.tv_sec < start_time) {
-            char       when[100];
-            struct tm* tm = gmtime(&start_time);
-            strftime(when, sizeof when, "%F %T", tm);
+            char      when[100];
+            struct tm tm;
+            gmtime_r(&start_time, &tm);
+            strftime(when, sizeof when, "%F %T", &tm);
             fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
                 (int)(start_time - now.tv_sec), when);
             sleep(start_time - now.tv_sec);
