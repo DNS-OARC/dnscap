@@ -163,6 +163,7 @@ void rssm_usage()
 {
     fprintf(stderr,
         "\nrssm.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-w <name>  write basic counters to <name>.<timesec>.<timeusec>\n"
         "\t-Y         use RSSAC002v3 YAML format when writing counters, the\n"
         "\t           file will contain multiple YAML documents, one for each\n"
@@ -183,8 +184,12 @@ void rssm_usage()
 void rssm_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "w:Yn:Ss:Aa:D")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?w:Yn:Ss:Aa:D")) != EOF) {
         switch (c) {
+        case '?':
+            rssm_usage();
+            exit(1);
+            break;
         case 'w':
             if (counts_prefix)
                 free(counts_prefix);

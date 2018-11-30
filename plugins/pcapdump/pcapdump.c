@@ -76,6 +76,7 @@ void pcapdump_usage()
 {
     fprintf(stderr,
         "\npcapdump.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-d         increase debugging\n"
         "\t-f         flush output on every packet\n"
         "\t-k <cmd>   kick off <cmd> when each dump closes\n"
@@ -88,8 +89,12 @@ void pcapdump_getopt(int* argc, char** argv[])
     int         c;
     int         u;
     const char* p;
-    while ((c = getopt(*argc, *argv, "dfk:s:w:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?dfk:s:w:")) != EOF) {
         switch (c) {
+        case '?':
+            pcapdump_usage();
+            exit(1);
+            break;
         case 'd':
             dbg_lvl++;
             break;

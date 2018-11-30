@@ -58,6 +58,7 @@ void txtout_usage()
 {
     fprintf(stderr,
         "\ntxtout.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-o <arg>   output file name\n"
         "\t-s         short output, only QTYPE/QNAME for IN\n");
 }
@@ -69,8 +70,12 @@ void txtout_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "so:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?so:")) != EOF) {
         switch (c) {
+        case '?':
+            txtout_usage();
+            exit(1);
+            break;
         case 'o':
             if (opt_o)
                 free(opt_o);

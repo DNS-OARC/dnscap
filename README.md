@@ -142,6 +142,24 @@ Also note that we have observed significant memory leaks on FreeBSD
 1. reinstall the libbind port
 1. recompile and install dnscap
 
+## Plugins
+
+`dnscap` comes bundled with a set of plugins, see `-P` option.
+
+- `anonaes128.so`: Anonymize IP addresses using AES128
+- `anonmask.so`: Pseudo-anonymize IP addresses by masking them
+- `cryptopan.so`: Anonymize IP addresses using an extension to Crypto-PAn (College of Computing, Georgia Tech) made by David Stott (Lucent)
+- `cryptopant.so`: Anonymize IP addresses using cryptopANT, a different implementation of Crypto-PAn made by the ANT project at USC/ISI
+- `ipcrypt.so`: Anonymize IP addresses using ipcrypt create by Jean-Philippe Aumasson
+- `pcapdump.so`: Dump DNS into a PCAP with some filtering options
+- `royparse.so`: Splits a PCAP into two streams; queries in PCAP format and responses in ASCII format
+- `rssm.so`: Root Server Scaling Measurement plugin, see it's [README.md](plugins/rssm/README.md) for more information
+- `rzkeychange.so`: RFC8145 key tag signal collection and reporting plugin
+- `txtout.so`: Dump DNS as one-line text
+
+There is also a `template` plugin in the source repository to help others
+develop new plugins.
+
 ## CBOR DNS Stream Format
 
 This is an experimental format for representing DNS information in CBOR
@@ -248,4 +266,4 @@ Example:
 Since this is still experimental there are of course some issues:
 - RDATA is in binary format
 - DNS packet are parsed by LDNS which can fail if malformed packets
-- `dateSeconds` is added as a C `double` which might loose some of the time percision
+- `dateSeconds` is added as a C `double` which might loose some of the time precision

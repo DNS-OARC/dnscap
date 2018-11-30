@@ -29,4 +29,5 @@ dnscap.1: dnscap.1.in Makefile
 	sed -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g' \
         -e 's,[@]PACKAGE_URL[@],$(PACKAGE_URL),g' \
         -e 's,[@]PACKAGE_BUGREPORT[@],$(PACKAGE_BUGREPORT),g' \
+        -e 's,[@]pkglibdir[@],$(pkglibdir),g' \
         < $(srcdir)/dnscap.1.in > dnscap.1
