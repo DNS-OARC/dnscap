@@ -1,19 +1,29 @@
+addons:
+  apt:
+    sources:
+    - sourceline: 'ppa:dns-oarc/cryptopant-pr'
+    update: true
+    packages:
+    - libpcap-dev
+    - libldns-dev
+    - libbind-dev
+    - libyaml-perl
+    - zlib1g-dev
+    - libssl-dev
+    - libcryptopant-dev
 language: c
 compiler:
   - clang
   - gcc
-before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y libpcap-dev libldns-dev libbind-dev libyaml-perl
 install: ./autogen.sh
 script:
-  - ./configure
+  - ./configure --enable-warn-all
   - make dist
   - tar zxvf *.tar.gz
   - cd dnscap-[0-9]*
   - mkdir build
   - cd build
-  - ../configure
+  - ../configure --enable-warn-all
   - make
   - make test
   - src/dnscap -h
