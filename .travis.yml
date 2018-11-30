@@ -1,7 +1,7 @@
 addons:
   apt:
     sources:
-    - sourceline: 'ppa:dns-oarc/cryptopant-pr'
+    - sourceline: 'ppa:dns-oarc/dnscap-pr'
     update: true
     packages:
     - libpcap-dev
