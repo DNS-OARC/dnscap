@@ -65,6 +65,7 @@ void royparse_usage()
     fprintf(stderr,
         "\nroyparse splits a pcap into two streams: queries in pcap format and responses in ASCII format.\n"
         "\nroyparse.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-q <arg>   query pcap stream output file name (default: no output)\n"
         "\t-r <arg>   royparse output file name (default: stdout)\n");
 }
@@ -82,8 +83,12 @@ void royparse_getopt(int* argc, char** argv[])
 {
     int c;
 
-    while ((c = getopt(*argc, *argv, "q:r:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?q:r:")) != EOF) {
         switch (c) {
+        case '?':
+            royparse_usage();
+            exit(1);
+            break;
         case 'q':
             if (opt_q)
                 free(opt_q);

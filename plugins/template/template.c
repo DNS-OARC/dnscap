@@ -52,6 +52,7 @@ void template_usage()
 {
     fprintf(stderr,
         "\ntemplate.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-f         flag option\n"
         "\t-x <arg>   option with argument\n");
 }
@@ -63,8 +64,12 @@ void template_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "fx:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?fx:")) != EOF) {
         switch (c) {
+        case '?':
+            template_usage();
+            exit(1);
+            break;
         case 'f':
             opt_f = 1;
             break;
