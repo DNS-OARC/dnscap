@@ -1,6 +1,6 @@
 # dnscap
 
-[![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
+[![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap) [![Total alerts](https://img.shields.io/lgtm/alerts/g/DNS-OARC/dnscap.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/DNS-OARC/dnscap/alerts/)
 
 `dnscap` is a network capture utility designed specifically for DNS traffic.
 It produces binary data in `pcap(3)` and other format. This utility is similar

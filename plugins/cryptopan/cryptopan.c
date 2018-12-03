@@ -364,14 +364,14 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
             if (encrypt_v6) {
                 if (decrypt) {
                     _decrypt((uint32_t*)&from->u.a6);
-                    _decrypt(((uint32_t*)&from->u.a6) + 1);
-                    _decrypt(((uint32_t*)&from->u.a6) + 2);
-                    _decrypt(((uint32_t*)&from->u.a6) + 3);
+                    _decrypt(((uint32_t*)&from->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(((uint32_t*)&from->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(((uint32_t*)&from->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
                 } else {
                     _encrypt((uint32_t*)&from->u.a6);
-                    _encrypt(((uint32_t*)&from->u.a6) + 1);
-                    _encrypt(((uint32_t*)&from->u.a6) + 2);
-                    _encrypt(((uint32_t*)&from->u.a6) + 3);
+                    _encrypt(((uint32_t*)&from->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(((uint32_t*)&from->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(((uint32_t*)&from->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
                 }
                 break;
             }
@@ -400,14 +400,14 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
             if (encrypt_v6) {
                 if (decrypt) {
                     _decrypt((uint32_t*)&to->u.a6);
-                    _decrypt(((uint32_t*)&to->u.a6) + 1);
-                    _decrypt(((uint32_t*)&to->u.a6) + 2);
-                    _decrypt(((uint32_t*)&to->u.a6) + 3);
+                    _decrypt(((uint32_t*)&to->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(((uint32_t*)&to->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(((uint32_t*)&to->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
                 } else {
                     _encrypt((uint32_t*)&to->u.a6);
-                    _encrypt(((uint32_t*)&to->u.a6) + 1);
-                    _encrypt(((uint32_t*)&to->u.a6) + 2);
-                    _encrypt(((uint32_t*)&to->u.a6) + 3);
+                    _encrypt(((uint32_t*)&to->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(((uint32_t*)&to->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(((uint32_t*)&to->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
                 }
                 break;
             }

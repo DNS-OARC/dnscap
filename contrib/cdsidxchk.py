@@ -36,7 +36,6 @@ import sys
 import logging
 import optparse
 import struct
-import socket
 from cbor2 import CBORDecoder;
 
 logging.basicConfig(format='%(levelname).5s: %(module)s:%(lineno)d: '
@@ -58,9 +57,8 @@ def decode_simple_value(self, fp, shareable_index=None):
 
 try:
     from cbor2.types import CBORSimpleValue
-except:
+except Exception:
     CBORSimpleValue = SimpleValue
-    pass
 
 class LastValues(object):
     def __init__(self):
@@ -289,7 +287,6 @@ def parse_rrs(rrs, lvl):
             add_rdata(rr[0])
             rr.pop(0)
             #print((" " * lvl)+"rdata: "+"".join("{:02x}".format(byte) for byte in rr.pop(0)))
-            pass
         elif isinstance(rr[0], list):
             add_rdata(rr[0])
             rdata = []
@@ -370,9 +367,9 @@ def parse_dns_message(dns, lvl):
 
     #print((" " * lvl)+"header:")
     lvl+=2
-    id = dns.pop(0)
+    id = dns.pop(0) # lgtm [py/unused-local-variable]
     #print((" " * lvl)+"id: {}".format(id))
-    raw = dns.pop(0)
+    raw = dns.pop(0) # lgtm [py/unused-local-variable]
     #print((" " * lvl)+"raw: 0x{:04x}".format(raw))
     lvl+=2
     #print((" " * lvl)+"    QR: "+("yes" if raw & 1<<15 else "no"))
@@ -466,7 +463,6 @@ def parse_dns_message(dns, lvl):
         if isinstance(dns[0], bytes):
             dns.pop(0)
             #print((" " * lvl)+"malformed: "+"".join("{:02x}".format(byte) for byte in dns.pop(0)))
-            pass
         if len(dns):
             raise Exception("invalid dns.message, garbage at end: {}".format(dns))
 
@@ -534,39 +530,39 @@ def parse_ip_header(ip_header, lvl):
         elif ports < 0:
             if reverse:
                 src_port = last.dest_port6 if bits & 1 else last.dest_port4
-                if src_port == None:
+                if src_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
             else:
                 src_port = last.src_port6 if bits & 1 else last.src_port4
-                if src_port == None:
+                if src_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last src port but don't")
             dest_port = -ports - 1
         else:
             src_port = ports
             if reverse:
                 dest_port = last.src_port6 if bits & 1 else last.src_port4
-                if dest_port == None:
+                if dest_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last src port but don't")
             else:
                 dest_port = last.dest_port6 if bits & 1 else last.dest_port4
-                if dest_port == None:
+                if dest_port is None:
                         raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
     else:
         if reverse:
             src_port = last.dest_port6 if bits & 1 else last.dest_port4
-            if src_port == None:
+            if src_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
         else:
             src_port = last.src_port6 if bits & 1 else last.src_port4
-            if src_port == None:
+            if src_port is None:
                 raise Exception("invalid ip_header.bits, expected to have last src port but don't")
         if reverse:
             dest_port = last.src_port6 if bits & 1 else last.src_port4
-            if dest_port == None:
+            if dest_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last src port but don't")
         else:
             dest_port = last.dest_port6 if bits & 1 else last.dest_port4
-            if dest_port == None:
+            if dest_port is None:
                     raise Exception("invalid ip_header.bits, expected to have last dest port but don't")
 
     #print((" " * lvl)+" src addr: " + socket.inet_ntop(socket.AF_INET6 if bits & 1 else socket.AF_INET, src_addr))
@@ -591,29 +587,30 @@ def parse_message_bits(bits, lvl):
     lvl+=2
     dns = "no"
     if isinstance(bits, int):
-        if bits & 1:
-            dns = "yes"
-        #print((" " * lvl)+"dns      (0): "+dns)
-
-        if bits & 1<<1:
-            proto = "tcp"
-        elif dns == "yes":
-            proto = "udp"
-        else:
-            proto = "icmp"
-        #print((" " * lvl)+"proto    (1): "+proto)
-
-        if bits & 1<<2:
-            frag = "yes"
-        else:
-            frag = "no"
-        #print((" " * lvl)+"frag     (2): "+frag)
-
-        if bits & 1<<3:
-            malformed = "yes"
-        else:
-            malformed = "no"
-        #print((" " * lvl)+"malformed(3): "+malformed)
+        # if bits & 1:
+        #     dns = "yes"
+        # #print((" " * lvl)+"dns      (0): "+dns)
+        #
+        # if bits & 1<<1:
+        #     proto = "tcp"
+        # elif dns == "yes":
+        #     proto = "udp"
+        # else:
+        #     proto = "icmp"
+        # #print((" " * lvl)+"proto    (1): "+proto)
+        #
+        # if bits & 1<<2:
+        #     frag = "yes"
+        # else:
+        #     frag = "no"
+        # #print((" " * lvl)+"frag     (2): "+frag)
+        #
+        # if bits & 1<<3:
+        #     malformed = "yes"
+        # else:
+        #     malformed = "no"
+        # #print((" " * lvl)+"malformed(3): "+malformed)
+        pass
 
     else:
         raise Exception("invalid message_bits, expected int but got: {}".format(type(bits)))
@@ -759,7 +756,7 @@ def main():
                 except Exception as e:
                     if e.__str__().find("index out of range") == -1:
                         raise
-                if obj == None:
+                if obj is None:
                     break
                 if not isinstance(obj, list):
                     raise Exception("Invalid element, expected an array but found: {}".format(type(obj)))

@@ -32,6 +32,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __dnscap_dnscap_common_h
+#define __dnscap_dnscap_common_h
+
 #include <netinet/in.h>
 #include <sys/types.h>
 
@@ -45,9 +48,6 @@
 #include <time.h>
 #endif
 #endif
-
-#ifndef __dnscap_dnscap_common_h
-#define __dnscap_dnscap_common_h
 
 /*
  * setup MY_BPFTIMEVAL as the timeval structure that bpf packets
