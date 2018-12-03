@@ -1,6 +1,6 @@
 # dnscap
 
-[![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap)
+[![Build Status](https://travis-ci.org/DNS-OARC/dnscap.svg?branch=develop)](https://travis-ci.org/DNS-OARC/dnscap) [![Coverity Scan Build Status](https://scan.coverity.com/projects/10009/badge.svg)](https://scan.coverity.com/projects/dns-oarc-dnscap) [![Total alerts](https://img.shields.io/lgtm/alerts/g/DNS-OARC/dnscap.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/DNS-OARC/dnscap/alerts/)
 
 `dnscap` is a network capture utility designed specifically for DNS traffic.
 It produces binary data in `pcap(3)` and other format. This utility is similar
@@ -28,6 +28,9 @@ Mailinglist:
 
 ## Dependencies
 
+`dnscap` requires a couple of libraries beside a normal C compiling
+environment with autoconf, automake, libtool and pkgconfig.
+
 `dnscap` has a non-optional dependency on the PCAP library and optional
 dependencies on LDNS. BIND library `libbind` is considered optional but it
 is needed under OpenBSD for various `arpa/nameser*` include headers, see
@@ -35,7 +38,7 @@ is needed under OpenBSD for various `arpa/nameser*` include headers, see
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl
+apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl libssl-dev
 ```
 
 To install the dependencies under CentOS (with EPEL enabled):
@@ -48,13 +51,23 @@ from source or Ports, these instructions are not included.
 
 To install some of the dependencies under FreeBSD 10+ using `pkg`:
 ```
-pkg install -y libpcap ldns p5-YAML
+pkg install -y libpcap ldns p5-YAML openssl-devel
 ```
 
 To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
 pkg_add libldns p5-YAML
 ```
+
+### Dependencies for `cryptopant.so` plugin
+
+For this plugin a library call `cryptopANT` is required and the original
+can be found here: https://ant.isi.edu/software/cryptopANT/index.html .
+
+For DNS-OARC packages we build our own fork, with slight modifications to
+conform across distributions, of this library which is included in the same
+package repository as `dnscap`. The modifications and packaging files can be
+found here: https://github.com/DNS-OARC/cryptopANT .
 
 ## Building from source tarball
 
@@ -141,6 +154,24 @@ Also note that we have observed significant memory leaks on FreeBSD
 1. de-select "Compile with thread support"
 1. reinstall the libbind port
 1. recompile and install dnscap
+
+## Plugins
+
+`dnscap` comes bundled with a set of plugins, see `-P` option.
+
+- `anonaes128.so`: Anonymize IP addresses using AES128
+- `anonmask.so`: Pseudo-anonymize IP addresses by masking them
+- `cryptopan.so`: Anonymize IP addresses using an extension to Crypto-PAn (College of Computing, Georgia Tech) made by David Stott (Lucent)
+- `cryptopant.so`: Anonymize IP addresses using cryptopANT, a different implementation of Crypto-PAn made by the ANT project at USC/ISI
+- `ipcrypt.so`: Anonymize IP addresses using ipcrypt create by Jean-Philippe Aumasson
+- `pcapdump.so`: Dump DNS into a PCAP with some filtering options
+- `royparse.so`: Splits a PCAP into two streams; queries in PCAP format and responses in ASCII format
+- `rssm.so`: Root Server Scaling Measurement plugin, see it's [README.md](plugins/rssm/README.md) for more information
+- `rzkeychange.so`: RFC8145 key tag signal collection and reporting plugin
+- `txtout.so`: Dump DNS as one-line text
+
+There is also a `template` plugin in the source repository to help others
+develop new plugins.
 
 ## CBOR DNS Stream Format
 
@@ -248,4 +279,4 @@ Example:
 Since this is still experimental there are of course some issues:
 - RDATA is in binary format
 - DNS packet are parsed by LDNS which can fail if malformed packets
-- `dateSeconds` is added as a C `double` which might loose some of the time percision
+- `dateSeconds` is added as a C `double` which might loose some of the time precision

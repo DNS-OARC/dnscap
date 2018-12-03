@@ -329,30 +329,25 @@ or
 .Fl C
 limits are reached.
 .It Fl B Ar datetime
-When using
-.Fl w ,
-the
-.Fl B
-option tells
+Tell
 .Nm
 to start collecting at a specific time.
 .Ar datetime
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will
 .Xr sleep 3
-until the start time, and then begin capturing packets.
+until the start time, or it will skip all packets related to an earlier
+time if used with an offline
+.Xr pcap 3
+file, and then begin capturing packets.
 .It Fl E Ar datetime
-When using
-.Fl w
-and
-.Fl t ,
-the
-.Fl E
-option tells
+Tell
 .Nm
 to stop collecting at a specific time.
 .Ar datetime
 should be specified as YYYY-MM-DD HH:MM:SS.  The program will exit
-when it sees a packet with timestamp greater than
+when it sees a packet (live or offline
+.Xr pcap 3
+file) with timestamp greater than
 .Ar datetime .
 .It Fl M
 Enable monitor mode on interfaces.
@@ -590,6 +585,41 @@ Each DNS record contains the following:
 .Pp
 Additional information will be displayed for SOA, A, AAAA, MX, NS, PTR,
 CNAME and OPT records containing EDNS0.
+.El
+.Sh PLUGINS
+.Nm
+comes bundled with a set of plugins, see
+.Fl P
+option and the plugins help page.
+.Bd -literal -offset indent
+dnscap -P @pkglibdir@/<plugin>.so -?
+.Ed
+.Pp
+This list of plugins are installed in @pkglibdir@:
+.Bl -tag -width 10n
+.It anonaes128.so
+Anonymize IP addresses using AES128.
+.It anonmask.so
+Pseudo-anonymize IP addresses by masking them.
+.It cryptopan.so
+Anonymize IP addresses using an extension to Crypto-PAn (College of
+Computing, Georgia Tech) made by David Stott (Lucent).
+.It cryptopant.so
+Anonymize IP addresses using cryptopANT, a different implementation of
+Crypto-PAn made by the ANT project at USC/ISI.
+.It ipcrypt.so
+Anonymize IP addresses using ipcrypt create by Jean-Philippe Aumasson.
+.It pcapdump.so
+Dump DNS into a PCAP with some filtering options.
+.It royparse.so
+Splits a PCAP into two streams; queries in PCAP format and responses in
+ASCII format.
+.It rssm.so
+Root Server Scaling Measurement plugin.
+.It rzkeychange.so
+RFC8145 key tag signal collection and reporting plugin.
+.It txtout.so
+Dump DNS as one-line text.
 .El
 .Sh "COMPATIBILITY NOTES"
 If

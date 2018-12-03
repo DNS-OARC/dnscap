@@ -235,7 +235,6 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                     break;
                 }
             }
-            len = t->bfb_at;
         }
         return 0;
     }

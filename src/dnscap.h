@@ -32,6 +32,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __dnscap_dnscap_h
+#define __dnscap_dnscap_h
+
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -49,8 +56,6 @@
 
 #ifdef __linux__
 #define __FAVOR_BSD
-#define __USE_GNU
-#define _GNU_SOURCE
 #include <net/ethernet.h>
 #ifdef USE_SECCOMP
 #include <seccomp.h>
@@ -210,9 +215,6 @@
 #include "options.h"
 #include "pcap-thread/pcap_thread.h"
 
-#ifndef __dnscap_dnscap_h
-#define __dnscap_dnscap_h
-
 struct text {
     LINK(struct text)
     link;
@@ -337,14 +339,17 @@ struct plugin {
     LINK(struct plugin)
     link;
 
-    char* name;
-    void* handle;
+    char*            name;
+    void*            handle;
+    enum plugin_type pt;
 
+    type_t(*type);
     int (*start)(logerr_t*);
     void (*stop)();
     int (*open)(my_bpftimeval);
     int (*close)();
     output_t(*output);
+    filter_t(*filter);
     void (*getopt)(int*, char** []);
     void (*usage)();
     void (*extension)(int, void*);

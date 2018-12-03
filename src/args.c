@@ -39,6 +39,7 @@
 #include "iaddr.h"
 #include "log.h"
 #include "tcpstate.h"
+#include "network.h"
 
 /*
  * OpenBSD and Debian Stretch i386 need file local functions for export
@@ -57,6 +58,57 @@ void _tcpstate_reset(void* tcpstate, const char* msg)
 const char* _ia_str(iaddr ia)
 {
     return ia_str(ia);
+}
+
+extern struct ip6_hdr* network_ipv6;
+extern struct ip*      network_ip;
+extern struct udphdr*  network_udp;
+
+void set_iaddr(iaddr* from, iaddr* to)
+{
+    if (from) {
+        switch (from->af) {
+        case AF_INET:
+            if (network_ip) {
+                memcpy(&network_ip->ip_src, &from->u.a4, sizeof(struct in_addr));
+            }
+            break;
+        case AF_INET6:
+            if (network_ipv6) {
+                memcpy(&network_ipv6->ip6_src, &from->u.a6, sizeof(struct in6_addr));
+            }
+            break;
+        default:
+            from = 0;
+            break;
+        }
+    }
+    if (to) {
+        switch (to->af) {
+        case AF_INET:
+            if (network_ip) {
+                memcpy(&network_ip->ip_dst, &to->u.a4, sizeof(struct in_addr));
+            }
+            break;
+        case AF_INET6:
+            if (network_ipv6) {
+                memcpy(&network_ipv6->ip6_dst, &to->u.a6, sizeof(struct in6_addr));
+            }
+            break;
+        default:
+            to = 0;
+            break;
+        }
+    }
+    if (from || to) {
+        if (network_ip) {
+            network_ip->ip_sum = 0;
+            network_ip->ip_sum = ~in_checksum((u_char*)network_ip, sizeof *network_ip);
+        }
+        if (network_udp) {
+            network_udp->uh_sum = 0;
+        }
+    }
 }
 
 #ifdef __linux__
@@ -541,6 +593,21 @@ void parse_args(int argc, char* argv[])
                 logerr("%s: %s", fn, dlerror());
                 exit(1);
             }
+            snprintf(sn, sizeof(sn), "%s_type", p->name);
+            p->type = dlsym(p->handle, sn);
+            if (p->type) {
+                p->pt = (*p->type)();
+                switch (p->pt) {
+                case plugin_output:
+                case plugin_filter:
+                    break;
+                default:
+                    logerr("invalid plugin type for plugin '%s'", p->name);
+                    exit(1);
+                }
+            } else {
+                p->pt = plugin_output;
+            }
             snprintf(sn, sizeof(sn), "%s_start", p->name);
             p->start = dlsym(p->handle, sn);
             snprintf(sn, sizeof(sn), "%s_stop", p->name);
@@ -551,7 +618,13 @@ void parse_args(int argc, char* argv[])
             p->close = dlsym(p->handle, sn);
             snprintf(sn, sizeof(sn), "%s_output", p->name);
             p->output = dlsym(p->handle, sn);
-            if (!p->output) {
+            if (p->pt == plugin_output && !p->output) {
+                logerr("%s", dlerror());
+                exit(1);
+            }
+            snprintf(sn, sizeof(sn), "%s_filter", p->name);
+            p->filter = dlsym(p->handle, sn);
+            if (p->pt == plugin_filter && !p->filter) {
                 logerr("%s", dlerror());
                 exit(1);
             }
@@ -564,6 +637,7 @@ void parse_args(int argc, char* argv[])
                 (*p->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
                 (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
                 (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
+                (*p->extension)(DNSCAP_EXT_SET_IADDR, (void*)set_iaddr);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", p->name);
             p->getopt = dlsym(p->handle, sn);
@@ -689,23 +763,27 @@ void parse_args(int argc, char* argv[])
         }
     }
     if (EMPTY(mypcaps)) {
-        const char* name;
-        name = pcap_lookupdev(errbuf);
-        if (name == NULL) {
-            fprintf(stderr, "%s: pcap_lookupdev: %s\n",
+        pcap_if_t* pcapdev = 0;
+        int        res;
+        res = pcap_findalldevs(&pcapdev, errbuf);
+        if (res == -1) {
+            fprintf(stderr, "%s: pcap_findalldevs: %s\n",
                 ProgramName, errbuf);
+            exit(1);
+        } else if (pcapdev == NULL) {
+            fprintf(stderr, "%s: pcap_findalldevs: no devices found\n",
+                ProgramName);
             exit(1);
         }
         mypcap = calloc(1, sizeof *mypcap);
         assert(mypcap != NULL);
         INIT_LINK(mypcap, link);
-        mypcap->name = (name == NULL) ? NULL : strdup(name);
+        mypcap->name = strdup(pcapdev->name);
         APPEND(mypcaps, mypcap, link);
+        pcap_freealldevs(pcapdev);
     }
     if (start_time && stop_time && start_time >= stop_time)
         usage("start time must be before stop time");
-    if ((start_time || stop_time) && NULL == dump_base)
-        usage("--B and --E require -w");
 
     if (options.dump_format == cbor) {
         if (!have_cbor_support()) {

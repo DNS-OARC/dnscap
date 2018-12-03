@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ(2.61)
-AC_INIT([dnscap], [1.9.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_INIT([dnscap], [1.10.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
 AC_CONFIG_HEADER([src/config.h])
@@ -45,6 +45,21 @@ AM_PROG_CC_C_O
 AC_CANONICAL_HOST
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([disable-static])
+
+# Check --enable-warn-all
+AC_ARG_ENABLE([warn-all], [AS_HELP_STRING([--enable-warn-all], [Enable all compiler warnings])], [AX_CFLAGS_WARN_ALL()])
+
+# Check --with-extra-cflags
+AC_ARG_WITH([extra-cflags], [AS_HELP_STRING([--with-extra-cflags=CFLAGS], [Add extra CFLAGS])], [
+  AC_MSG_NOTICE([appending extra CFLAGS... $withval])
+  AS_VAR_APPEND(CFLAGS, [" $withval"])
+])
+
+# Check --with-extra-ldflags
+AC_ARG_WITH([extra-ldflags], [AS_HELP_STRING([--with-extra-ldflags=CFLAGS], [Add extra LDFLAGS])], [
+  AC_MSG_NOTICE([appending extra LDFLAGS... $withval])
+  AS_VAR_APPEND(LDFLAGS, [" $withval"])
+])
 
 # pcap_thread
 AC_ARG_ENABLE(threads,
@@ -66,6 +81,11 @@ AM_CONDITIONAL([HAVE_CBOR], [test "x$ac_cv_lib_tinycbor_cbor_parser_init" = "xye
 AC_CHECK_LIB([ldns], [ldns_wire2pkt])
 AM_CONDITIONAL([HAVE_LDNS], [test "x$ac_cv_lib_ldns_ldns_wire2pkt" = "xyes"])
 AC_CHECK_LIB([z], [gzopen])
+PKG_CHECK_MODULES([libcrypto], [libcrypto],
+    [AC_DEFINE([HAVE_LIBCRYPTO], [1], [Define to 1 if you have libcrypto.])])
+AC_CHECK_LIB([cryptopant], [scramble_init], [], [
+    AC_CHECK_LIB([cryptopANT], [scramble_init])
+])
 
 # Check for OS specific libraries
 case "$host_os" in
@@ -91,6 +111,8 @@ AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h cbor.h cbor/cbor.h])
 AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([zlib.h])
+AC_CHECK_HEADERS([openssl/conf.h openssl/evp.h openssl/err.h])
+AC_CHECK_HEADERS([cryptopANT.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
@@ -153,5 +175,10 @@ AC_CONFIG_FILES([
     plugins/txtout/Makefile
     plugins/rzkeychange/Makefile
     plugins/royparse/Makefile
+    plugins/anonmask/Makefile
+    plugins/ipcrypt/Makefile
+	plugins/anonaes128/Makefile
+	plugins/cryptopan/Makefile
+    plugins/cryptopant/Makefile
 ])
 AC_OUTPUT

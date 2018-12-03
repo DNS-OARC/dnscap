@@ -214,10 +214,15 @@ size_t text_add(text_list* list, const char* fmt, ...)
 
 void text_free(text_list* list)
 {
-    text_ptr text;
+    text_ptr at, text;
 
-    while ((text = HEAD(*list)) != NULL) {
+    for (at = HEAD(*list); at;) {
+        text = at;
+        at   = NEXT(text, link);
+
         UNLINK(*list, text, link);
+        free(text->text);
+        assert(text != (void*)-1);
         free(text);
     }
 }

@@ -43,6 +43,10 @@
 #include "tcpstate.h"
 #include "tcpreasm.h"
 
+struct ip6_hdr* network_ipv6 = 0;
+struct ip*      network_ip   = 0;
+struct udphdr*  network_udp  = 0;
+
 extern tcpstate_ptr _curr_tcpstate; /* from tcpstate.c */
 
 #define MY_GET32(l, cp)                                          \
@@ -109,6 +113,9 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (!firstpkt->have_pkthdr)
         return;
 
+    if (only_offline_pcaps && start_time != 0 && firstpkt->pkthdr.ts.tv_sec < start_time)
+        return;
+
     len = firstpkt->pkthdr.caplen;
 
     last_ts = firstpkt->pkthdr.ts;
@@ -141,9 +148,9 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
 
     descr[0] = 0;
     if (preso) {
-        char             when[100];
-        const struct tm* tm;
-        time_t           t;
+        char      when[100];
+        struct tm tm;
+        time_t    t;
 
         /*
          * Reduce `len` to report same captured length as `dl_pkt`
@@ -178,9 +185,9 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
                 break;
         }
 
-        t  = (time_t)firstpkt->pkthdr.ts.tv_sec;
-        tm = gmtime(&t);
-        strftime(when, sizeof(when), "%Y-%m-%d %T", tm);
+        t = (time_t)firstpkt->pkthdr.ts.tv_sec;
+        gmtime_r(&t, &tm);
+        strftime(when, sizeof(when), "%Y-%m-%d %T", &tm);
 
         if (vlan != MAX_VLAN) {
             snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s (vlan %u) %u] \\\n",
@@ -239,6 +246,9 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     size_t     len    = hdr->caplen;
     unsigned   etype, vlan, pf;
     char       descr[200];
+
+    if (only_offline_pcaps && start_time != 0 && hdr->ts.tv_sec < start_time)
+        return;
 
     last_ts = hdr->ts;
     if (stop_time != 0 && hdr->ts.tv_sec >= stop_time) {
@@ -377,13 +387,13 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     }
 
     if (preso) {
-        char             when[100], via[100];
-        const struct tm* tm;
-        time_t           t;
+        char      when[100], via[100];
+        struct tm tm;
+        time_t    t;
 
-        t  = (time_t)hdr->ts.tv_sec;
-        tm = gmtime(&t);
-        strftime(when, sizeof when, "%Y-%m-%d %T", tm);
+        t = (time_t)hdr->ts.tv_sec;
+        gmtime_r(&t, &tm);
+        strftime(when, sizeof when, "%Y-%m-%d %T", &tm);
         strcpy(via, (mypcap->name == NULL) ? "\"some interface\"" : mypcap->name);
         if (vlan != MAX_VLAN)
             sprintf(via + strlen(via), " (vlan %u)", vlan);
@@ -961,7 +971,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     const u_char* opkt, size_t olen)
 {
     u_char          pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char*   dnspkt;
+    const u_char*   dnspkt = 0;
     unsigned        proto, sport, dport;
     iaddr           from, to, initiator, responder;
     struct ip6_hdr* ipv6;
@@ -971,7 +981,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct tcphdr*  tcp      = NULL;
     tcpstate_ptr    tcpstate = NULL;
     struct ip*      ip;
-    size_t          len, dnslen;
+    size_t          len, dnslen = 0;
     HEADER          dns;
 
     if (dumptrace >= 4)
@@ -990,9 +1000,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         if (len < sizeof *ip)
             return;
-        ip = (void*)pkt;
+        network_ip = ip = (void*)pkt;
+        network_ipv6    = 0;
         if (ip->ip_v != IPVERSION)
-            return;
+            goto network_pkt_end;
         proto = ip->ip_p;
         memset(&from, 0, sizeof from);
         from.af = AF_INET;
@@ -1004,7 +1015,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         if (len > ntohs(ip->ip_len)) /* small IP packets have L2 padding */
             len = ntohs(ip->ip_len);
         if (len <= (size_t)offset)
-            return;
+            goto network_pkt_end;
         pkt += offset;
         len -= offset;
         offset = ntohs(ip->ip_off);
@@ -1012,9 +1023,9 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             if (wantfrags) {
                 flags |= DNSCAP_OUTPUT_ISFRAG;
                 output(descr, from, to, ip->ip_p, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
-                return;
+                goto network_pkt_end;
             }
-            return;
+            goto network_pkt_end;
         }
         break;
     }
@@ -1025,9 +1036,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         if (len < sizeof *ipv6)
             return;
-        ipv6 = (void*)pkt;
+        network_ipv6 = ipv6 = (void*)pkt;
+        network_ip          = 0;
         if ((ipv6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
-            return;
+            goto network_pkt_end;
 
         nexthdr     = ipv6->ip6_nxt;
         offset      = sizeof(struct ip6_hdr);
@@ -1055,16 +1067,16 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
             /* Catch broken packets */
             if ((offset + sizeof ext_hdr) > len)
-                return;
+                goto network_pkt_end;
 
             /* Cannot handle fragments. */
             if (nexthdr == IPPROTO_FRAGMENT) {
                 if (wantfrags) {
                     flags |= DNSCAP_OUTPUT_ISFRAG;
                     output(descr, from, to, IPPROTO_FRAGMENT, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
-                    return;
+                    goto network_pkt_end;
                 }
-                return;
+                goto network_pkt_end;
             }
 
             memcpy(&ext_hdr, (u_char*)ipv6 + offset,
@@ -1073,14 +1085,14 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             ext_hdr_len = (8 * (ntohs(ext_hdr.length) + 1));
 
             if (ext_hdr_len > payload_len)
-                return;
+                goto network_pkt_end;
 
             offset += ext_hdr_len;
             payload_len -= ext_hdr_len;
         }
 
         if ((offset + payload_len) > len || payload_len == 0)
-            return;
+            goto network_pkt_end;
 
         proto = nexthdr;
         pkt += offset;
@@ -1088,19 +1100,20 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         break;
     }
     default:
-        return;
+        goto network_pkt_end;
     }
 
     /* Transport. */
     switch (proto) {
     case IPPROTO_ICMP:
     case IPPROTO_ICMPV6:
+        network_udp = 0;
         output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, pkt, len);
-        return;
+        goto network_pkt_end;
     case IPPROTO_UDP: {
         if (len < sizeof *udp)
-            return;
-        udp = (void*)pkt;
+            goto network_pkt_end;
+        network_udp = udp = (void*)pkt;
         switch (from.af) {
         case AF_INET:
         case AF_INET6:
@@ -1118,6 +1131,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         break;
     }
     case IPPROTO_TCP: {
+        network_udp = 0;
+
         /* TCP processing.
          * We need to capture enough to allow a later analysis to
          * reassemble the TCP stream, but we don't want to keep all
@@ -1147,9 +1162,9 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         unsigned offset;
         uint32_t seq;
         if (!wanttcp)
-            return;
+            goto network_pkt_end;
         if (len < sizeof *tcp)
-            return;
+            goto network_pkt_end;
         tcp = (void*)pkt;
         switch (from.af) {
         case AF_INET:
@@ -1194,7 +1209,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 free(tcpstate);
                 tcpstate_count--;
             }
-            return;
+            goto network_pkt_end;
         }
         if (tcp->th_flags & TH_SYN) {
             if (dumptrace >= 3)
@@ -1229,7 +1244,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             output(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, NULL, 0);
             _curr_tcpstate = 0;
 
-            return;
+            goto network_pkt_end;
         }
         if (options.parse_ongoing_tcp && !tcpstate && len) {
             tcpstate           = tcpstate_new(from, to, sport, dport);
@@ -1243,7 +1258,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             if (!tcpstate->reasm) {
                 if (!(tcpstate->reasm = calloc(1, sizeof(tcpreasm_t)))) {
                     logerr("out of memory, TCP reassembly failed");
-                    return;
+                    goto network_pkt_end;
                 }
                 tcpstate->reasm->seq_start = tcpstate->start;
                 tcpstate->reasm->seq_bfb   = tcpstate->start;
@@ -1302,10 +1317,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
-                return;
+                goto network_pkt_end;
             } else if (tcpstate->lastdns && ((seq == tcpstate->lastdns && len == 1) || seqdiff == 1)) {
                 tcpstate_discard(tcpstate, NULL);
-                return;
+                goto network_pkt_end;
             } else if (tcpstate->lastdns && seq == tcpstate->lastdns + 2) {
                 if (dumptrace >= 3)
                     fprintf(stderr, "+hdr\n");
@@ -1343,11 +1358,11 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
-                return;
+                goto network_pkt_end;
             } else if ((seqdiff == 0 && len == 1) || seqdiff == 1) {
                 /* shouldn't happen */
                 tcpstate_discard(tcpstate, NULL);
-                return;
+                goto network_pkt_end;
             } else if (seqdiff == 2) {
                 /* This is not the first segment, but it does contain
              * the first dns header, so we can filter on it. */
@@ -1366,12 +1381,12 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 /* This segment is outside the window. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "out of window\n");
-                return;
+                goto network_pkt_end;
             } else if (len == 0) {
                 /* No payload (e.g., an ACK) */
                 if (dumptrace >= 3)
                     fprintf(stderr, "empty\n");
-                return;
+                goto network_pkt_end;
             } else {
                 /* non-first */
                 if (dumptrace >= 3)
@@ -1383,7 +1398,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 output(descr, from, to, proto, flags, sport, dport, ts,
                     pkt_copy, olen, NULL, 0);
                 _curr_tcpstate = 0;
-                return;
+                goto network_pkt_end;
             }
         } else {
             if (dumptrace >= 3)
@@ -1391,18 +1406,18 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             /* There is no state for this stream.  Either we never saw
              * a SYN for this stream, or we have already decided to
              * discard this stream. */
-            return;
+            goto network_pkt_end;
         }
         break;
     }
     default:
-        return;
+        goto network_pkt_end;
     }
 
     for (m = 0;; m++) {
         if (tcpstate && tcpstate->reasm) {
             if (m >= MAX_TCP_DNS_MSG)
-                return;
+                goto network_pkt_end;
             if (!tcpstate->reasm->dnsmsg[m])
                 continue;
             dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
@@ -1420,7 +1435,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         /* Application. */
         if (dnslen < sizeof dns) {
             tcpstate_discard(tcpstate, "too small");
-            return;
+            goto network_pkt_end;
         }
         memcpy(&dns, dnspkt, sizeof dns);
 
@@ -1428,7 +1443,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         if (dns.qr == 0 && dport == dns_port) {
             if ((dir_wanted & DIR_INITIATE) == 0) {
                 tcpstate_discard(tcpstate, "unwanted dir=i");
-                return;
+                goto network_pkt_end;
             }
             initiator = from;
             responder = to;
@@ -1436,26 +1451,26 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         } else if (dns.qr != 0 && sport == dns_port) {
             if ((dir_wanted & DIR_RESPONSE) == 0) {
                 tcpstate_discard(tcpstate, "unwanted dir=r");
-                return;
+                goto network_pkt_end;
             }
             initiator = to;
             responder = from;
             response  = TRUE;
         } else {
             tcpstate_discard(tcpstate, "unwanted direction/port");
-            return;
+            goto network_pkt_end;
         }
         if ((!EMPTY(initiators) && !ep_present(&initiators, initiator)) || (!EMPTY(responders) && !ep_present(&responders, responder))) {
             tcpstate_discard(tcpstate, "unwanted host");
-            return;
+            goto network_pkt_end;
         }
         if ((!EMPTY(not_initiators) && ep_present(&not_initiators, initiator)) || (!EMPTY(not_responders) && ep_present(&not_responders, responder))) {
             tcpstate_discard(tcpstate, "missing required host");
-            return;
+            goto network_pkt_end;
         }
         if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
             tcpstate_discard(tcpstate, "unwanted opcode");
-            return;
+            goto network_pkt_end;
         }
         if (response) {
             int match_tc    = (dns.tc != 0 && err_wanted & ERR_TRUNC);
@@ -1463,11 +1478,11 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
             if (!match_tc && !match_rcode) {
                 tcpstate_discard(tcpstate, "unwanted error code");
-                return;
+                goto network_pkt_end;
             }
             if (!EMPTY(drop_responders) && ep_present(&drop_responders, responder)) {
                 tcpstate_discard(tcpstate, "dropped response due to -Y");
-                return;
+                goto network_pkt_end;
             }
         }
 #if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
@@ -1484,11 +1499,11 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     size_t dnslen2 = calcdnslen(dnspkt, dnslen);
                     if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
                         tcpstate_discard(tcpstate, "failed parse");
-                        return;
+                        goto network_pkt_end;
                     }
                 } else {
                     tcpstate_discard(tcpstate, "failed parse");
-                    return;
+                    goto network_pkt_end;
                 }
             }
             /* Look at each section of the message:
@@ -1507,7 +1522,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
                     if (ns_parserr(&msg, s, n, &rr) < 0) {
                         tcpstate_discard(tcpstate, "failed parse");
-                        return;
+                        goto network_pkt_end;
                     }
                     if (s == ns_s_qd) {
                         look = ns_rr_name(rr);
@@ -1516,7 +1531,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                                 pres, sizeof pres)
                             < 0) {
                             tcpstate_discard(tcpstate, "failed parse");
-                            return;
+                            goto network_pkt_end;
                         }
                         look = pres;
                     }
@@ -1555,7 +1570,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
              */
             if (negmatch > 0 || match == 0) {
                 tcpstate_discard(tcpstate, "failed regex match");
-                return;
+                goto network_pkt_end;
             }
         }
 #endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
@@ -1584,6 +1599,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 if ((end_hide & END_RESPONDER) != 0)
                     memcpy(resp_addr, HIDE_INET, sizeof(struct in_addr));
 
+                ip->ip_sum = 0;
                 ip->ip_sum = ~in_checksum((u_char*)ip, sizeof *ip);
                 if (udp)
                     udp->uh_sum = 0U;
@@ -1630,6 +1646,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         } else
             break;
     }
+
+network_pkt_end:
+    network_ip   = 0;
+    network_ipv6 = 0;
 }
 
 uint16_t in_checksum(const u_char* ptr, size_t len)

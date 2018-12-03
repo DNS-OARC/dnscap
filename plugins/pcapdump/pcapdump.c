@@ -76,6 +76,7 @@ void pcapdump_usage()
 {
     fprintf(stderr,
         "\npcapdump.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-d         increase debugging\n"
         "\t-f         flush output on every packet\n"
         "\t-k <cmd>   kick off <cmd> when each dump closes\n"
@@ -88,8 +89,12 @@ void pcapdump_getopt(int* argc, char** argv[])
     int         c;
     int         u;
     const char* p;
-    while ((c = getopt(*argc, *argv, "dfk:s:w:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?dfk:s:w:")) != EOF) {
         switch (c) {
+        case '?':
+            pcapdump_usage();
+            exit(1);
+            break;
         case 'd':
             dbg_lvl++;
             break;
@@ -163,12 +168,14 @@ int pcapdump_open(my_bpftimeval ts)
     if (to_stdout) {
         t = "-";
     } else {
-        char sbuf[64];
+        char      sbuf[64];
+        struct tm tm;
         while (ts.tv_usec >= MILLION) {
             ts.tv_sec++;
             ts.tv_usec -= MILLION;
         }
-        strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t*)&ts.tv_sec));
+        gmtime_r((time_t*)&ts.tv_sec, &tm);
+        strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
         if (asprintf(&dumpname, "%s.%s.%06lu",
                 dump_base, sbuf, (u_long)ts.tv_usec)
                 < 0

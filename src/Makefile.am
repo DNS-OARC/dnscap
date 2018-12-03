@@ -6,7 +6,8 @@ SUBDIRS = test
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir) \
     $(SECCOMPFLAGS) \
-    $(PTHREAD_CFLAGS)
+    $(PTHREAD_CFLAGS) \
+    $(libcrypto_CFLAGS)
 
 EXTRA_DIST = dnscap.1.in
 
@@ -20,7 +21,7 @@ dist_dnscap_SOURCES = args.h bpft.h daemon.h dnscap_common.h dnscap.h \
     dump_cbor.h dump_cds.h dump_dns.h dumper.h endpoint.h hashtbl.h iaddr.h \
     log.h network.h options.h pcaps.h sig.h tcpstate.h tcpreasm.h \
     pcap-thread/pcap_thread.h pcap-thread/pcap_thread_ext_frag.h
-dnscap_LDADD = $(PTHREAD_LIBS)
+dnscap_LDADD = $(PTHREAD_LIBS) $(libcrypto_LIBS)
 
 man1_MANS = dnscap.1
 
@@ -28,4 +29,5 @@ dnscap.1: dnscap.1.in Makefile
 	sed -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g' \
         -e 's,[@]PACKAGE_URL[@],$(PACKAGE_URL),g' \
         -e 's,[@]PACKAGE_BUGREPORT[@],$(PACKAGE_BUGREPORT),g' \
+        -e 's,[@]pkglibdir[@],$(pkglibdir),g' \
         < $(srcdir)/dnscap.1.in > dnscap.1

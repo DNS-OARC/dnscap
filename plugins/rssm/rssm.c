@@ -163,6 +163,7 @@ void rssm_usage()
 {
     fprintf(stderr,
         "\nrssm.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-w <name>  write basic counters to <name>.<timesec>.<timeusec>\n"
         "\t-Y         use RSSAC002v3 YAML format when writing counters, the\n"
         "\t           file will contain multiple YAML documents, one for each\n"
@@ -183,8 +184,12 @@ void rssm_usage()
 void rssm_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "w:Yn:Ss:Aa:D")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?w:Yn:Ss:Aa:D")) != EOF) {
         switch (c) {
+        case '?':
+            rssm_usage();
+            exit(1);
+            break;
         case 'w':
             if (counts_prefix)
                 free(counts_prefix);
@@ -284,8 +289,11 @@ void rssm_save_counts(const char* sbuf)
         return;
     }
     if (rssac002v3_yaml) {
-        char tz[21];
-        if (!strftime(tz, sizeof(tz), "%Y-%m-%dT%H:%M:%SZ", gmtime((time_t*)&open_ts.tv_sec))) {
+        char      tz[21];
+        struct tm tm;
+
+        gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+        if (!strftime(tz, sizeof(tz), "%Y-%m-%dT%H:%M:%SZ", &tm)) {
             logerr("rssm: strftime failed");
             fclose(fp);
             free(tbuf);
@@ -527,11 +535,14 @@ void rssm_save_aggregated(const char* sbuf)
  */
 int rssm_close(my_bpftimeval ts)
 {
-    char  sbuf[265];
-    pid_t pid;
+    char      sbuf[265];
+    pid_t     pid;
+    struct tm tm;
 
     if (dont_fork_on_close) {
-        strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t*)&open_ts.tv_sec));
+        struct tm tm;
+        gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+        strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
         close_ts = ts;
         rssm_save_counts(sbuf);
         if (sources_prefix)
@@ -560,7 +571,8 @@ int rssm_close(my_bpftimeval ts)
         exit(0);
     }
     /* grandchild (2nd gen) continues */
-    strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", gmtime((time_t*)&open_ts.tv_sec));
+    gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+    strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
     close_ts = ts;
     rssm_save_counts(sbuf);
     if (sources_prefix)
@@ -595,12 +607,8 @@ find_or_add(iaddr ia)
 
     if (ia.af == AF_INET6) {
         iaddr v6agg = ia;
-        int   i;
 
-        for (i = 8; i < 16 && i < sizeof(v6agg.u.a6.s6_addr); i++) {
-            v6agg.u.a6.s6_addr[i] = 0;
-        }
-
+        memset(((uint8_t*)&v6agg.u.a6) + 8, 0, 8);
         c = hash_find(&v6agg, counts.aggregated.tbl);
         if (c) {
             (*c)++;

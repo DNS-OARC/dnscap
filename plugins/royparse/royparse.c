@@ -53,7 +53,7 @@ static logerr_t* logerr;
 static char*     opt_q = 0;
 static char*     opt_r = 0;
 
-pcap_t*        pd;
+pcap_t*        pcap;
 pcap_dumper_t* q_out = 0;
 static FILE*   r_out = 0;
 
@@ -65,6 +65,7 @@ void royparse_usage()
     fprintf(stderr,
         "\nroyparse splits a pcap into two streams: queries in pcap format and responses in ASCII format.\n"
         "\nroyparse.so options:\n"
+        "\t-?         print these instructions and exit\n"
         "\t-q <arg>   query pcap stream output file name (default: no output)\n"
         "\t-r <arg>   royparse output file name (default: stdout)\n");
 }
@@ -82,8 +83,12 @@ void royparse_getopt(int* argc, char** argv[])
 {
     int c;
 
-    while ((c = getopt(*argc, *argv, "q:r:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?q:r:")) != EOF) {
         switch (c) {
+        case '?':
+            royparse_usage();
+            exit(1);
+            break;
         case 'q':
             if (opt_q)
                 free(opt_q);
@@ -106,8 +111,8 @@ int royparse_start(logerr_t* a_logerr)
     logerr = a_logerr;
 
     if (opt_q) {
-        pd    = pcap_open_dead(DLT_RAW, 65535);
-        q_out = pcap_dump_open(pd, opt_q);
+        pcap  = pcap_open_dead(DLT_RAW, 65535);
+        q_out = pcap_dump_open(pcap, opt_q);
         if (q_out == 0) {
             logerr("%s: %s\n", opt_q, strerror(errno));
             exit(1);
@@ -122,6 +127,7 @@ int royparse_start(logerr_t* a_logerr)
     } else {
         r_out = stdout;
     }
+    setbuf(r_out, 0);
 
     return 0;
 }
@@ -129,10 +135,11 @@ int royparse_start(logerr_t* a_logerr)
 void royparse_stop()
 {
     if (q_out != 0) {
-        pcap_close(pd);
+        pcap_close(pcap);
         pcap_dump_close(q_out);
     }
-    fclose(r_out);
+    if (r_out != stdout)
+        fclose(r_out);
 }
 
 int royparse_open(my_bpftimeval ts)

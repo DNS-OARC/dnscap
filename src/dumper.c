@@ -49,6 +49,21 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
 {
     struct plugin* p;
 
+    for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
+        if (p->filter && (*p->filter)(descr, &from, &to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen)) {
+            if (dumptrace >= 3) {
+                fprintf(stderr, "filtered: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
+                    capturedbytes,
+                    proto,
+                    flags & DNSCAP_OUTPUT_ISFRAG ? "yes" : "no",
+                    flags & DNSCAP_OUTPUT_ISDNS ? "yes" : "no",
+                    olen,
+                    payloadlen);
+            }
+            return;
+        }
+    }
+
     msgcount++;
     capturedbytes += olen;
 
@@ -145,9 +160,11 @@ int dumper_open(my_bpftimeval ts)
     if (dump_type == to_stdout) {
         t = "-";
     } else if (dump_type == to_file) {
-        char sbuf[64];
+        char      sbuf[64];
+        struct tm tm;
 
-        strftime(sbuf, 64, "%Y%m%d.%H%M%S", gmtime((time_t*)&ts.tv_sec));
+        gmtime_r((time_t*)&ts.tv_sec, &tm);
+        strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
         if (asprintf(&dumpname, "%s.%s.%06lu%s",
                 dump_base, sbuf,
                 (u_long)ts.tv_usec, dump_suffix ? dump_suffix : "")

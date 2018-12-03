@@ -74,6 +74,7 @@ void rzkeychange_usage()
 {
     fprintf(stderr,
         "\nrzkeychange.so options:\n"
+        "\t-?           print these instructions and exit\n"
         "\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
         "\t-s <server>  Data is from server <server> (required)\n"
         "\t-n <node>    Data is from site/node <node> (required)\n"
@@ -98,8 +99,12 @@ void rzkeychange_extension(int ext, void* arg)
 void rzkeychange_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "a:k:n:p:s:tz:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?a:k:n:p:s:tz:")) != EOF) {
         switch (c) {
+        case '?':
+            rzkeychange_usage();
+            exit(1);
+            break;
         case 'n':
             if (report_node)
                 free(report_node);
