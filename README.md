@@ -28,6 +28,9 @@ Mailinglist:
 
 ## Dependencies
 
+`dnscap` requires a couple of libraries beside a normal C compiling
+environment with autoconf, automake, libtool and pkgconfig.
+
 `dnscap` has a non-optional dependency on the PCAP library and optional
 dependencies on LDNS. BIND library `libbind` is considered optional but it
 is needed under OpenBSD for various `arpa/nameser*` include headers, see
@@ -35,7 +38,7 @@ is needed under OpenBSD for various `arpa/nameser*` include headers, see
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl
+apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl libssl-dev
 ```
 
 To install the dependencies under CentOS (with EPEL enabled):
@@ -48,13 +51,23 @@ from source or Ports, these instructions are not included.
 
 To install some of the dependencies under FreeBSD 10+ using `pkg`:
 ```
-pkg install -y libpcap ldns p5-YAML
+pkg install -y libpcap ldns p5-YAML openssl-devel
 ```
 
 To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
 pkg_add libldns p5-YAML
 ```
+
+### Dependencies for `cryptopant.so` plugin
+
+For this plugin a library call `cryptopANT` is required and the original
+can be found here: https://ant.isi.edu/software/cryptopANT/index.html .
+
+For DNS-OARC packages we build our own fork, with slight modifications to
+conform across distributions, of this library which is included in the same
+package repository as `dnscap`. The modifications and packaging files can be
+found here: https://github.com/DNS-OARC/cryptopANT .
 
 ## Building from source tarball
 

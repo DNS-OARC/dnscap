@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.9.0
+Version:        1.10.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -18,6 +18,8 @@ BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  libtool
 BuildRequires:  perl-YAML
+BuildRequires:  cryptopant-devel
+BuildRequires:  pkgconfig
 
 %description
 dnscap is a network capture utility designed specifically for DNS
@@ -34,6 +36,10 @@ to DNS transactions and protocol options.
 sh autogen.sh
 %configure
 make %{?_smp_mflags}
+
+
+%check
+make test
 
 
 %install
@@ -54,6 +60,69 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Dec 03 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.0-1
+- Release 1.10.0
+  * This release adds a new plugin type "filter" and 5 new plugins that can
+    do anonymization, deanonymization and masking of the IP addresses.
+  * New features:
+    - Check plugins for `pluginname_type()` which returns `enum plugin_type`,
+      if missing the plugin is counted as an "output" plugin
+    - New plugin type "filter" which calls `pluginname_filter()` prior of
+      outputting any data or calling of "output" plugins, if the new function
+      returns non-zero then the packet is filtered out (dropped)
+    - New extension `DNSCAP_EXT_SET_IADDR` that gives access to a function
+      for setting the from and to IP addresses both in the extracted data
+      and the wire
+  * New plugins:
+    - `anonaes128`: Anonymize IP addresses using AES128
+    - `anonmask`: Pseudo-anonymize IP addresses by masking them
+    - `cryptopan`: Anonymize IP addresses using an extension to Crypto-PAn
+      (College of Computing, Georgia Tech) made by David Stott (Lucent)
+    - `cryptopant`: Anonymize IP addresses using cryptopANT, a different
+      implementation of Crypto-PAn made by the ANT project at USC/ISI
+    - `ipcrypt`: Anonymize IP addresses using ipcrypt create by
+      Jean-Philippe Aumasson
+  * Bugfixes:
+    - Fix changing `royparse` and `txtout` with other plugins (thanks to
+      Duane Wessels and Paul Hoffman)
+    - Free pointers to allocated strings in `text_free()` (thanks to Michał
+      Kępień)
+    - Fix IP checksum calculation
+  * Other changes:
+    - `-B` and `-E` can be used without `-w` (thanks to Duane Wessels)
+    - Use `pcap_findalldevs()` instead of `pcap_lookupdev()` (thanks to
+      Michał Kępień)
+    - Document and add `-?` option to all plugins
+    - Fix clang `scan-build` bugs and LGTM alerts
+    - Use `gmtime_r()` instead of `gmtime()`
+    - Update `pcap-thread` to v4.0.0
+  * Commits:
+    67d8e2c Fix
+    fb0ed02 Plugin documentation
+    a2c9a6c cryptopant
+    39db1ca Deanonymize, IPv6 test
+    afc7107 Crypto-PAn, cryptopANT
+    f1912cc OpenSSL, anonaes128
+    f2bab62 ipcrypt, anonmask
+    158b1e7 anonmask help
+    60ece58 anonmask
+    8f1b138 Plugin types, filter plugin, set iaddr extension, anonymization
+            by masking
+    b7d7991 IP checksum
+    641a23a Free pointers to allocated strings in text_free()
+    4d313bf pcap_findalldevs()
+    091e0ca Use pcap_findalldevs() instead of pcap_lookupdev()
+    6a7b25e Clean up use of feature test macros on Linux
+    cbba14c Configure, uninitialized
+    f228c9c Code formatting
+    3fd738c man-page
+    770168a Test
+    714e4f5 Fix -B <begin> so that it works when reading offline pcap files.
+    8675bea Test
+    911fec9 Implementing test9 as a test of -B and -E command line args.
+    a7cc72d -B <begin> and -E <end> can work fine without -w <base>.
+    04c4928 Made the same changes to txtout as were in 165a786
+    165a786 Workaround for stdio mystery causing duplicate royparse output.
 * Wed Feb 28 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.9.0-1
 - Release 1.9.0
   * This release adds a new option to change how the Berkeley Packet Filter
