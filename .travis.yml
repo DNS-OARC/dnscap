@@ -6,7 +6,6 @@ addons:
     packages:
     - libpcap-dev
     - libldns-dev
-    - libbind-dev
     - libyaml-perl
     - zlib1g-dev
     - libssl-dev
