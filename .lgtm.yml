@@ -1,0 +1,18 @@
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - build-essential
+        - automake
+        - autoconf
+        - libtool
+        - pkg-config
+        - libpcap-dev
+        - libldns-dev
+        - libyaml-perl
+        - zlib1g-dev
+        - libssl-dev
+    configure:
+      command:
+        - ./autogen.sh
+        - ./configure
