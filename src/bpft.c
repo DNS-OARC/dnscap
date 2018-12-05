@@ -43,6 +43,7 @@ void prepare_bpft(void)
     text_list bpfl;
     text_ptr  text;
     size_t    len;
+    char*     p;
 
     /* Prepare the must-be-set and must-be-clear tests. */
     udp10_mbs = udp10_mbc = udp11_mbs = udp11_mbc = 0U;
@@ -175,21 +176,22 @@ void prepare_bpft(void)
 
     bpft = calloc(len + 1, sizeof(char));
     assert(bpft != NULL);
-    for (text = HEAD(bpfl);
-         text != NULL;
-         text = NEXT(text, link))
-        strcat(bpft, text->text);
+    p = bpft;
+    for (text = HEAD(bpfl); text != NULL; text = NEXT(text, link)) {
+        memcpy(p, text->text, text->len);
+        p += text->len;
+    }
     text_free(&bpfl);
     if (!EMPTY(vlans_incl)) {
-        static char* bpft_vlan;
-        len       = (2 * strlen(bpft)) + 64; /* add enough for the extra in snprintf() below */
+        char* bpft_vlan;
+
+        len       = (2 * len) + 64; /* add enough for the extra in snprintf() below */
         bpft_vlan = calloc(len, sizeof(char));
         assert(bpft_vlan != NULL);
+
         snprintf(bpft_vlan, len, "( %s ) or ( vlan and ( %s ) )", bpft, bpft);
-        bpft = realloc(bpft, len);
-        assert(bpft != NULL);
-        strcpy(bpft, bpft_vlan);
-        free(bpft_vlan);
+        free(bpft);
+        bpft = bpft_vlan;
     }
     if (dumptrace >= 1)
         fprintf(stderr, "%s: \"%s\"\n", ProgramName, bpft);
@@ -208,8 +210,9 @@ size_t text_add(text_list* list, const char* fmt, ...)
     len = vasprintf(&text->text, fmt, ap);
     assert(len >= 0);
     va_end(ap);
+    text->len = len;
     APPEND(*list, text, link);
-    return (len);
+    return (text->len);
 }
 
 void text_free(text_list* list)
