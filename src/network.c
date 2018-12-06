@@ -387,19 +387,24 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     }
 
     if (preso) {
-        char      when[100], via[100];
-        struct tm tm;
-        time_t    t;
+        char        when[100], via[100];
+        const char* viap;
+        struct tm   tm;
+        time_t      t;
 
         t = (time_t)hdr->ts.tv_sec;
         gmtime_r(&t, &tm);
         strftime(when, sizeof when, "%Y-%m-%d %T", &tm);
-        strcpy(via, (mypcap->name == NULL) ? "\"some interface\"" : mypcap->name);
-        if (vlan != MAX_VLAN)
-            sprintf(via + strlen(via), " (vlan %u)", vlan);
-        sprintf(descr, "[%lu] %s.%06lu [#%ld %s %u] \\\n",
-            (u_long)len, when, (u_long)hdr->ts.tv_usec,
-            (long)msgcount, via, vlan);
+        if (vlan != MAX_VLAN) {
+            snprintf(via, sizeof(via), "%s (vlan %u)", mypcap->name ? mypcap->name : "\"some interface\"", vlan);
+            viap = via;
+        } else if (mypcap->name) {
+            viap = mypcap->name;
+        } else {
+            viap = "\"some interface\"";
+        }
+        snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s %u] \\\n",
+            (u_long)len, when, (u_long)hdr->ts.tv_usec, (long)msgcount, viap, vlan);
     } else {
         descr[0] = '\0';
     }
