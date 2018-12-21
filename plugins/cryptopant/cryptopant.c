@@ -99,6 +99,9 @@ void cryptopant_getopt(int* argc, char** argv[])
             exit(1);
             break;
         case 'k':
+            if (keyfile) {
+                free(keyfile);
+            }
             keyfile = strdup(optarg);
             break;
         case '4':

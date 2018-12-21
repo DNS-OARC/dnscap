@@ -302,7 +302,24 @@ static inline void _encrypt(uint32_t* in)
     orig = ntohl(*in);
     memcpy(&pad4b, pad, 4);
 
-    for (pos = 0; pos < 32; pos++) {
+    // First pass with padding only
+
+    input.u.ui32 = htonl(pad4b);
+
+    if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
+        fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
+        exit(1);
+    }
+    if (outlen != 16) {
+        fprintf(stderr, "cryptopan.so: error encrypted result is not 16 bytes\n");
+        exit(1);
+    }
+
+    result |= ntohl(output.u.ui32) & 0x80000000;
+    mask >>= 1;
+    mask |= 0x80000000;
+
+    for (pos = 1; pos < 32; pos++) {
         input.u.ui32 = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
 
         if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
@@ -314,7 +331,7 @@ static inline void _encrypt(uint32_t* in)
             exit(1);
         }
 
-        result |= ((ntohl(output.u.ui32)) & 0x80000000) >> pos;
+        result |= (ntohl(output.u.ui32) & 0x80000000) >> pos;
         mask >>= 1;
         mask |= 0x80000000;
     }
@@ -333,7 +350,24 @@ static inline void _decrypt(uint32_t* in)
     orig = ntohl(*in);
     memcpy(&pad4b, pad, 4);
 
-    for (pos = 0; pos < 32; pos++) {
+    // First pass with padding only
+
+    input.u.ui32 = htonl(pad4b);
+
+    if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
+        fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
+        exit(1);
+    }
+    if (outlen != 16) {
+        fprintf(stderr, "cryptopan.so: error encrypted result is not 16 bytes\n");
+        exit(1);
+    }
+
+    orig ^= ntohl(output.u.ui32) & 0x80000000;
+    mask >>= 1;
+    mask |= 0x80000000;
+
+    for (pos = 1; pos < 32; pos++) {
         input.u.ui32 = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
 
         if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
@@ -345,7 +379,7 @@ static inline void _decrypt(uint32_t* in)
             exit(1);
         }
 
-        orig ^= ((ntohl(output.u.ui32)) & 0x80000000) >> pos;
+        orig ^= (ntohl(output.u.ui32) & 0x80000000) >> pos;
         mask >>= 1;
         mask |= 0x80000000;
     }

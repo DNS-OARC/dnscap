@@ -267,11 +267,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
             break;
         case AF_INET:
             if (encrypt_v4) {
-                memcpy(((uint8_t*)&from->u.a4) + 4, &from->u.a4, 4);
-                memcpy(((uint8_t*)&from->u.a4) + 8, &from->u.a4, 4);
-                memcpy(((uint8_t*)&from->u.a4) + 12, &from->u.a4, 4);
+                memcpy(((uint8_t*)&from->u.a6) + 4, &from->u.a4, 4);
+                memcpy(((uint8_t*)&from->u.a6) + 8, &from->u.a4, 4);
+                memcpy(((uint8_t*)&from->u.a6) + 12, &from->u.a4, 4);
 
-                if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&from->u.a4, 16)) {
+                if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&from->u.a6, 16)) {
                     logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                     exit(1);
                 }
@@ -313,11 +313,11 @@ int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
             break;
         case AF_INET:
             if (encrypt_v4) {
-                memcpy(((uint8_t*)&to->u.a4) + 4, &to->u.a4, 4);
-                memcpy(((uint8_t*)&to->u.a4) + 8, &to->u.a4, 4);
-                memcpy(((uint8_t*)&to->u.a4) + 12, &to->u.a4, 4);
+                memcpy(((uint8_t*)&to->u.a6) + 4, &to->u.a4, 4);
+                memcpy(((uint8_t*)&to->u.a6) + 8, &to->u.a4, 4);
+                memcpy(((uint8_t*)&to->u.a6) + 12, &to->u.a4, 4);
 
-                if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&to->u.a4, 16)) {
+                if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (unsigned char*)&to->u.a6, 16)) {
                     logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
                     exit(1);
                 }
