@@ -114,7 +114,7 @@ $ ./dnscap -x foo
 ```
 
 If you see an error, install libbind either from your OS package system
-or by downloading the source from http://www.isc.org/downloads/current .
+or by downloading the source from http://ftp.isc.org/isc/libbind/6.0/ .
 
 ### 64-bit libraries
 
