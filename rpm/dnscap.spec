@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.10.0
+Version:        1.10.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,38 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jul 08 2019 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.1-1
+- Release 1.10.1
+  * Fix various issues found by code analysis tools, a few compiler warnings
+    removed, undefined bit shift behavior fixed, parameter memory leaks
+    plugged and documentation updates.
+  * Fixes:
+    - `dump_dns`: Remove usage of `strcpy()` and use `snprintf()` instead
+      of `sprintf()`
+    - `bpft`:
+      - Use `text_ptr->len` to store length of generated text
+      - Use `memcpy()` instead of `strcat()`
+      - Remove unneeded `realloc()` and `strcpy()`
+    - `plugins/cryptopan`: Fix strict-aliasing warnings
+    - `network`: Rework part of `dl_pkt()` to remove usage of `strcpy()`
+      and use `snprintf()` instead of `sprintf()`
+    - `plugins/anonaes128`: Use `a6` as dest when copying v4 addresses for
+      readability and code analysis
+    - `plugins/cryptopan`: Run first pass separate to eliminate a 32bit
+      shift by 32 (undefined behavior)
+    - `plugins/cryptopant`: Fix memory leak of `keyfile` if `-k` is
+      specified more then once
+  * Documentation:
+    - Update `README.md` with correction to building from git and note
+      about PCAP on OpenBSD
+    - Fix #190: Update link to `libbind` source
+  * Commits:
+    074923c Funding
+    5d2e84c libbind
+    8ee9f2a Travis-CI
+    6babd09 Fixes
+    bb2d1c7 README, compile warnings
+    0d9cd9c LGTM, Travis-CI
 * Mon Dec 03 2018 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.0-1
 - Release 1.10.0
   * This release adds a new plugin type "filter" and 5 new plugins that can

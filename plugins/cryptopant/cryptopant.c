@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, OARC, Inc.
+ * Copyright (c) 2018-2019, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,9 @@ void cryptopant_getopt(int* argc, char** argv[])
             exit(1);
             break;
         case 'k':
+            if (keyfile) {
+                free(keyfile);
+            }
             keyfile = strdup(optarg);
             break;
         case '4':

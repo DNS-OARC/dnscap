@@ -59,6 +59,9 @@ To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 pkg_add libldns p5-YAML
 ```
 
+NOTE: It is recommended to install the PCAP library from source/ports on
+OpenBSD since the bundled version is an older and modified version.
+
 ### Dependencies for `cryptopant.so` plugin
 
 For this plugin a library call `cryptopANT` is required and the original
@@ -85,8 +88,8 @@ make install
 
 If you are building `dnscap` from it's Git repository you will first need
 to initiate the Git submodules that exists and later create autoconf/automake
-files, this will require a build environment with Autoconf, Automake and
-Libtool to be installed.
+files, this will require a build environment with autoconf, automake, libtool
+and pkg-config to be installed.
 
 ```
 git clone https://github.com/DNS-OARC/dnscap.git
@@ -111,7 +114,7 @@ $ ./dnscap -x foo
 ```
 
 If you see an error, install libbind either from your OS package system
-or by downloading the source from http://www.isc.org/downloads/current .
+or by downloading the source from http://ftp.isc.org/isc/libbind/6.0/ .
 
 ### 64-bit libraries
 

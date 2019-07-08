@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2018, OARC, Inc.
+ * Copyright (c) 2016-2019, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -230,7 +230,7 @@ dump_dns_rr(ns_msg* msg, ns_rr* rr, ns_sect sect, FILE* trace)
             goto error;
         for (n = 0; n < 5; n++)
             MY_GET32(soa[n], rd);
-        sprintf(buf, "%u,%u,%u,%u,%u",
+        snprintf(buf, sizeof(buf), "%u,%u,%u,%u,%u",
             soa[0], soa[1], soa[2], soa[3], soa[4]);
         break;
     case ns_t_a:
@@ -331,15 +331,15 @@ dump_dns_rr(ns_msg* msg, ns_rr* rr, ns_sect sect, FILE* trace)
                 memset(addr, 0, sizeof addr);
                 memcpy(addr, rd, edns0lenopt < sizeof(addr) ? edns0lenopt : sizeof(addr));
 
+                buf[0] = 0;
                 if (afi == 0x1) {
                     inet_ntop(AF_INET, addr, buf, sizeof buf);
                 } else if (afi == 0x2) {
                     inet_ntop(AF_INET6, addr, buf, sizeof buf);
                 } else {
                     fprintf(trace, "unknown AFI %d\n", afi);
-                    strcpy(buf, "<unknown>");
                 }
-                fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf, srcmask, scomask);
+                fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf[0] ? buf : "<unknown>", srcmask, scomask);
             }
             /* increment the rd pointer by the remaining option data size */
             rd += edns0lenopt;
@@ -348,7 +348,7 @@ dump_dns_rr(ns_msg* msg, ns_rr* rr, ns_sect sect, FILE* trace)
 
     default:
     error:
-        sprintf(buf, "[%u]", ns_rr_rdlen(*rr));
+        snprintf(buf, sizeof(buf), "[%u]", ns_rr_rdlen(*rr));
     }
     if (buf[0] != '\0') {
         putc(',', trace);

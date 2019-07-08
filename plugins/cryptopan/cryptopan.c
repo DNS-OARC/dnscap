@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, OARC, Inc.
+ * Copyright (c) 2018-2019, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,20 +279,50 @@ int cryptopan_close(my_bpftimeval ts)
 }
 
 #ifdef USE_OPENSSL
+struct input {
+    union {
+        unsigned char input[16];
+        uint32_t      ui32;
+    } u;
+};
+struct output {
+    union {
+        unsigned char outbuf[16 + EVP_MAX_BLOCK_LENGTH];
+        uint32_t      ui32;
+    } u;
+};
 static inline void _encrypt(uint32_t* in)
 {
-    unsigned char input[16], outbuf[16 + EVP_MAX_BLOCK_LENGTH];
+    struct input  input;
+    struct output output;
     int           outlen = 0, pos;
     uint32_t      orig, result = 0, pad4b, mask = 0;
 
-    memcpy(input, pad, 16);
-    orig  = ntohl(*in);
-    pad4b = *(uint32_t*)pad;
+    memcpy(input.u.input, pad, 16);
+    orig = ntohl(*in);
+    memcpy(&pad4b, pad, 4);
 
-    for (pos = 0; pos < 32; pos++) {
-        *(uint32_t*)input = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
+    // First pass with padding only
 
-        if (!EVP_CipherUpdate(ctx, outbuf, &outlen, input, 16)) {
+    input.u.ui32 = htonl(pad4b);
+
+    if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
+        fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
+        exit(1);
+    }
+    if (outlen != 16) {
+        fprintf(stderr, "cryptopan.so: error encrypted result is not 16 bytes\n");
+        exit(1);
+    }
+
+    result |= ntohl(output.u.ui32) & 0x80000000;
+    mask >>= 1;
+    mask |= 0x80000000;
+
+    for (pos = 1; pos < 32; pos++) {
+        input.u.ui32 = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
+
+        if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
             fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
             exit(1);
         }
@@ -301,7 +331,7 @@ static inline void _encrypt(uint32_t* in)
             exit(1);
         }
 
-        result |= ((ntohl(*(u_int32_t*)outbuf)) & 0x80000000) >> pos;
+        result |= (ntohl(output.u.ui32) & 0x80000000) >> pos;
         mask >>= 1;
         mask |= 0x80000000;
     }
@@ -311,18 +341,36 @@ static inline void _encrypt(uint32_t* in)
 
 static inline void _decrypt(uint32_t* in)
 {
-    unsigned char input[16], outbuf[16 + EVP_MAX_BLOCK_LENGTH];
+    struct input  input;
+    struct output output;
     int           outlen = 0, pos;
     uint32_t      orig, pad4b, mask = 0;
 
-    memcpy(input, pad, 16);
-    orig  = ntohl(*in);
-    pad4b = *(uint32_t*)pad;
+    memcpy(input.u.input, pad, 16);
+    orig = ntohl(*in);
+    memcpy(&pad4b, pad, 4);
 
-    for (pos = 0; pos < 32; pos++) {
-        *(uint32_t*)input = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
+    // First pass with padding only
 
-        if (!EVP_CipherUpdate(ctx, outbuf, &outlen, input, 16)) {
+    input.u.ui32 = htonl(pad4b);
+
+    if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
+        fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
+        exit(1);
+    }
+    if (outlen != 16) {
+        fprintf(stderr, "cryptopan.so: error encrypted result is not 16 bytes\n");
+        exit(1);
+    }
+
+    orig ^= ntohl(output.u.ui32) & 0x80000000;
+    mask >>= 1;
+    mask |= 0x80000000;
+
+    for (pos = 1; pos < 32; pos++) {
+        input.u.ui32 = htonl(((pad4b << pos) | (pad4b >> (32 - pos))) ^ (orig & mask));
+
+        if (!EVP_CipherUpdate(ctx, output.u.outbuf, &outlen, input.u.input, 16)) {
             fprintf(stderr, "cryptopan.so: error encrypting: %s\n", ERR_reason_error_string(ERR_get_error()));
             exit(1);
         }
@@ -331,7 +379,7 @@ static inline void _decrypt(uint32_t* in)
             exit(1);
         }
 
-        orig ^= ((ntohl(*(u_int32_t*)outbuf)) & 0x80000000) >> pos;
+        orig ^= (ntohl(output.u.ui32) & 0x80000000) >> pos;
         mask >>= 1;
         mask |= 0x80000000;
     }
