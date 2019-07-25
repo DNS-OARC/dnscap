@@ -6,9 +6,7 @@ Group:          Productivity/Networking/DNS/Utilities
 
 License:        BSD-3-Clause
 URL:            https://www.dns-oarc.net/tools/dnscap
-# Using same naming as to build debs, get the source (and rename it) at
-# https://www.dns-oarc.net/tools/dnscap and change %setup
-Source0:        %{name}_%{version}.orig.tar.gz
+Source0:        %{name}-%{version}.orig.tar.gz
 
 BuildRequires:  libpcap-devel
 BuildRequires:  ldns-devel
@@ -29,7 +27,7 @@ to DNS transactions and protocol options.
 
 
 %prep
-%setup -q -n %{name}_%{version}
+%setup -q -n %{name}-%{version}
 
 
 %build
