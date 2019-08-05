@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.10.1
+Version:        1.10.2
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Aug 05 2019 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.2-1
+- Release 1.10.2
+  * Fixed bug in the handling of defragmentation configuration which lead
+    to the use of a local scope variable later on and caused unexpected
+    behavior.
+  * Commits:
+    91692b8 Frag conf
+    6a74376 Package
+    d0d1a6d Package
 * Mon Jul 08 2019 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.1-1
 - Release 1.10.1
   * Fix various issues found by code analysis tools, a few compiler warnings

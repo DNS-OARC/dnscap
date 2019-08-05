@@ -1,3 +1,17 @@
+dnscap (1.10.2-1~unstable+1) unstable; urgency=low
+
+  * Release 1.10.2
+
+    Fixed bug in the handling of defragmentation configuration which lead
+    to the use of a local scope variable later on and caused unexpected
+    behavior.
+
+    91692b8 Frag conf
+    6a74376 Package
+    d0d1a6d Package
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 05 Aug 2019 08:32:26 +0200
+
 dnscap (1.10.1-1~unstable+1) unstable; urgency=low
 
   * Release 1.10.1
