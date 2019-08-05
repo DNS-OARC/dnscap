@@ -1,3 +1,15 @@
+2019-08-05 Jerry Lundström
+
+    Release 1.10.2
+
+    Fixed bug in the handling of defragmentation configuration which lead
+    to the use of a local scope variable later on and caused unexpected
+    behavior.
+
+    91692b8 Frag conf
+    6a74376 Package
+    d0d1a6d Package
+
 2019-07-08 Jerry Lundström
 
     Release 1.10.1
