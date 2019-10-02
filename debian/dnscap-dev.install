@@ -1,6 +1,3 @@
-usr/lib/dnscap/pcapdump.la
-usr/lib/dnscap/txtout.la
-usr/lib/dnscap/rssm.la
-usr/lib/dnscap/rzkeychange.la
+usr/lib/dnscap/*.la
 src/dnscap_common.h /usr/include/dnscap/
 src/dump_dns.h /usr/include/dnscap/
