@@ -1,3 +1,14 @@
+dnscap (1.10.3-1~unstable+1) unstable; urgency=low
+
+  * Release 1.10.3
+
+    Fixed plugins inclusion in deb packages for Debian and Ubuntu.
+
+    017ebb2 Deb packages
+    cf59143 COPR, spec
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Wed, 02 Oct 2019 11:24:04 +0200
+
 dnscap (1.10.2-1~unstable+1) unstable; urgency=low
 
   * Release 1.10.2
