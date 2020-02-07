@@ -225,11 +225,12 @@ string.
 Dump the captured packets to successive binary files in
 .Xr pcap 3
 format with DLT_RAW datalink type.
-Each file will have a name like "%s.%u.%06u" where %s is
+Each file will have a name like "%s.%s.%06u" where the first %s is
 .Ar base ,
-%u is the time in seconds, and %06u is the time in microseconds.  The argument
-"-" may be given to send the binary output to standard output.  In that case,
-the
+second %s is the time as hours, minutes and seconds (%H%M%S), and %06u is
+the microseconds.
+The argument "-" may be given to send the binary output to standard output.
+In that case, the
 .Fl c
 and
 .Fl t
