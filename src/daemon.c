@@ -108,48 +108,46 @@ void drop_privileges(void)
 
 #if HAVE_SETRESGID
     if (setresgid(dropGID, dropGID, dropGID) < 0) {
-        fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
+        fprintf(stderr, "Unable to drop GID to %s: %s\n", options.group ? options.group : user, strerror(errno));
         exit(1);
     }
 #elif HAVE_SETREGID
     if (setregid(dropGID, dropGID) < 0) {
-        fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
+        fprintf(stderr, "Unable to drop GID to %s: %s\n", options.group ? options.group : user, strerror(errno));
         exit(1);
     }
 #elif HAVE_SETEGID
     if (setegid(dropGID) < 0) {
-        fprintf(stderr, "Unable to drop GID to %s, exiting.\n", options.group ? options.group : user);
+        fprintf(stderr, "Unable to drop GID to %s: %s\n", options.group ? options.group : user, strerror(errno));
         exit(1);
     }
 #endif
 
-    // Allow initgroups or setgroups to fail if the cause is not permissions.
-    // Prefer to initgroups over dropping all supplemental groups.
 #if HAVE_INITGROUPS
-    if (initgroups(pwd.pw_name, dropGID) < 0 && errno == EPERM) {
-        fprintf(stderr, "Unable to init supplemental groups for %s, exiting.\n", user);
+    if (initgroups(pwd.pw_name, dropGID) < 0) {
+        fprintf(stderr, "Unable to init supplemental groups for %s: %s\n", user, strerror(errno));
         exit(1);
     }
 #elif HAVE_SETGROUPS
-    if (setgroups(0, NULL) < 0 && errno == EPERM) {
-        fprintf(stderr, "Unable to drop supplemental groups, exiting.\n");
+    if (setgroups(0, NULL) < 0) {
+        fprintf(stderr, "Unable to drop supplemental groups: %s\n", strerror(errno));
         exit(1);
     }
 #endif
 
 #if HAVE_SETRESUID
     if (setresuid(dropUID, dropUID, dropUID) < 0) {
-        fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
+        fprintf(stderr, "Unable to drop UID to %s: %s\n", user, strerror(errno));
         exit(1);
     }
 #elif HAVE_SETREUID
     if (setreuid(dropUID, dropUID) < 0) {
-        fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
+        fprintf(stderr, "Unable to drop UID to %s: %s\n", user, strerror(errno));
         exit(1);
     }
 #elif HAVE_SETEUID
     if (seteuid(dropUID) < 0) {
-        fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
+        fprintf(stderr, "Unable to drop UID to %s: %s\n", user, strerror(errno));
         exit(1);
     }
 #endif
