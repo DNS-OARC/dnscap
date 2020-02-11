@@ -123,6 +123,20 @@ void drop_privileges(void)
     }
 #endif
 
+    // Allow initgroups or setgroups to fail if the cause is not permissions.
+    // Prefer to initgroups over dropping all supplemental groups.
+#if HAVE_INITGROUPS
+    if (initgroups(pwd.pw_name, dropGID) < 0 && errno == EPERM) {
+        fprintf(stderr, "Unable to init supplemental groups for %s, exiting.\n", user);
+        exit(1);
+    }
+#elif HAVE_SETGROUPS
+    if (setgroups(0, NULL) < 0 && errno == EPERM) {
+        fprintf(stderr, "Unable to drop supplemental groups, exiting.\n");
+        exit(1);
+    }
+#endif
+
 #if HAVE_SETRESUID
     if (setresuid(dropUID, dropUID, dropUID) < 0) {
         fprintf(stderr, "Unable to drop UID to %s, exiting.\n", user);
