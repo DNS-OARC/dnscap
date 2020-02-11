@@ -333,7 +333,6 @@ void parse_args(int argc, char* argv[])
             mypcap->name = strdup(optarg);
             assert(mypcap->name != NULL);
             APPEND(mypcaps, mypcap, link);
-            only_offline_pcaps = FALSE;
             break;
         case 'r':
             if (!EMPTY(mypcaps))
@@ -344,6 +343,7 @@ void parse_args(int argc, char* argv[])
             pcap_offline->name = strdup(optarg);
             assert(pcap_offline->name != NULL);
             APPEND(mypcaps, pcap_offline, link);
+            only_offline_pcaps = TRUE;
             break;
         case 'l':
             ul = strtoul(optarg, &p, 0);
