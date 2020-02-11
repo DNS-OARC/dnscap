@@ -116,7 +116,7 @@ unsigned long long mem_limit            = (unsigned)MEM_MAX; /* process memory l
 int                mem_limit_set        = 1; /* TODO: Should be configurable */
 const char         DROPTOUSER[]         = "nobody";
 pcap_thread_t      pcap_thread          = PCAP_THREAD_T_INIT;
-int                only_offline_pcaps   = TRUE;
+int                only_offline_pcaps   = FALSE;
 int                dont_drop_privileges = FALSE;
 options_t          options              = OPTIONS_T_DEFAULTS;
 
