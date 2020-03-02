@@ -1,3 +1,22 @@
+dnscap (1.10.4-1~unstable+1) unstable; urgency=low
+
+  * Release 1.10.4
+
+    Fixed a bug that would not drop privileges when not specifying any
+    interface (which is equal to capturing on all interfaces).
+    Added functionality to set the supplemental groups when dropping
+    privileges and changing user, or clear them if that is not supported.
+    Other changes includes corrected man-page about '-w' and update to
+    documentation.
+
+    a0285e4 drop privileges errors, initgroups/setgroups
+    96336f3 daemon: Attempt to drop supplemental groups
+    467a9a7 Drop privileges
+    de940a8 man-page -w
+    187ec43 README
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 02 Mar 2020 13:32:25 +0100
+
 dnscap (1.10.3-1~unstable+1) unstable; urgency=low
 
   * Release 1.10.3
