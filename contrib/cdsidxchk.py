@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (c) 2016-2019, OARC, Inc.
+# Copyright (c) 2016-2020, OARC, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without

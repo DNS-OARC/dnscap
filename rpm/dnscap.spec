@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.10.3
+Version:        1.10.4
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,20 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Mar 02 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.4-1
+- Release 1.10.4
+  * Fixed a bug that would not drop privileges when not specifying any
+    interface (which is equal to capturing on all interfaces).
+  * Added functionality to set the supplemental groups when dropping
+    privileges and changing user, or clear them if that is not supported.
+  * Other changes includes corrected man-page about '-w' and update to
+    documentation.
+  * Commits:
+    a0285e4 drop privileges errors, initgroups/setgroups
+    96336f3 daemon: Attempt to drop supplemental groups
+    467a9a7 Drop privileges
+    de940a8 man-page -w
+    187ec43 README
 * Wed Oct 02 2019 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.3-1
 - Release 1.10.3
   * Fixed plugins inclusion in deb packages for Debian and Ubuntu.
