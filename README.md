@@ -74,7 +74,8 @@ found here: https://github.com/DNS-OARC/cryptopANT .
 
 ## Building from source tarball
 
-The source tarball from DNS-OARC comes prepared with `configure`:
+The [source tarball from DNS-OARC](https://www.dns-oarc.net/tools/dnscap)
+comes prepared with `configure`:
 
 ```
 tar zxvf dnscap-version.tar.gz

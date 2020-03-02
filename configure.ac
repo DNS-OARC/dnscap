@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2019, OARC, Inc.
+# Copyright (c) 2016-2020, OARC, Inc.
 # Copyright (c) 2007, The Measurement Factory, Inc.
 # Copyright (c) 2007, Internet Systems Consortium, Inc.
 # All rights reserved.
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ(2.61)
-AC_INIT([dnscap], [1.10.3], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_INIT([dnscap], [1.10.4], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
 AC_CONFIG_HEADER([src/config.h])
@@ -116,7 +116,7 @@ AC_CHECK_HEADERS([cryptopANT.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
-AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid])
+AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid initgroups setgroups])
 AC_CHECK_FUNCS([funopen fopencookie gzopen])
 AC_CHECK_FUNC([ns_initparse],
     [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
