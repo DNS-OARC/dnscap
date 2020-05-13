@@ -132,7 +132,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
         for (;;) {
             /* process the buffer, extract dnslen and try and parse */
             for (at = 0, len = t->bfb_at;;) {
-                dfprintf(1, "dns_protocol_handler: processing at = %lu, len = %lu", at, len);
+                dfprintf(1, "dns_protocol_handler: processing at = %zu, len = %zu", at, len);
                 if (len < 2) {
                     dfprintf(1, "dns_protocol_handler: bfb need more for dnslen");
                     break;
@@ -141,12 +141,12 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                 if (dnslen > 11) {
                     /* 12 bytes minimum DNS header, other lengths should be invalid */
                     if (len < dnslen + 2) {
-                        dfprintf(1, "dns_protocol_handler: bfb need %lu more", dnslen - len);
+                        dfprintf(1, "dns_protocol_handler: bfb need %zu more", dnslen - len);
                         break;
                     }
 
                     if (!ns_initparse(&t->bfb_buf[at + 2], dnslen, &msg)) {
-                        dfprintf(1, "dns_protocol_handler: dns at %lu len %u", at + 2, dnslen);
+                        dfprintf(1, "dns_protocol_handler: dns at %zu len %u", at + 2, dnslen);
 
                         for (m = 0; t->dnsmsg[m];) {
                             if (++m >= MAX_TCP_DNS_MSG) {
@@ -170,7 +170,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                     if (errno == EMSGSIZE) {
                         size_t l = calcdnslen(&t->bfb_buf[at + 2], dnslen);
                         if (l > 0 && l < dnslen && !ns_initparse(&t->bfb_buf[at + 2], l, &msg)) {
-                            dfprintf(1, "dns_protocol_handler: dns at %lu len %u (real len %lu)", at + 2, dnslen, l);
+                            dfprintf(1, "dns_protocol_handler: dns at %zu len %u (real len %zu)", at + 2, dnslen, l);
 
                             for (m = 0; t->dnsmsg[m];) {
                                 if (++m >= MAX_TCP_DNS_MSG) {
@@ -193,7 +193,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                         }
                     }
                 }
-                dfprintf(1, "dns_protocol_handler: bfb dns parse failed at %lu", at);
+                dfprintf(1, "dns_protocol_handler: bfb dns parse failed at %zu", at);
                 at += 2;
                 len -= 2;
             }
@@ -203,12 +203,12 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                 dfprintf(1, "dns_protocol_handler: bfb all buf parsed, reset at");
                 t->bfb_at = 0;
             } else if (len && at) {
-                dfprintf(1, "dns_protocol_handler: bfb move %lu len %lu", at, len);
+                dfprintf(1, "dns_protocol_handler: bfb move %zu len %zu", at, len);
                 memmove(t->bfb_buf, &t->bfb_buf[at], len);
                 t->bfb_at = len;
             }
 
-            dfprintf(1, "dns_protocol_handler: bfb fill at %lu", t->bfb_at);
+            dfprintf(1, "dns_protocol_handler: bfb fill at %zu", t->bfb_at);
             /* see if we can fill the buffer */
             for (s = 0;; s++) {
                 if (s >= MAX_TCP_SEGS) {
