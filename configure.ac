@@ -180,5 +180,6 @@ AC_CONFIG_FILES([
 	plugins/anonaes128/Makefile
 	plugins/cryptopan/Makefile
     plugins/cryptopant/Makefile
+    plugins/eventlog/Makefile
 ])
 AC_OUTPUT
