@@ -608,6 +608,8 @@ Computing, Georgia Tech) made by David Stott (Lucent).
 .It cryptopant.so
 Anonymize IP addresses using cryptopANT, a different implementation of
 Crypto-PAn made by the ANT project at USC/ISI.
+.It eventlog.so
+Output DNS activity as log events, including answers to A and AAAA queries.
 .It ipcrypt.so
 Anonymize IP addresses using ipcrypt create by Jean-Philippe Aumasson.
 .It pcapdump.so

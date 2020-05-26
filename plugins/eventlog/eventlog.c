@@ -74,7 +74,7 @@ void eventlog_usage()
 {
     fprintf(stderr,
         "\neventlog.so options:\n"
-        "   -h         print these instructions and exit\n"
+        "   -?         print these instructions and exit\n"
         "   -o <arg>   output file name\n"
         "   -s         short output, only QTYPE/QNAME for IN\n"
         "   -t         prefix event messages with DNS packet timestamp\n"
@@ -92,7 +92,7 @@ void eventlog_getopt(int* argc, char** argv[])
     int c;
     while ((c = getopt(*argc, *argv, "hso:tn:")) != EOF) {
         switch (c) {
-        case 'h':
+        case '?':
             eventlog_usage();
             exit(1);
             break;
@@ -338,7 +338,7 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
             if((0 == strncmp(p_type(ns_rr_type(rr)), "A", 2)) ||
                (0 == strncmp(p_type(ns_rr_type(rr)), "AAAA", 5))) {
                 fprintf(out, "%s", delim);
-                delim=", ";
+                delim=",";
                 eventlog_output_ipbytes(ns_rr_rdlen(rr), ns_rr_rdata(rr));
             }
         }
