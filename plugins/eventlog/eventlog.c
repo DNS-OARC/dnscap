@@ -276,8 +276,8 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
           fprintf(out, "proto=%hhu", proto);
           break;
     }
-    
-    int    rrnum, ancount, qdcount, err = 0;
+
+    int    rrnum, qdcount, err = 0;
     ns_rr  rr;
     char  *delim;
 
@@ -357,7 +357,7 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 }
 
 void eventlog_output_ipbytes(unsigned int len, const unsigned char *data) {
-  
+
   /* If there are 4 bytes, print them as an IPv4 address. */
   if (len == 4) {
     fprintf(out, "%u.%u.%u.%u", data[0], data[1], data[2], data[3]);
