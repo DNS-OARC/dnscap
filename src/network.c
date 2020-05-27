@@ -245,7 +245,7 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     mypcap_ptr mypcap = (mypcap_ptr)user;
     size_t     len    = hdr->caplen;
     unsigned   etype, vlan, pf;
-    char       descr[200];
+    char       descr[512];
 
     if (only_offline_pcaps && start_time != 0 && hdr->ts.tv_sec < start_time)
         return;

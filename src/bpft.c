@@ -39,14 +39,14 @@
 
 void prepare_bpft(void)
 {
-    unsigned  udp10_mbs, udp10_mbc, udp11_mbs, udp11_mbc;
+    unsigned  udp10_mbs, udp10_mbc, udp11_mbc; //udp11_mbs
     text_list bpfl;
     text_ptr  text;
     size_t    len;
     char*     p;
 
     /* Prepare the must-be-set and must-be-clear tests. */
-    udp10_mbs = udp10_mbc = udp11_mbs = udp11_mbc = 0U;
+    udp10_mbs = udp10_mbc = udp11_mbc = 0U; // udp11_mbs
     if ((dir_wanted & DIR_INITIATE) != 0) {
         if ((dir_wanted & DIR_RESPONSE) == 0)
             udp10_mbc |= UDP10_QR_MASK;
