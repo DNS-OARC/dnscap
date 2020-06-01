@@ -1,3 +1,22 @@
+dnscap (1.11.0-1~unstable+1) unstable; urgency=low
+
+  * Release 1.11.0
+
+    This release includes a new plugin called `eventlog`, contributed
+    by Byron Darrah (@ByronDarrah), output DNS activity as log events,
+    including answers to A and AAAA queries.
+
+    Other changes includes compile warning and code analysis fixes.
+
+    382eac4 COPR
+    4c03650 Compile warn
+    21d6a67 Slight change -- wording now matches usage() output.
+    dd19b0b Added the eventlog.so plugin...
+    1ebf504 Added new dnscap plugin: evenlog.so...
+    f3f9aaa Compile warnings
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 01 Jun 2020 14:21:02 +0200
+
 dnscap (1.10.4-1~unstable+1) unstable; urgency=low
 
   * Release 1.10.4

@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.10.4
+Version:        1.11.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,19 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jun 01 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.11.0-1
+- Release 1.11.0
+  * This release includes a new plugin called `eventlog`, contributed
+    by Byron Darrah (@ByronDarrah), output DNS activity as log events,
+    including answers to A and AAAA queries.
+  * Other changes includes compile warning and code analysis fixes.
+  * Commits:
+    382eac4 COPR
+    4c03650 Compile warn
+    21d6a67 Slight change -- wording now matches usage() output.
+    dd19b0b Added the eventlog.so plugin...
+    1ebf504 Added new dnscap plugin: evenlog.so...
+    f3f9aaa Compile warnings
 * Mon Mar 02 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.10.4-1
 - Release 1.10.4
   * Fixed a bug that would not drop privileges when not specifying any

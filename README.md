@@ -173,6 +173,7 @@ Also note that we have observed significant memory leaks on FreeBSD
 - `rssm.so`: Root Server Scaling Measurement plugin, see it's [README.md](plugins/rssm/README.md) for more information
 - `rzkeychange.so`: RFC8145 key tag signal collection and reporting plugin
 - `txtout.so`: Dump DNS as one-line text
+- `eventlog.so`: Syslog style output for easy parsing, use with a SIEM, etc.
 
 There is also a `template` plugin in the source repository to help others
 develop new plugins.
