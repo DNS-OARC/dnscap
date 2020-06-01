@@ -1,3 +1,20 @@
+2020-06-01 Jerry Lundström
+
+    Release 1.11.0
+
+    This release includes a new plugin called `eventlog`, contributed
+    by Byron Darrah (@ByronDarrah), output DNS activity as log events,
+    including answers to A and AAAA queries.
+
+    Other changes includes compile warning and code analysis fixes.
+
+    382eac4 COPR
+    4c03650 Compile warn
+    21d6a67 Slight change -- wording now matches usage() output.
+    dd19b0b Added the eventlog.so plugin...
+    1ebf504 Added new dnscap plugin: evenlog.so...
+    f3f9aaa Compile warnings
+
 2020-03-02 Jerry Lundström
 
     Release 1.10.4
