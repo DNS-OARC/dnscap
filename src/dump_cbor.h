@@ -34,6 +34,8 @@
 
 #include "dnscap_common.h"
 
+#include <stdio.h>
+
 #ifndef __dnscap_dump_cbor_h
 #define __dnscap_dump_cbor_h
 
@@ -57,7 +59,7 @@ struct cbor_stringref {
 int cbor_set_size(size_t size);
 int cbor_set_reserve(size_t reserve);
 int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char* payload, size_t payloadlen);
-int dump_cbor();
+int dump_cbor(FILE* fp);
 int have_cbor_support();
 
 #endif /* __dnscap_dump_cbor_h */

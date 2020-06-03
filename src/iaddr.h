@@ -38,6 +38,6 @@
 #define __dnscap_iaddr_h
 
 const char* ia_str(iaddr ia);
-int ia_equal(iaddr x, iaddr y);
+int         ia_equal(iaddr x, iaddr y);
 
 #endif /* __dnscap_iaddr_h */

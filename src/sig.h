@@ -37,9 +37,9 @@
 #ifndef __dnscap_sig_h
 #define __dnscap_sig_h
 
-void setsig(int sig, int oneshot);
-void sigclose(int signum);
-void sigbreak(int signum __attribute__((unused)));
+void  setsig(int sig, int oneshot);
+void  sigclose(int signum);
+void  sigbreak(int signum __attribute__((unused)));
 void* sigthread(void* arg);
 
 #endif /* __dnscap_sig_h */

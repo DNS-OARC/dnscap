@@ -87,8 +87,8 @@
 extern const char* p_rcode(int rcode);
 
 static const char* p_opcode(int opcode);
-static void dump_dns_sect(ns_msg*, ns_sect, FILE*, const char*);
-static void dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
+static void        dump_dns_sect(ns_msg*, ns_sect, FILE*, const char*);
+static void        dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
 
 #define MY_GET16(s, cp)                                         \
     do {                                                        \

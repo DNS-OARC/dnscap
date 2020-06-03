@@ -330,7 +330,7 @@ struct myregex {
     link;
     regex_t reg;
     char*   str;
-    int not;
+    int not ;
 };
 typedef struct myregex* myregex_ptr;
 typedef LIST(struct myregex) myregex_list;
@@ -350,7 +350,7 @@ struct plugin {
     int (*close)();
     output_t(*output);
     filter_t(*filter);
-    void (*getopt)(int*, char** []);
+    void (*getopt)(int*, char**[]);
     void (*usage)();
     void (*extension)(int, void*);
 };

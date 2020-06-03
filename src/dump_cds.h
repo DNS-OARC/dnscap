@@ -37,6 +37,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 #ifndef __dnscap_dump_cds_h
 #define __dnscap_dump_cds_h
@@ -211,7 +212,7 @@ int cds_set_rdata_index_min_size(size_t size);
 int cds_set_rdata_rindex_min_size(size_t size);
 int cds_set_rdata_rindex_size(size_t size);
 int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sport, unsigned dport, my_bpftimeval ts, const u_char* pkt_copy, size_t olen, const u_char* payload, size_t payloadlen);
-int dump_cds();
+int dump_cds(FILE* fp);
 int have_cds_support();
 
 #endif /* __dnscap_dump_cds_h */

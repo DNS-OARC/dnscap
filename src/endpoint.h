@@ -39,6 +39,6 @@
 
 void endpoint_arg(endpoint_list* list, const char* arg);
 void endpoint_add(endpoint_list* list, iaddr ia);
-int ep_present(const endpoint_list* list, iaddr ia);
+int  ep_present(const endpoint_list* list, iaddr ia);
 
 #endif /* __dnscap_endpoint_h */
