@@ -12,7 +12,15 @@ extraction:
         - libyaml-perl
         - zlib1g-dev
         - libssl-dev
+    after_prepare:
+      - git clone https://github.com/DNS-OARC/cryptopANT.git
+      - cd cryptopANT
+      - ./autogen.sh
+      - ./configure --prefix="$PWD/../root"
+      - make
+      - make install
+      - cd ..
     configure:
       command:
         - ./autogen.sh
-        - ./configure
+        - ./configure --with-extra-cflags="-I $PWD/root/include" --with-extra-ldflags="-L$PWD/root/lib"

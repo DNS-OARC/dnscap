@@ -40,6 +40,6 @@
 void prepare_bpft(void);
 
 size_t text_add(text_list* list, const char* fmt, ...);
-void text_free(text_list* list);
+void   text_free(text_list* list);
 
 #endif /* __dnscap_bpft_h */

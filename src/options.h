@@ -115,7 +115,7 @@ struct options {
     int bpf_hosts_apply_all;
 };
 
-int option_parse(options_t* options, const char* option);
+int  option_parse(options_t* options, const char* option);
 void options_free(options_t* options);
 
 #endif /* __dnscap_options_h */

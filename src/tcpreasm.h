@@ -37,7 +37,7 @@
 #ifndef __dnscap_tcpreasm_h
 #define __dnscap_tcpreasm_h
 
-int pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr _tcpstate);
+int  pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr _tcpstate);
 void tcpreasm_free(tcpreasm_t* tcpreasm);
 void tcpreasm_reset(tcpreasm_t* tcpreasm);
 

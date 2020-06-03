@@ -1949,7 +1949,7 @@ int output_cds(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned spo
     return DUMP_CDS_ENOSUP;
 }
 
-int dump_cds()
+int dump_cds(FILE* fp)
 {
     return DUMP_CDS_ENOSUP;
 }

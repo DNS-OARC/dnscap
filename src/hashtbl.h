@@ -61,10 +61,10 @@ struct hashtbl {
 };
 
 hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int hash_add(const void* key, void* data, hashtbl* tbl);
-void* hash_find(const void* key, hashtbl* tbl);
-void hash_remove(const void* key, hashtbl* tbl);
-void hash_free(hashtbl* tbl);
-void hash_destroy(hashtbl* tbl);
+int      hash_add(const void* key, void* data, hashtbl* tbl);
+void*    hash_find(const void* key, hashtbl* tbl);
+void     hash_remove(const void* key, hashtbl* tbl);
+void     hash_free(hashtbl* tbl);
+void     hash_destroy(hashtbl* tbl);
 
 #endif // __dnscap_hashtbl_h
