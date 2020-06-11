@@ -94,8 +94,7 @@ void eventlog_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             eventlog_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'o':
             if (opt_o)
                 free(opt_o);

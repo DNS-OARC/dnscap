@@ -93,8 +93,7 @@ void anonmask_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             anonmask_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'c':
             only_clients = 1;
             break;

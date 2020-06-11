@@ -62,7 +62,7 @@ int ia_equal(iaddr x, iaddr y)
     case AF_INET:
         return (x.u.a4.s_addr == y.u.a4.s_addr);
     case AF_INET6:
-        return (memcmp(&x.u.a6, &y.u.a6, sizeof x.u.a6) == 0);
+        return (memcmp(&x.u.a6.s6_addr, &y.u.a6.s6_addr, sizeof(x.u.a6.s6_addr)) == 0);
     }
     return FALSE;
 }

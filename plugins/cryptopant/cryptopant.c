@@ -96,8 +96,7 @@ void cryptopant_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             cryptopant_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'k':
             if (keyfile) {
                 free(keyfile);

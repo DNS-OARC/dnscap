@@ -103,8 +103,7 @@ void rzkeychange_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             rzkeychange_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'n':
             if (report_node)
                 free(report_node);
