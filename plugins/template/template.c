@@ -68,8 +68,7 @@ void template_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             template_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'f':
             opt_f = 1;
             break;

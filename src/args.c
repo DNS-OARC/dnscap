@@ -319,11 +319,9 @@ void parse_args(int argc, char* argv[])
         case '?':
             help_2();
             exit(0);
-            break;
         case 'V':
             printf("%s version %s\n", ProgramName, PACKAGE_VERSION);
             exit(0);
-            break;
         case 'i':
             if (pcap_offline != NULL)
                 usage("-i makes no sense after -r");

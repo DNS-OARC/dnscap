@@ -108,8 +108,7 @@ void anonaes128_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             anonaes128_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'k':
             if (strlen(optarg) != 16) {
                 usage("key must be 16 characters long");

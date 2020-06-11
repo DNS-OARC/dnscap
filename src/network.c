@@ -795,10 +795,8 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         return;
     }
 
-    for (m = 0;; m++) {
+    for (m = 0; m < MAX_TCP_DNS_MSG; m++) {
         if (tcpstate && tcpstate->reasm) {
-            if (m >= MAX_TCP_DNS_MSG)
-                return;
             if (!tcpstate->reasm->dnsmsg[m])
                 continue;
             dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
@@ -1419,10 +1417,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         goto network_pkt_end;
     }
 
-    for (m = 0;; m++) {
+    for (m = 0; m < MAX_TCP_DNS_MSG; m++) {
         if (tcpstate && tcpstate->reasm) {
-            if (m >= MAX_TCP_DNS_MSG)
-                goto network_pkt_end;
             if (!tcpstate->reasm->dnsmsg[m])
                 continue;
             dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;

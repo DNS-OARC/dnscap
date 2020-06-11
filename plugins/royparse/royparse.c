@@ -87,8 +87,7 @@ void royparse_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             royparse_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'q':
             if (opt_q)
                 free(opt_q);

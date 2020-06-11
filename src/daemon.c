@@ -41,7 +41,7 @@ void drop_privileges(void)
 {
     struct rlimit  rss;
     struct passwd  pwd;
-    struct passwd* result;
+    struct passwd* result = 0;
     size_t         pwdBufSize;
     char*          pwdBuf;
     unsigned int   s;

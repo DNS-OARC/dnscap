@@ -363,32 +363,23 @@ p_opcode(int opcode)
     switch (opcode) {
     case 0:
         return "QUERY";
-        break;
     case 1:
         return "IQUERY";
-        break;
     case 2:
         return "CQUERYM";
-        break;
     case 3:
         return "CQUERYU";
-        break;
     case 4:
         return "NOTIFY";
-        break;
     case 5:
         return "UPDATE";
-        break;
     case 14:
         return "ZONEINIT";
-        break;
     case 15:
         return "ZONEREF";
-        break;
     default:
         snprintf(buf, sizeof(buf), "OPCODE%d", opcode);
         return buf;
-        break;
     }
     /* NOTREACHED */
 }
