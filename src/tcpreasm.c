@@ -89,6 +89,11 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
         ns_msg msg;
         size_t at, len;
 
+        if (!dnslen) {
+            dfprintf(1, "dns_protocol_handler: dnslen can't be zero");
+            return 1;
+        }
+
         if (!t->bfb_buf && !(t->bfb_buf = malloc(BFB_BUF_SIZE))) {
             dfprintf(1, "dns_protocol_handler: no memory for bfb_buf");
             return 1;
