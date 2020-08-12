@@ -1,5 +1,5 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/config.h.in
-CLEANFILES = dnscap.1
+CLEANFILES = dnscap.1 *.gcda *.gcno *.gcov
 
 SUBDIRS = test
 
@@ -31,3 +31,10 @@ dnscap.1: dnscap.1.in Makefile
         -e 's,[@]PACKAGE_BUGREPORT[@],$(PACKAGE_BUGREPORT),g' \
         -e 's,[@]pkglibdir[@],$(pkglibdir),g' \
         < $(srcdir)/dnscap.1.in > dnscap.1
+
+if ENABLE_GCOV
+gcov-local:
+	for src in $(dnscap_SOURCES); do \
+	  gcov -l -r -s "$(srcdir)" "$$src"; \
+	done
+endif

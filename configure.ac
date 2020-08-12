@@ -68,6 +68,15 @@ AC_ARG_ENABLE(threads,
     [AX_PCAP_THREAD],
     [AX_PCAP_THREAD_PCAP])
 
+# Check --enable-gcov
+AC_ARG_ENABLE([gcov], [AS_HELP_STRING([--enable-gcov], [Enable coverage testing])], [
+  coverage_cflags="--coverage -g -O0 -fno-inline -fno-inline-small-functions -fno-default-inline"
+  AC_MSG_NOTICE([enabling coverage testing... $coverage_cflags])
+  AS_VAR_APPEND(CFLAGS, [" $coverage_cflags"])
+])
+AM_CONDITIONAL([ENABLE_GCOV], [test "x$enable_gcov" != "xno"])
+AM_EXTRA_RECURSIVE_TARGETS([gcov])
+
 # Checks for libraries.
 AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
 AC_CHECK_LIB([resolv], [res_mkquery], [], [

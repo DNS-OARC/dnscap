@@ -1,6 +1,6 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
 CLEANFILES = $(srcdir)/hashtbl.c \
-    hashtbl.c
+    hashtbl.c *.gcda *.gcno *.gcov
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
@@ -18,6 +18,13 @@ EXTRA_DIST = $(TESTS) test1.gold test2.gold dnscap-rssm-rssac002.1.in
 dist_bin_SCRIPTS = dnscap-rssm-rssac002
 man1_MANS = dnscap-rssm-rssac002.1
 CLEANFILES += test2.out $(man1_MANS)
+
+if ENABLE_GCOV
+gcov-local:
+	for src in $(rssm_la_SOURCES) $(nodist_rssm_la_SOURCES); do \
+	  gcov -o .libs -l -r -s "$(srcdir)" "$$src"; \
+	done
+endif
 endif
 
 hashtbl.c: $(top_srcdir)/src/hashtbl.c
