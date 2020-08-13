@@ -131,7 +131,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
 
         for (;;) {
             /* process the buffer, extract dnslen and try and parse */
-            at = 0;
+            at  = 0;
             len = t->bfb_at;
             for (;;) {
                 dfprintf(1, "dns_protocol_handler: processing at = %zu, len = %zu", at, len);

@@ -36,6 +36,7 @@
 
 #include "daemon.h"
 #include "log.h"
+#include "memzero.h"
 
 void drop_privileges(void)
 {
@@ -90,7 +91,7 @@ void drop_privileges(void)
 
     dropUID = pwd.pw_uid;
     dropGID = grp ? grp->gr_gid : pwd.pw_gid;
-    memset(pwdBuf, 0, pwdBufSize);
+    dnscap_memzero(pwdBuf, pwdBufSize);
     free(pwdBuf);
 
     /*
