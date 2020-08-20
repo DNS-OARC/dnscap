@@ -87,8 +87,8 @@
 extern const char* p_rcode(int rcode);
 
 static const char* p_opcode(int opcode);
-static void dump_dns_sect(ns_msg*, ns_sect, FILE*, const char*);
-static void dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
+static void        dump_dns_sect(ns_msg*, ns_sect, FILE*, const char*);
+static void        dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
 
 #define MY_GET16(s, cp)                                         \
     do {                                                        \
@@ -363,32 +363,23 @@ p_opcode(int opcode)
     switch (opcode) {
     case 0:
         return "QUERY";
-        break;
     case 1:
         return "IQUERY";
-        break;
     case 2:
         return "CQUERYM";
-        break;
     case 3:
         return "CQUERYU";
-        break;
     case 4:
         return "NOTIFY";
-        break;
     case 5:
         return "UPDATE";
-        break;
     case 14:
         return "ZONEINIT";
-        break;
     case 15:
         return "ZONEREF";
-        break;
     default:
         snprintf(buf, sizeof(buf), "OPCODE%d", opcode);
         return buf;
-        break;
     }
     /* NOTREACHED */
 }

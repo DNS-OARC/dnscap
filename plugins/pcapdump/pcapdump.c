@@ -93,8 +93,7 @@ void pcapdump_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             pcapdump_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'd':
             dbg_lvl++;
             break;

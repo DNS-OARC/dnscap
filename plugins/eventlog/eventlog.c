@@ -68,7 +68,7 @@ static int       opt_t = 0;
 static char*     opt_n = NULL;
 
 output_t eventlog_output;
-void     eventlog_output_ipbytes(unsigned int len, const unsigned char *data);
+void     eventlog_output_ipbytes(unsigned int len, const unsigned char* data);
 
 void eventlog_usage()
 {
@@ -94,8 +94,7 @@ void eventlog_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             eventlog_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'o':
             if (opt_o)
                 free(opt_o);
@@ -139,21 +138,22 @@ int eventlog_start(logerr_t* a_logerr)
     setbuf(out, 0);
 
     if (opt_t) {
-      time_t curtime;
-      char time_text[25];
-      curtime = time(NULL);
-      if(strftime(time_text, 25, "%G %m/%d %T", localtime(&curtime)) > 0) {
-        fprintf(out, "%s ", time_text);
-      } else {
-        fprintf(out, "**ERROR reading time** ");
-      }
+        time_t    curtime;
+        char      time_text[25];
+        struct tm res;
+        curtime = time(NULL);
+        if (strftime(time_text, 25, "%G %m/%d %T", localtime_r(&curtime, &res)) > 0) {
+            fprintf(out, "%s ", time_text);
+        } else {
+            fprintf(out, "**ERROR reading time** ");
+        }
     }
     if (opt_n) {
-      fprintf(out, "%s ", opt_n);
+        fprintf(out, "%s ", opt_n);
     }
     fprintf(out, "DNS event logging started.\n");
 
-   return 0;
+    return 0;
 }
 
 void eventlog_stop()
@@ -215,8 +215,8 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 {
 
     /* Do not output anything if there is no DNS info to report. */
-    if ( !(flags & DNSCAP_OUTPUT_ISDNS) ) {
-      return;
+    if (!(flags & DNSCAP_OUTPUT_ISDNS)) {
+        return;
     }
     ns_msg msg;
     if (ns_initparse(payload, payloadlen, &msg) < 0) {
@@ -229,11 +229,12 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      * Output the packet timestamp
      */
     if (opt_t) {
-        char time_text[25];
-        if(strftime(time_text, 25, "%G %m/%d %T", localtime(&ts.tv_sec)) > 0) {
-          fprintf(out, "%s ", time_text);
+        char      time_text[25];
+        struct tm res;
+        if (strftime(time_text, 25, "%G %m/%d %T", localtime_r(&ts.tv_sec, &res)) > 0) {
+            fprintf(out, "%s ", time_text);
         } else {
-          fprintf(out, "**ERROR reading packet time** ");
+            fprintf(out, "**ERROR reading packet time** ");
         }
     }
     if (opt_n) {
@@ -244,8 +245,8 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      * Short output, only print QTYPE and QNAME for IN records
      */
     if (opt_s) {
-        int    qdcount, err = 0;
-        ns_rr  rr;
+        int   qdcount, err = 0;
+        ns_rr rr;
         qdcount = ns_msg_count(msg, ns_s_qd);
 
         if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr)) && ns_rr_class(rr) == 1) {
@@ -265,21 +266,21 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      */
     fprintf(out, "src=%s spt=%u ", ia_str(from), sport);
     fprintf(out, "dst=%s dpt=%u ", ia_str(to), dport);
-    switch(proto) {
-       case 17:
-          fprintf(out, "proto=UDP");
-          break;
-       case 6:
-          fprintf(out, "proto=TCP");
-          break;
-       default:
-          fprintf(out, "proto=%hhu", proto);
-          break;
+    switch (proto) {
+    case 17:
+        fprintf(out, "proto=UDP");
+        break;
+    case 6:
+        fprintf(out, "proto=TCP");
+        break;
+    default:
+        fprintf(out, "proto=%hhu", proto);
+        break;
     }
 
-    int    rrnum, qdcount, err = 0;
-    ns_rr  rr;
-    char  *delim;
+    int   rrnum, qdcount, err = 0;
+    ns_rr rr;
+    char* delim;
 
     /*
      * DNS Header
@@ -301,19 +302,19 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
         fprintf(out, "AD|");
     if (ns_msg_getflag(msg, ns_f_cd))
         fprintf(out, "CD|");
-    switch(ns_msg_getflag(msg, ns_f_rcode)) {
-        case ns_r_noerror:
-          fprintf(out, " rc=OK");
-          break;
-        case ns_r_nxdomain:
-          fprintf(out, " rc=NXDOMAIN");
-          break;
-        case ns_r_servfail:
-          fprintf(out, " rc=SRVFAIL");
-          break;
-        default:
-          fprintf(out, " rc=%u", ns_msg_getflag(msg, ns_f_rcode));
-          break;
+    switch (ns_msg_getflag(msg, ns_f_rcode)) {
+    case ns_r_noerror:
+        fprintf(out, " rc=OK");
+        break;
+    case ns_r_nxdomain:
+        fprintf(out, " rc=NXDOMAIN");
+        break;
+    case ns_r_servfail:
+        fprintf(out, " rc=SRVFAIL");
+        break;
+    default:
+        fprintf(out, " rc=%u", ns_msg_getflag(msg, ns_f_rcode));
+        break;
     }
 
     qdcount = ns_msg_count(msg, ns_s_qd);
@@ -332,13 +333,12 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 
     /* output the query answers */
     delim = " ans=";
-    for(rrnum = 0; rrnum < ns_msg_count(msg, ns_s_an); rrnum++) {
+    for (rrnum = 0; rrnum < ns_msg_count(msg, ns_s_an); rrnum++) {
         if (0 == (err = ns_parserr(&msg, ns_s_an, rrnum, &rr))) {
-          /* If the answer is an IP address, output it. */
-            if((0 == strncmp(p_type(ns_rr_type(rr)), "A", 2)) ||
-               (0 == strncmp(p_type(ns_rr_type(rr)), "AAAA", 5))) {
+            /* If the answer is an IP address, output it. */
+            if ((0 == strncmp(p_type(ns_rr_type(rr)), "A", 2)) || (0 == strncmp(p_type(ns_rr_type(rr)), "AAAA", 5))) {
                 fprintf(out, "%s", delim);
-                delim=",";
+                delim = ",";
                 eventlog_output_ipbytes(ns_rr_rdlen(rr), ns_rr_rdata(rr));
             }
         }
@@ -356,24 +356,25 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
     fprintf(out, "\n");
 }
 
-void eventlog_output_ipbytes(unsigned int len, const unsigned char *data) {
+void eventlog_output_ipbytes(unsigned int len, const unsigned char* data)
+{
 
-  /* If there are 4 bytes, print them as an IPv4 address. */
-  if (len == 4) {
-    fprintf(out, "%u.%u.%u.%u", data[0], data[1], data[2], data[3]);
-  }
+    /* If there are 4 bytes, print them as an IPv4 address. */
+    if (len == 4) {
+        fprintf(out, "%u.%u.%u.%u", data[0], data[1], data[2], data[3]);
+    }
 
-  /* If there are 16 bytes, print them as an IPv6 address. */
-  else if (len == 16) {
-  /* If there are 16 bytes, print them as an IPv6 address. */
-    fprintf(out, "%x:%x:%x:%x:%x:%x:%x:%x",
-            ((unsigned int) data[0]) <<8 | data[1],
-            ((unsigned int) data[2]) <<8 | data[3],
-            ((unsigned int) data[4]) <<8 | data[5],
-            ((unsigned int) data[6]) <<8 | data[7],
-            ((unsigned int) data[8]) <<8 | data[9],
-            ((unsigned int) data[10])<<8 | data[11],
-            ((unsigned int) data[12])<<8 | data[13],
-            ((unsigned int) data[14])<<8 | data[15]);
-  }
+    /* If there are 16 bytes, print them as an IPv6 address. */
+    else if (len == 16) {
+        /* If there are 16 bytes, print them as an IPv6 address. */
+        fprintf(out, "%x:%x:%x:%x:%x:%x:%x:%x",
+            ((unsigned int)data[0]) << 8 | data[1],
+            ((unsigned int)data[2]) << 8 | data[3],
+            ((unsigned int)data[4]) << 8 | data[5],
+            ((unsigned int)data[6]) << 8 | data[7],
+            ((unsigned int)data[8]) << 8 | data[9],
+            ((unsigned int)data[10]) << 8 | data[11],
+            ((unsigned int)data[12]) << 8 | data[13],
+            ((unsigned int)data[14]) << 8 | data[15]);
+    }
 }

@@ -667,7 +667,7 @@ int output_cbor(iaddr from, iaddr to, uint8_t proto, unsigned flags, unsigned sp
     return DUMP_CBOR_ENOSUP;
 }
 
-int dump_cbor()
+int dump_cbor(FILE* fp)
 {
     return DUMP_CBOR_ENOSUP;
 }

@@ -319,11 +319,9 @@ void parse_args(int argc, char* argv[])
         case '?':
             help_2();
             exit(0);
-            break;
         case 'V':
             printf("%s version %s\n", ProgramName, PACKAGE_VERSION);
             exit(0);
-            break;
         case 'i':
             if (pcap_offline != NULL)
                 usage("-i makes no sense after -r");
@@ -587,7 +585,7 @@ void parse_args(int argc, char* argv[])
             t       = strrchr(fn, '/');
             p->name = strdup(t ? t + 1 : fn);
             if ((t = strstr(p->name, ".so")))
-                *t    = 0;
+                *t = 0;
             p->handle = dlopen(fn, RTLD_NOW);
             if (!p->handle) {
                 logerr("%s: %s", fn, dlerror());
@@ -758,7 +756,7 @@ void parse_args(int argc, char* argv[])
                  mr != NULL;
                  mr = NEXT(mr, link))
                 fprintf(stderr, " %s/%s/",
-                    mr->not? "!" : "", mr->str);
+                    mr->not ? "!" : "", mr->str);
             fprintf(stderr, "\n");
         }
     }

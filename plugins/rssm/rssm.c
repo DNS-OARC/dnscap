@@ -138,9 +138,9 @@ iaddr_cmp(const void* _a, const void* _b)
 
     if (a->af == b->af) {
         if (AF_INET == a->af)
-            return memcmp(&a->u, &b->u, 4);
+            return memcmp(&a->u.a4.s_addr, &b->u.a4.s_addr, sizeof(a->u.a4.s_addr));
         if (AF_INET6 == a->af)
-            return memcmp(&a->u, &b->u, 16);
+            return memcmp(&a->u.a6.s6_addr, &b->u.a6.s6_addr, sizeof(a->u.a6.s6_addr));
         return 0;
     }
     if (a->af < b->af)
@@ -188,8 +188,7 @@ void rssm_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             rssm_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'w':
             if (counts_prefix)
                 free(counts_prefix);

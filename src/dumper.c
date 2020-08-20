@@ -258,11 +258,11 @@ int dumper_close(my_bpftimeval ts)
                 exit(1);
             }
             ret = dump_cbor(fp);
+            fclose(fp);
             if (ret != DUMP_CBOR_OK) {
                 fprintf(stderr, "%s: output to cbor failed [%u]\n", ProgramName, ret);
                 exit(1);
             }
-            fclose(fp);
         }
     } else if (options.dump_format == cds) {
         int ret;
@@ -282,11 +282,11 @@ int dumper_close(my_bpftimeval ts)
                 exit(1);
             }
             ret = dump_cds(fp);
+            fclose(fp);
             if (ret != DUMP_CDS_OK) {
                 fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
                 exit(1);
             }
-            fclose(fp);
         }
     }
 

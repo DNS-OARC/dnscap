@@ -138,11 +138,12 @@ void hash_free(hashtbl* tbl)
     }
 
     for (slot = 0; slot < tbl->modulus; slot++) {
-        for (i = tbl->items[slot]; i; i = next) {
+        for (i = tbl->items[slot]; i;) {
             next = i->next;
             if (tbl->datafree)
                 tbl->datafree(i->data);
             free(i);
+            i = next;
         }
         tbl->items[slot] = 0;
     }

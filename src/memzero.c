@@ -32,39 +32,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __dnscap_hashtbl_h
-#define __dnscap_hashtbl_h
+#include "config.h"
 
-#define HASHTBL_EARGS -1
-#define HASHTBL_ENOMEM -2
+#if defined(__FreeBSD__)
+#include <strings.h>
+#elif defined(__OpenBSD__)
+#include <string.h>
+#else
+#ifndef __STDC_WANT_LIB_EXT1__
+#define __STDC_WANT_LIB_EXT1__ 1
+#endif
+#include <string.h>
+#endif
 
-typedef struct hashitem hashitem;
+void dnscap_memzero(void* const pnt, const size_t len)
+{
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+    explicit_bzero(pnt, len);
+#elif defined(__STDC_LIB_EXT1__)
+    memset_s(pnt, 0, len);
+#else
+    volatile unsigned char* volatile pnt_ = (volatile unsigned char* volatile)pnt;
+    size_t i                              = (size_t)0U;
 
-struct hashitem {
-    const void* key;
-    void*       data;
-    hashitem*   next;
-};
-
-typedef unsigned int (*hashkey_func)(const void* key);
-typedef int (*hashkeycmp_func)(const void* a, const void* b);
-typedef void (*hashfree_func)(void* data);
-
-typedef struct hashtbl hashtbl;
-struct hashtbl {
-    unsigned int modulus;
-    hashitem**   items;
-
-    hashkey_func    hasher;
-    hashkeycmp_func keycmp;
-    hashfree_func   datafree;
-};
-
-hashtbl* hash_create(unsigned int N, hashkey_func hasher, hashkeycmp_func cmp, hashfree_func datafree);
-int      hash_add(const void* key, void* data, hashtbl* tbl);
-void*    hash_find(const void* key, hashtbl* tbl);
-void     hash_remove(const void* key, hashtbl* tbl);
-void     hash_free(hashtbl* tbl);
-void     hash_destroy(hashtbl* tbl);
-
-#endif // __dnscap_hashtbl_h
+    while (i < len) {
+        pnt_[i++] = 0U;
+    }
+#endif
+}

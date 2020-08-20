@@ -38,11 +38,11 @@
 #define __dnscap_args_h
 
 time_t xtimegm(struct tm* tmp);
-void usage(const char* msg);
-void help_1(void);
-void help_2(void);
-void check_gzip();
-int is_responder(iaddr ia);
-void parse_args(int argc, char* argv[]);
+void   usage(const char* msg);
+void   help_1(void);
+void   help_2(void);
+void   check_gzip();
+int    is_responder(iaddr ia);
+void   parse_args(int argc, char* argv[]);
 
 #endif /* __dnscap_args_h */

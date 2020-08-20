@@ -103,8 +103,7 @@ void rzkeychange_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             rzkeychange_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'n':
             if (report_node)
                 free(report_node);
@@ -265,7 +264,7 @@ void rzkeychange_submit_counts(void)
 {
     char      qname[256];
     ldns_pkt* pkt;
-    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec;
+    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec; //NOSONAR
     int       k;
 
     k = snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",

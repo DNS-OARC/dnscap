@@ -74,8 +74,7 @@ void txtout_getopt(int* argc, char** argv[])
         switch (c) {
         case '?':
             txtout_usage();
-            exit(1);
-            break;
+            exit(0);
         case 'o':
             if (opt_o)
                 free(opt_o);

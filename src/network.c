@@ -795,10 +795,8 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         return;
     }
 
-    for (m = 0;; m++) {
+    for (m = 0; m < MAX_TCP_DNS_MSG; m++) {
         if (tcpstate && tcpstate->reasm) {
-            if (m >= MAX_TCP_DNS_MSG)
-                return;
             if (!tcpstate->reasm->dnsmsg[m])
                 continue;
             dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
@@ -918,7 +916,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     for (myregex = HEAD(myregexes);
                          myregex != NULL;
                          myregex = NEXT(myregex, link)) {
-                        if (myregex->not) {
+                        if (myregex->not ) {
                             if (negmatch < 0)
                                 negmatch = 0;
                         } else {
@@ -927,7 +925,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                         }
 
                         if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                            if (myregex->not)
+                            if (myregex->not )
                                 negmatch++;
                             else
                                 match++;
@@ -936,7 +934,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                                 fprintf(stderr,
                                     "; \"%s\" %s~ /%s/ %d %d\n",
                                     look,
-                                    myregex->not? "!" : "",
+                                    myregex->not ? "!" : "",
                                     myregex->str,
                                     match,
                                     negmatch);
@@ -1419,10 +1417,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         goto network_pkt_end;
     }
 
-    for (m = 0;; m++) {
+    for (m = 0; m < MAX_TCP_DNS_MSG; m++) {
         if (tcpstate && tcpstate->reasm) {
-            if (m >= MAX_TCP_DNS_MSG)
-                goto network_pkt_end;
             if (!tcpstate->reasm->dnsmsg[m])
                 continue;
             dnslen = tcpstate->reasm->dnsmsg[m]->dnslen;
@@ -1543,7 +1539,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     for (myregex = HEAD(myregexes);
                          myregex != NULL;
                          myregex = NEXT(myregex, link)) {
-                        if (myregex->not) {
+                        if (myregex->not ) {
                             if (negmatch < 0)
                                 negmatch = 0;
                         } else {
@@ -1552,7 +1548,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                         }
 
                         if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                            if (myregex->not)
+                            if (myregex->not )
                                 negmatch++;
                             else
                                 match++;
@@ -1561,7 +1557,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                                 fprintf(stderr,
                                     "; \"%s\" %s~ /%s/ %d %d\n",
                                     look,
-                                    myregex->not? "!" : "",
+                                    myregex->not ? "!" : "",
                                     myregex->str,
                                     match,
                                     negmatch);
