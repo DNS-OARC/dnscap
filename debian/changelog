@@ -1,3 +1,31 @@
+dnscap (1.11.1-1~unstable+1) unstable; urgency=low
+
+  * Release 1.11.1
+
+    This release fixes a lot of issues found by code analysis, adds a
+    explicit memory zeroing function to remove account information (read
+    when dropping privileges) and adds code coverage reporting.
+
+    The `dnscap_memzero()` will use `explicit_bzero()` on FreeBSD and
+    OpenBSD, or `memset_s()` (if supported), otherwise it will manually
+    set the memory to zero. This will hopefully ensure that the memory
+    is zeroed as compilers can optimize out `memset()`'s that is just
+    before `free()`.
+
+    The plugins exit code for the help option `-?` has been changed to 0
+    to have the same as `dnscap -?`.
+
+    d9747ee memzero
+    1cf17c6 Coverage
+    19c7120 Coverage
+    7435676 Sonarcloud
+    928e181 Sonarcloud
+    ca4afd0 Sonarcloud
+    028f5e0 Badges
+    db0d6a1 LGTM
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 20 Aug 2020 13:30:48 +0200
+
 dnscap (1.11.0-1~unstable+1) unstable; urgency=low
 
   * Release 1.11.0
