@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.11.0
+Version:        1.11.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,27 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Aug 20 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.11.1-1
+- Release 1.11.1
+  * This release fixes a lot of issues found by code analysis, adds a
+    explicit memory zeroing function to remove account information (read
+    when dropping privileges) and adds code coverage reporting.
+  * The `dnscap_memzero()` will use `explicit_bzero()` on FreeBSD and
+    OpenBSD, or `memset_s()` (if supported), otherwise it will manually
+    set the memory to zero. This will hopefully ensure that the memory
+    is zeroed as compilers can optimize out `memset()`'s that is just
+    before `free()`.
+  * The plugins exit code for the help option `-?` has been changed to 0
+    to have the same as `dnscap -?`.
+  * Commits:
+    d9747ee memzero
+    1cf17c6 Coverage
+    19c7120 Coverage
+    7435676 Sonarcloud
+    928e181 Sonarcloud
+    ca4afd0 Sonarcloud
+    028f5e0 Badges
+    db0d6a1 LGTM
 * Mon Jun 01 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.11.0-1
 - Release 1.11.0
   * This release includes a new plugin called `eventlog`, contributed
