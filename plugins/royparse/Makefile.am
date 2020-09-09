@@ -10,6 +10,10 @@ pkglib_LTLIBRARIES = royparse.la
 royparse_la_SOURCES = royparse.c
 royparse_la_LDFLAGS = -module -avoid-version
 
+TESTS = test1.sh
+EXTRA_DIST = $(TESTS)
+CLEANFILES += test1.out* *.pcap-dist
+
 if ENABLE_GCOV
 gcov-local:
 	for src in $(royparse_la_SOURCES); do \

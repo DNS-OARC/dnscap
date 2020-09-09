@@ -15,6 +15,7 @@ if grep -q "no cryptopANT support built in" test2.out 2>/dev/null; then
 fi
 
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" 2>test2.out
+../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -6 24 2>test2.out
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -c 2>>test2.out
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -s 2>>test2.out
 

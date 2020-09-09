@@ -177,9 +177,6 @@ void ipcrypt_getopt(int* argc, char** argv[])
 
     while ((c = getopt(*argc, *argv, "?k:f:Dcsp:i:6")) != EOF) {
         switch (c) {
-        case '?':
-            ipcrypt_usage();
-            exit(0);
         case 'k':
             if (strlen(optarg) != 16) {
                 usage("key must be 16 characters long");
@@ -229,8 +226,13 @@ void ipcrypt_getopt(int* argc, char** argv[])
         case '6':
             encrypt_v6 = 1;
             break;
-        default:
+        case '?':
             ipcrypt_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

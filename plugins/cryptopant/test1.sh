@@ -16,6 +16,7 @@ fi
 
 ! ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" 2>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" 2>>test1.out
+../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -4 8 2>>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -c 2>>test1.out
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -s 2>>test1.out
 ! ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -c -s 2>>test1.out

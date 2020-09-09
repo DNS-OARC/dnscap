@@ -1,0 +1,1 @@
+sonar.coverage.exclusions=src/hashtbl.c, src/dump_cbor.c, src/dump_cds.c, src/assert.c

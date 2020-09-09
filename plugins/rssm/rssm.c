@@ -186,9 +186,6 @@ void rssm_getopt(int* argc, char** argv[])
     int c;
     while ((c = getopt(*argc, *argv, "?w:Yn:Ss:Aa:D")) != EOF) {
         switch (c) {
-        case '?':
-            rssm_usage();
-            exit(0);
         case 'w':
             if (counts_prefix)
                 free(counts_prefix);
@@ -221,8 +218,13 @@ void rssm_getopt(int* argc, char** argv[])
         case 'D':
             dont_fork_on_close = 1;
             break;
-        default:
+        case '?':
             rssm_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

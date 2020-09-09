@@ -91,9 +91,6 @@ void anonmask_getopt(int* argc, char** argv[])
 
     while ((c = getopt(*argc, *argv, "?csp:4:6:")) != EOF) {
         switch (c) {
-        case '?':
-            anonmask_usage();
-            exit(0);
         case 'c':
             only_clients = 1;
             break;
@@ -115,11 +112,16 @@ void anonmask_getopt(int* argc, char** argv[])
         case '6':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul > 127U)
-                usage("port must be an integer 0..127");
+                usage("IPv6 mask must be an integer 0..127");
             mask_v6 = (unsigned)ul;
             break;
-        default:
+        case '?':
             anonmask_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

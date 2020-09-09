@@ -10,9 +10,13 @@ pkglib_LTLIBRARIES = template.la
 template_la_SOURCES = template.c
 template_la_LDFLAGS = -module -avoid-version
 
+TESTS = test1.sh
+EXTRA_DIST = $(TESTS)
+CLEANFILES += *.pcap-dist
+
 if ENABLE_GCOV
 gcov-local:
-	for src in $(pcapdump_la_SOURCES); do \
+	for src in $(template_la_SOURCES); do \
 	  gcov -o .libs -l -r -s "$(srcdir)" "$$src"; \
 	done
 endif

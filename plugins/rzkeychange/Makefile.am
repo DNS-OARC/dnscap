@@ -11,6 +11,10 @@ pkglib_LTLIBRARIES = rzkeychange.la
 rzkeychange_la_SOURCES = rzkeychange.c
 rzkeychange_la_LDFLAGS = -module -avoid-version $(LIBRARY_VERSION)
 
+TESTS = test1.sh
+EXTRA_DIST = $(TESTS)
+CLEANFILES += *.pcap-dist
+
 if ENABLE_GCOV
 gcov-local:
 	for src in $(rzkeychange_la_SOURCES); do \

@@ -10,6 +10,9 @@ ln -fs "$srcdir/../../src/test/dns6.pcap" dns6.pcap-dist
 
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" 2>test2.out
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 24 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 32 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 64 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 96 2>>test2.out
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -c 2>>test2.out
 ../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -s 2>>test2.out
 

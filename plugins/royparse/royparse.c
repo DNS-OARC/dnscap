@@ -85,9 +85,6 @@ void royparse_getopt(int* argc, char** argv[])
 
     while ((c = getopt(*argc, *argv, "?q:r:")) != EOF) {
         switch (c) {
-        case '?':
-            royparse_usage();
-            exit(0);
         case 'q':
             if (opt_q)
                 free(opt_q);
@@ -98,8 +95,13 @@ void royparse_getopt(int* argc, char** argv[])
                 free(opt_r);
             opt_r = strdup(optarg);
             break;
-        default:
+        case '?':
             royparse_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }
