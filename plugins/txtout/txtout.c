@@ -72,9 +72,6 @@ void txtout_getopt(int* argc, char** argv[])
     int c;
     while ((c = getopt(*argc, *argv, "?so:")) != EOF) {
         switch (c) {
-        case '?':
-            txtout_usage();
-            exit(0);
         case 'o':
             if (opt_o)
                 free(opt_o);
@@ -83,8 +80,13 @@ void txtout_getopt(int* argc, char** argv[])
         case 's':
             opt_s = 1;
             break;
-        default:
+        case '?':
             txtout_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

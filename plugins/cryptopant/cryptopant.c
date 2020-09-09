@@ -94,9 +94,6 @@ void cryptopant_getopt(int* argc, char** argv[])
 
     while ((c = getopt(*argc, *argv, "?k:4:6:Dcsp:")) != EOF) {
         switch (c) {
-        case '?':
-            cryptopant_usage();
-            exit(0);
         case 'k':
             if (keyfile) {
                 free(keyfile);
@@ -130,8 +127,13 @@ void cryptopant_getopt(int* argc, char** argv[])
                 usage("port must be an integer 1..65535");
             dns_port = (unsigned)ul;
             break;
-        default:
+        case '?':
             cryptopant_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

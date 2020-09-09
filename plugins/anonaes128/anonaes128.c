@@ -106,9 +106,6 @@ void anonaes128_getopt(int* argc, char** argv[])
 
     while ((c = getopt(*argc, *argv, "?k:K:i:I:Dcsp:4")) != EOF) {
         switch (c) {
-        case '?':
-            anonaes128_usage();
-            exit(0);
         case 'k':
             if (strlen(optarg) != 16) {
                 usage("key must be 16 characters long");
@@ -177,8 +174,13 @@ void anonaes128_getopt(int* argc, char** argv[])
         case '4':
             encrypt_v4 = 1;
             break;
-        default:
+        case '?':
             anonaes128_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

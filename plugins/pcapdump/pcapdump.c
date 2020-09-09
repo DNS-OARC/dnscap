@@ -91,9 +91,6 @@ void pcapdump_getopt(int* argc, char** argv[])
     const char* p;
     while ((c = getopt(*argc, *argv, "?dfk:s:w:")) != EOF) {
         switch (c) {
-        case '?':
-            pcapdump_usage();
-            exit(0);
         case 'd':
             dbg_lvl++;
             break;
@@ -131,8 +128,13 @@ void pcapdump_getopt(int* argc, char** argv[])
                 dump_base = strdup(optarg);
             }
             break;
-        default:
+        case '?':
             pcapdump_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

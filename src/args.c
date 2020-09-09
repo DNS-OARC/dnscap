@@ -316,9 +316,6 @@ void parse_args(int argc, char* argv[])
         case 'I':
             wanticmp = TRUE;
             break;
-        case '?':
-            help_2();
-            exit(0);
         case 'V':
             printf("%s version %s\n", ProgramName, PACKAGE_VERSION);
             exit(0);
@@ -664,6 +661,12 @@ void parse_args(int argc, char* argv[])
         case 'D':
             immediate_mode = TRUE;
             break;
+        case '?':
+            if (!optopt || optopt == '?') {
+                help_2();
+                exit(0);
+            }
+            // fallthrough
         default:
             usage("unrecognized command line option");
         }

@@ -90,11 +90,8 @@ void eventlog_getopt(int* argc, char** argv[])
      * process plugin options.
      */
     int c;
-    while ((c = getopt(*argc, *argv, "hso:tn:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?so:tn:")) != EOF) {
         switch (c) {
-        case '?':
-            eventlog_usage();
-            exit(0);
         case 'o':
             if (opt_o)
                 free(opt_o);
@@ -109,8 +106,13 @@ void eventlog_getopt(int* argc, char** argv[])
         case 'n':
             opt_n = strdup(optarg);
             break;
-        default:
+        case '?':
             eventlog_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

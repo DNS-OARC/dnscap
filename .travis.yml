@@ -26,4 +26,5 @@ script:
   - ../configure --enable-warn-all
   - make
   - make test
-  - src/dnscap -h
+  - cat src/test/test*.sh.log
+  - cat plugins/*/test*.sh.log
