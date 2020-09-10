@@ -651,10 +651,10 @@ void parse_args(int argc, char* argv[])
         case 'y':
 #ifdef USE_SECCOMP
             use_seccomp = TRUE;
+            break;
 #else
             usage("seccomp-bpf not enabled");
 #endif
-            break;
         case 'M':
             monitor_mode = TRUE;
             break;
@@ -664,6 +664,7 @@ void parse_args(int argc, char* argv[])
         case '?':
             if (!optopt || optopt == '?') {
                 help_2();
+                options_free(&options);
                 exit(0);
             }
             // fallthrough
