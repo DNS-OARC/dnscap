@@ -15,9 +15,14 @@ if [ "`uname`" = "OpenBSD" ]; then
     ../dnscap -Z 127.0.0.1 -r dns.pcap-dist -g -dddd
     ../dnscap -Y 127.0.0.1 -r dns.pcap-dist -g -dddd
 else
-    ../dnscap -a 127.0.0.1 -a ::1 -a google.com \
-      -z 127.0.0.1 -A 127.0.0.1 -Z 127.0.0.1 -Y 127.0.0.1 \
-      -r dns.pcap-dist -g -dddd
+    ../dnscap -a 127.0.0.1 -a ::1 -r dns.pcap-dist -g -dddd
+    ../dnscap -z 127.0.0.1 -z ::1 -r dns.pcap-dist -g -dddd
+    ../dnscap -A 127.0.0.1 -A ::1 -r dns.pcap-dist -g -dddd
+    ../dnscap -Z 127.0.0.1 -Z ::1 -r dns.pcap-dist -g -dddd
+    ../dnscap -Y 127.0.0.1 -Y ::1 -r dns.pcap-dist -g -dddd
+fi
+if [ "$TEST_DNSCAP_WITH_NETWORK" = "1" ]; then
+    ../dnscap -a google.com -r dns.pcap-dist -g -dddd
 fi
 ../dnscap -Y 127.0.0.1 -r dns.pcap-dist -g
 ../dnscap -Y 8.8.8.8 -r dns.pcap-dist -g
