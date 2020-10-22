@@ -66,17 +66,19 @@ void template_getopt(int* argc, char** argv[])
     int c;
     while ((c = getopt(*argc, *argv, "?fx:")) != EOF) {
         switch (c) {
-        case '?':
-            template_usage();
-            exit(0);
         case 'f':
             opt_f = 1;
             break;
         case 'x':
             opt_x = strdup(optarg);
             break;
-        default:
+        case '?':
             template_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }

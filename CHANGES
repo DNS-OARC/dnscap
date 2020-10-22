@@ -1,3 +1,33 @@
+2020-10-22 Jerry Lundström
+
+    Release 1.12.0
+
+    This release fixes the handling of `-?` option for dnscap and all plugins,
+    previously the handling varied between places and depending on `getopt()`
+    implementation an invalid option could return the wrong exit code.
+
+    Other changes:
+    - Fix typo in configure help text
+    - `plugins/anonmask`: Fix typo in help text
+    - `plugins/rzkeychange`:
+      - Add `-D`, dry run mode, for testing
+      - Fix handling of `-a` and error on too many
+
+    KNOWN ISSUES:
+
+    On OpenBSD the system library libc exports the same symbols as libbind
+    does and this causes runtime warnings. Until now this has not caused any
+    known problems but is now also causing segfaults if the packet filter used
+    (BPF) includes IPv6 addresses.
+    On all other platforms OARC supports, these symbols are macros and in so
+    should not cause any problem.
+
+    ee478c0 Known issues
+    2f9d957 Tests
+    3c663a2 Tests
+    c88efc5 rzkeychange test
+    f062f33 Tests
+
 2020-08-20 Jerry Lundström
 
     Release 1.11.1

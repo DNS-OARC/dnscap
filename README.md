@@ -139,6 +139,11 @@ $ env CFLAGS="-I/usr/local/include -I/usr/local/include/bind" \
   ./configure
 ```
 
+*KNOWN ISSUES*:
+- libbind export the symbol `_res` which also exists in OpenBSD's libc, this causes it to throw warnings like `dnscap:/usr/lib/libc.so.96.0: /usr/local/lib/libbind.so.6.1 : WARNING: symbol(_res) size mismatch, relink your program` and may segfault.
+- due to above, known to segfault in libpcap when using IPv6 addresses in BPF, see https://github.com/the-tcpdump-group/libpcap/issues/964
+- this will be addressed in future versions of `dnscap`, see https://github.com/DNS-OARC/dnscap/issues/11
+
 ### FreeBSD
 
 If you've installed libbind for -x/-X then it probably went into

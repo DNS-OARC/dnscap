@@ -40,6 +40,8 @@ static unsigned short resolver_port    = 0;
 static unsigned int   resolver_use_tcp = 0;
 static ldns_resolver* res;
 
+static int dry_run = 0;
+
 output_t       rzkeychange_output;
 is_responder_t rzkeychange_is_responder = 0;
 ia_str_t       rzkeychange_ia_str       = 0;
@@ -75,6 +77,7 @@ void rzkeychange_usage()
     fprintf(stderr,
         "\nrzkeychange.so options:\n"
         "\t-?           print these instructions and exit\n"
+        "\t-D           dry run, just print queries\n"
         "\t-z <zone>    Report counters to DNS zone <zone> (required)\n"
         "\t-s <server>  Data is from server <server> (required)\n"
         "\t-n <node>    Data is from site/node <node> (required)\n"
@@ -99,11 +102,8 @@ void rzkeychange_extension(int ext, void* arg)
 void rzkeychange_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "?a:k:n:p:s:tz:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?a:k:n:p:s:tz:D")) != EOF) {
         switch (c) {
-        case '?':
-            rzkeychange_usage();
-            exit(0);
         case 'n':
             if (report_node)
                 free(report_node);
@@ -143,7 +143,14 @@ void rzkeychange_getopt(int* argc, char** argv[])
         case 'a':
             if (num_ns_addrs < MAX_NAMESERVERS) {
                 ns_addrs[num_ns_addrs] = strdup(optarg);
+                if (!ns_addrs[num_ns_addrs]) {
+                    fprintf(stderr, "strdup() out of memory\n");
+                    exit(1);
+                }
                 num_ns_addrs++;
+            } else {
+                fprintf(stderr, "too many nameservers\n");
+                exit(1);
             }
             break;
         case 'p':
@@ -152,8 +159,16 @@ void rzkeychange_getopt(int* argc, char** argv[])
         case 't':
             resolver_use_tcp = 1;
             break;
-        default:
+        case 'D':
+            dry_run = 1;
+            break;
+        case '?':
             rzkeychange_usage();
+            if (!optopt || optopt == '?') {
+                exit(0);
+            }
+            // fallthrough
+        default:
             exit(1);
         }
     }
@@ -167,6 +182,10 @@ ldns_pkt*
 dns_query(const char* name, ldns_rr_type type)
 {
     fprintf(stderr, "%s\n", name);
+    if (dry_run) {
+        return 0;
+    }
+
     ldns_rdf* domain = ldns_dname_new_frm_str(name);
     if (0 == domain) {
         fprintf(stderr, "bad query name: '%s'\n", name);
@@ -219,6 +238,10 @@ int rzkeychange_start(logerr_t* a_logerr)
         ldns_resolver_set_port(res, resolver_port);
     if (resolver_use_tcp)
         ldns_resolver_set_usevc(res, 1);
+
+    if (dry_run) {
+        return 0;
+    }
 
     fprintf(stderr, "Testing reachability of zone '%s'\n", report_zone);
     pkt = dns_query(report_zone, LDNS_RR_TYPE_TXT);
