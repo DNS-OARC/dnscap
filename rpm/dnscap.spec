@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        1.11.1
+Version:        1.12.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,30 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Oct 22 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.12.0-1
+- Release 1.12.0
+  * This release fixes the handling of `-?` option for dnscap and all plugins,
+    previously the handling varied between places and depending on `getopt()`
+    implementation an invalid option could return the wrong exit code.
+  * Other changes:
+    - Fix typo in configure help text
+    - `plugins/anonmask`: Fix typo in help text
+    - `plugins/rzkeychange`:
+      - Add `-D`, dry run mode, for testing
+      - Fix handling of `-a` and error on too many
+  * KNOWN ISSUES:
+    On OpenBSD the system library libc exports the same symbols as libbind
+    does and this causes runtime warnings. Until now this has not caused any
+    known problems but is now also causing segfaults if the packet filter used
+    (BPF) includes IPv6 addresses.
+    On all other platforms OARC supports, these symbols are macros and in so
+    should not cause any problem.
+  * Commits:
+    ee478c0 Known issues
+    2f9d957 Tests
+    3c663a2 Tests
+    c88efc5 rzkeychange test
+    f062f33 Tests
 * Thu Aug 20 2020 Jerry Lundström <lundstrom.jerry@gmail.com> 1.11.1-1
 - Release 1.11.1
   * This release fixes a lot of issues found by code analysis, adds a
