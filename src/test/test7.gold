@@ -1325,15 +1325,13 @@ Enabling parse_ongoing_tcp and allow_reset_tcpstate
 	[172.17.0.9].48613 [8.8.8.8].53  \
 	dns QUERY,NOERROR,4815,rd|ad \
 	1 google.com,IN,A 0 0 \
-	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0] \
-	
+	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0]
 [109] 2017-12-11 13:59:04.956698 [#1 1qtcpnosyn.pcap-dist 4095] \
 	[8.8.8.8].53 [172.17.0.9].48613  \
 	dns QUERY,NOERROR,4815,qr|rd|ra \
 	1 google.com,IN,A \
 	1 google.com,IN,A,47,172.217.22.174 0 \
-	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0] \
-	
+	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]
 [52] 2017-12-11 13:59:04.957247 [#2 1qtcpnosyn.pcap-dist 4095] \
 	[172.17.0.9].48613 [8.8.8.8].53 
 [52] 2017-12-11 13:59:04.960230 [#3 1qtcpnosyn.pcap-dist 4095] \
@@ -1344,8 +1342,7 @@ Enabling parse_ongoing_tcp and allow_reset_tcpstate
 1513000744.960230 8.8.8.8 53 172.17.0.9 48613 6
 [80] 2018-01-10 11:22:41.552406 [#0 do1t-nosyn-1nolen.pcap-dist 4095] \
 	[172.17.0.8].51388 [8.8.8.8].53  \
-	dns QUERY,FORMERR,256 0 0 0 \
-	1639 Message too long
+	dns Label length overflow
 [98] 2018-01-10 11:22:41.555912 [#1 do1t-nosyn-1nolen.pcap-dist 4095] \
 	[8.8.8.8].53 [172.17.0.8].51388  \
 	dns QUERY,NOERROR,59311,qr|rd|ra \

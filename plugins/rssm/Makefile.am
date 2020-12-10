@@ -5,14 +5,14 @@ CLEANFILES = $(srcdir)/hashtbl.c \
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/isc \
-    $(SECCOMPFLAGS)
+    $(SECCOMPFLAGS) \
+    $(libldns_CFLAGS)
 
-if HAVE_LDNS
 pkglib_LTLIBRARIES = rssm.la
 rssm_la_SOURCES = rssm.c
 nodist_rssm_la_SOURCES = hashtbl.c
 BUILT_SOURCES = hashtbl.c
-rssm_la_LDFLAGS = -module -avoid-version
+rssm_la_LDFLAGS = -module -avoid-version $(libldns_LIBS)
 TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh
 EXTRA_DIST = $(TESTS) test1.gold test2.gold dnscap-rssm-rssac002.1.in \
   test3.gold test5.gold
@@ -27,7 +27,6 @@ gcov-local:
 	for src in $(rssm_la_SOURCES) $(nodist_rssm_la_SOURCES); do \
 	  gcov -o .libs -l -r -s "$(srcdir)" "$$src"; \
 	done
-endif
 endif
 
 hashtbl.c: $(top_srcdir)/src/hashtbl.c

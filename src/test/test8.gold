@@ -19,8 +19,7 @@
 	dns QUERY,NOERROR,4815,qr|rd|ra \
 	1 google.com,IN,A \
 	1 google.com,IN,A,47,172.217.22.174 0 \
-	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0] \
-	
+	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]
 [52] 2017-12-11 13:59:04.957247 [#6 dnsotcp-many1pkt.pcap-dist 4095] \
 	[172.17.0.9].48613 [8.8.8.8].53 
 [52] 2017-12-11 13:59:04.960230 [#7 dnsotcp-many1pkt.pcap-dist 4095] \

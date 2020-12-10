@@ -4,11 +4,11 @@ CLEANFILES = *.gcda *.gcno *.gcov
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/isc \
-    $(SECCOMPFLAGS)
+    $(SECCOMPFLAGS) $(libldns_CFLAGS)
 
 pkglib_LTLIBRARIES = txtout.la
 txtout_la_SOURCES = txtout.c
-txtout_la_LDFLAGS = -module -avoid-version
+txtout_la_LDFLAGS = -module -avoid-version $(libldns_LIBS)
 
 TESTS = test1.sh
 EXTRA_DIST = $(TESTS)

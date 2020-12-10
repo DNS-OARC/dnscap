@@ -127,7 +127,6 @@
 #include <netdb.h>
 #include <pcap.h>
 #include <regex.h>
-#include <resolv.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -168,12 +167,12 @@
 
 #define ERR_TRUNC 0x0001
 #define ERR_RCODE_BASE 0x0002
-#define ERR_NO (ERR_RCODE_BASE << ns_r_noerror)
-#define ERR_FORMERR (ERR_RCODE_BASE << ns_r_formerr)
-#define ERR_SERVFAIL (ERR_RCODE_BASE << ns_r_servfail)
-#define ERR_NXDOMAIN (ERR_RCODE_BASE << ns_r_nxdomain)
-#define ERR_NOTIMPL (ERR_RCODE_BASE << ns_r_notimpl)
-#define ERR_REFUSED (ERR_RCODE_BASE << ns_r_refused)
+#define ERR_NO (ERR_RCODE_BASE << 0)
+#define ERR_FORMERR (ERR_RCODE_BASE << 1)
+#define ERR_SERVFAIL (ERR_RCODE_BASE << 2)
+#define ERR_NXDOMAIN (ERR_RCODE_BASE << 3)
+#define ERR_NOTIMPL (ERR_RCODE_BASE << 4)
+#define ERR_REFUSED (ERR_RCODE_BASE << 5)
 #define ERR_YES (0xffffffff & ~ERR_NO)
 
 #define END_INITIATOR 0x0001

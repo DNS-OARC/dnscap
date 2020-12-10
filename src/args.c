@@ -527,9 +527,7 @@ void parse_args(int argc, char* argv[])
             break;
         case 'x':
         /* FALLTHROUGH */
-        case 'X':
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-        {
+        case 'X': {
             int         i;
             myregex_ptr myregex = calloc(1, sizeof *myregex);
             assert(myregex != NULL);
@@ -543,18 +541,7 @@ void parse_args(int argc, char* argv[])
             }
             myregex->not = (ch == 'X');
             APPEND(myregexes, myregex, link);
-        }
-#else
-            /*
-             * -x and -X options require libbind because
-             * the code calls ns_initparse(), ns_parserr(),
-             * and ns_sprintrr()
-             */
-            fprintf(stderr, "%s must be compiled with libbind to use the -x or -X option.\n",
-                ProgramName);
-            exit(1);
-#endif
-        break;
+        } break;
         case 'B': {
             struct tm tm;
             memset(&tm, '\0', sizeof(tm));
@@ -815,12 +802,8 @@ void parse_args(int argc, char* argv[])
     }
 
     if (options.reassemble_tcp_bfbparsedns) {
-#if HAVE_NS_INITPARSE
         if (!options.reassemble_tcp) {
             usage("can't do byte for byte parsing of DNS without reassemble_tcp=yes");
         }
-#else
-        usage("not compiled with libbind, needed for reassemble_tcp_bfbparsedns=yes");
-#endif
     }
 }
