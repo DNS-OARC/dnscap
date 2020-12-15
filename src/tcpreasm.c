@@ -39,6 +39,7 @@
 #include "network.h"
 
 #include <stdlib.h>
+#include <ldns/ldns.h>
 
 #define dfprintf(a, b...)      \
     if (dumptrace >= 3) {      \
@@ -83,11 +84,10 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
 {
     int m;
 
-#if HAVE_NS_INITPARSE
     if (options.reassemble_tcp_bfbparsedns) {
-        int    s;
-        ns_msg msg;
-        size_t at, len;
+        int       s;
+        ldns_pkt* pkt;
+        size_t    at, len;
 
         if (!t->bfb_buf && !(t->bfb_buf = malloc(BFB_BUF_SIZE))) {
             dfprintf(1, "dns_protocol_handler: no memory for bfb_buf");
@@ -147,7 +147,8 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                         break;
                     }
 
-                    if (!ns_initparse(&t->bfb_buf[at + 2], dnslen, &msg)) {
+                    if (ldns_wire2pkt(&pkt, &t->bfb_buf[at + 2], dnslen) == LDNS_STATUS_OK) {
+                        ldns_pkt_free(pkt);
                         dfprintf(1, "dns_protocol_handler: dns at %zu len %u", at + 2, dnslen);
 
                         for (m = 0; t->dnsmsg[m];) {
@@ -171,7 +172,8 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
                     }
                     if (errno == EMSGSIZE) {
                         size_t l = calcdnslen(&t->bfb_buf[at + 2], dnslen);
-                        if (l > 0 && l < dnslen && !ns_initparse(&t->bfb_buf[at + 2], l, &msg)) {
+                        if (l > 0 && l < dnslen && ldns_wire2pkt(&pkt, &t->bfb_buf[at + 2], l) == LDNS_STATUS_OK) {
+                            ldns_pkt_free(pkt);
                             dfprintf(1, "dns_protocol_handler: dns at %zu len %u (real len %zu)", at + 2, dnslen, l);
 
                             for (m = 0; t->dnsmsg[m];) {
@@ -239,7 +241,6 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
             }
         }
     }
-#endif
 
     for (m = 0; t->dnsmsg[m];) {
         if (++m >= MAX_TCP_DNS_MSG) {

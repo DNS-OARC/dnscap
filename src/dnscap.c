@@ -133,7 +133,6 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-    res_init();
     parse_args(argc, argv);
     gettimeofday(&now, 0);
     if (!only_offline_pcaps && start_time) {

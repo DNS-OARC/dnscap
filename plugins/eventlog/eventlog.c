@@ -56,7 +56,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
-#include <resolv.h>
+#include <ldns/ldns.h>
 
 #include "dnscap_common.h"
 
@@ -68,7 +68,6 @@ static int       opt_t = 0;
 static char*     opt_n = NULL;
 
 output_t eventlog_output;
-void     eventlog_output_ipbytes(unsigned int len, const unsigned char* data);
 
 void eventlog_usage()
 {
@@ -210,6 +209,29 @@ void eventlog_extension(int ext, void* arg)
     }
 }
 
+static void eventlog_output_ipbytes(size_t len, const uint8_t* data)
+{
+
+    /* If there are 4 bytes, print them as an IPv4 address. */
+    if (len == 4) {
+        fprintf(out, "%u.%u.%u.%u", data[0], data[1], data[2], data[3]);
+    }
+
+    /* If there are 16 bytes, print them as an IPv6 address. */
+    else if (len == 16) {
+        /* If there are 16 bytes, print them as an IPv6 address. */
+        fprintf(out, "%x:%x:%x:%x:%x:%x:%x:%x",
+            ((unsigned int)data[0]) << 8 | data[1],
+            ((unsigned int)data[2]) << 8 | data[3],
+            ((unsigned int)data[4]) << 8 | data[5],
+            ((unsigned int)data[6]) << 8 | data[7],
+            ((unsigned int)data[8]) << 8 | data[9],
+            ((unsigned int)data[10]) << 8 | data[11],
+            ((unsigned int)data[12]) << 8 | data[13],
+            ((unsigned int)data[14]) << 8 | data[15]);
+    }
+}
+
 void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     const u_char* pkt_copy, unsigned olen,
@@ -220,11 +242,16 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
     if (!(flags & DNSCAP_OUTPUT_ISDNS)) {
         return;
     }
-    ns_msg msg;
-    if (ns_initparse(payload, payloadlen, &msg) < 0) {
+    ldns_pkt* pkt;
+    if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
         if (tcpstate_getcurr && tcpstate_reset)
             tcpstate_reset(tcpstate_getcurr(), "");
         return;
+    }
+    ldns_buffer* buf = ldns_buffer_new(512);
+    if (!buf) {
+        logerr("out of memmory\n");
+        exit(1);
     }
 
     /*
@@ -247,19 +274,27 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      * Short output, only print QTYPE and QNAME for IN records
      */
     if (opt_s) {
-        int   qdcount, err = 0;
-        ns_rr rr;
-        qdcount = ns_msg_count(msg, ns_s_qd);
+        ldns_rr_list* qds = ldns_pkt_question(pkt);
+        if (qds) {
+            ldns_rr* qd = ldns_rr_list_rr(qds, 0);
 
-        if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr)) && ns_rr_class(rr) == 1) {
-            fprintf(out, "%s %s\n",
-                p_type(ns_rr_type(rr)),
-                ns_rr_name(rr));
+            if (qd && ldns_rr_get_class(qd) == LDNS_RR_CLASS_IN) {
+                if (ldns_rr_type2buffer_str(buf, ldns_rr_get_type(qd)) == LDNS_STATUS_OK) {
+                    fprintf(out, "%s", (char*)ldns_buffer_begin(buf));
+                } else {
+                    fprintf(out, "ERR");
+                }
+
+                ldns_buffer_clear(buf);
+                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
+                    fprintf(out, " %.*s\n", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+                } else {
+                    fprintf(out, "ERR\n");
+                }
+            }
         }
-        if (err < 0) {
-            if (tcpstate_getcurr && tcpstate_reset)
-                tcpstate_reset(tcpstate_getcurr(), "");
-        }
+        ldns_pkt_free(pkt);
+        ldns_buffer_free(buf);
         return;
     }
 
@@ -280,74 +315,103 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
         break;
     }
 
-    int   rrnum, qdcount, err = 0;
-    ns_rr rr;
-    char* delim;
-
     /*
      * DNS Header
      */
-    fprintf(out, " mid=%u", ns_msg_id(msg));
-    fprintf(out, " op=%u", ns_msg_getflag(msg, ns_f_opcode));
+    fprintf(out, " mid=%u", ldns_pkt_id(pkt));
+    fprintf(out, " op=%u", ldns_pkt_get_opcode(pkt));
     fprintf(out, " fl=|");
-    if (ns_msg_getflag(msg, ns_f_qr))
+    if (ldns_pkt_qr(pkt))
         fprintf(out, "QR|");
-    if (ns_msg_getflag(msg, ns_f_aa))
+    if (ldns_pkt_aa(pkt))
         fprintf(out, "AA|");
-    if (ns_msg_getflag(msg, ns_f_tc))
+    if (ldns_pkt_tc(pkt))
         fprintf(out, "TC|");
-    if (ns_msg_getflag(msg, ns_f_rd))
+    if (ldns_pkt_rd(pkt))
         fprintf(out, "RD|");
-    if (ns_msg_getflag(msg, ns_f_ra))
+    if (ldns_pkt_ra(pkt))
         fprintf(out, "RA|");
-    if (ns_msg_getflag(msg, ns_f_ad))
+    if (ldns_pkt_ad(pkt))
         fprintf(out, "AD|");
-    if (ns_msg_getflag(msg, ns_f_cd))
+    if (ldns_pkt_cd(pkt))
         fprintf(out, "CD|");
-    switch (ns_msg_getflag(msg, ns_f_rcode)) {
-    case ns_r_noerror:
+    switch (ldns_pkt_get_rcode(pkt)) {
+    case LDNS_RCODE_NOERROR:
         fprintf(out, " rc=OK");
         break;
-    case ns_r_nxdomain:
+    case LDNS_RCODE_NXDOMAIN:
         fprintf(out, " rc=NXDOMAIN");
         break;
-    case ns_r_servfail:
+    case LDNS_RCODE_SERVFAIL:
         fprintf(out, " rc=SRVFAIL");
         break;
     default:
-        fprintf(out, " rc=%u", ns_msg_getflag(msg, ns_f_rcode));
+        fprintf(out, " rc=%u", ldns_pkt_get_rcode(pkt));
         break;
     }
 
-    qdcount = ns_msg_count(msg, ns_s_qd);
-    if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr))) {
-        fprintf(out, " cl=%s tp=%s name=%s",
-            p_class(ns_rr_class(rr)),
-            p_type(ns_rr_type(rr)),
-            ns_rr_name(rr));
-    }
-    if (err < 0) {
-        fprintf(out, " **ERROR parsing response record**\n");
-        if (tcpstate_getcurr && tcpstate_reset)
-            tcpstate_reset(tcpstate_getcurr(), "");
-        return;
+    ldns_rr_list* qds = ldns_pkt_question(pkt);
+    ldns_rr*      qd;
+    if (qds && (qd = ldns_rr_list_rr(qds, 0))) {
+        if (ldns_rr_class2buffer_str(buf, ldns_rr_get_class(qd)) == LDNS_STATUS_OK) {
+            fprintf(out, " cl=%s", (char*)ldns_buffer_begin(buf));
+        } else {
+            fprintf(out, " **ERROR parsing response record**\n");
+            ldns_pkt_free(pkt);
+            ldns_buffer_free(buf);
+            return;
+        }
+
+        ldns_buffer_clear(buf);
+        if (ldns_rr_type2buffer_str(buf, ldns_rr_get_type(qd)) == LDNS_STATUS_OK) {
+            fprintf(out, " tp=%s", (char*)ldns_buffer_begin(buf));
+        } else {
+            fprintf(out, " **ERROR parsing response record**\n");
+            ldns_pkt_free(pkt);
+            ldns_buffer_free(buf);
+            return;
+        }
+
+        ldns_buffer_clear(buf);
+        if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
+            fprintf(out, " name=%.*s\n", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+        } else {
+            fprintf(out, " **ERROR parsing response record**\n");
+            ldns_pkt_free(pkt);
+            ldns_buffer_free(buf);
+            return;
+        }
     }
 
     /* output the query answers */
-    delim = " ans=";
-    for (rrnum = 0; rrnum < ns_msg_count(msg, ns_s_an); rrnum++) {
-        if (0 == (err = ns_parserr(&msg, ns_s_an, rrnum, &rr))) {
-            /* If the answer is an IP address, output it. */
-            if ((0 == strncmp(p_type(ns_rr_type(rr)), "A", 2)) || (0 == strncmp(p_type(ns_rr_type(rr)), "AAAA", 5))) {
-                fprintf(out, "%s", delim);
-                delim = ",";
-                eventlog_output_ipbytes(ns_rr_rdlen(rr), ns_rr_rdata(rr));
+    ldns_rr_list* ans = ldns_pkt_answer(pkt);
+    if (ans) {
+        const char* delim = " ans=";
+        size_t      i, n;
+        for (i = 0, n = ldns_rr_list_rr_count(ans); i < n; i++) {
+            ldns_rr* rr = ldns_rr_list_rr(ans, i);
+
+            if (rr) {
+                switch (ldns_rr_get_type(rr)) {
+                case LDNS_RR_TYPE_A:
+                case LDNS_RR_TYPE_AAAA: {
+                    ldns_rdf* rdf = ldns_rr_rdf(rr, 0);
+                    if (rdf) {
+                        fprintf(out, "%s", delim);
+                        delim = ",";
+                        eventlog_output_ipbytes(ldns_rdf_size(rdf), ldns_rdf_data(rdf));
+                        continue;
+                    }
+                    break;
+                }
+                default:
+                    continue;
+                }
             }
-        }
-        if (err < 0) {
+
             fprintf(out, " **ERROR parsing response record**\n");
-            if (tcpstate_getcurr && tcpstate_reset)
-                tcpstate_reset(tcpstate_getcurr(), "");
+            ldns_pkt_free(pkt);
+            ldns_buffer_free(buf);
             return;
         }
     }
@@ -356,27 +420,6 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
      * Done
      */
     fprintf(out, "\n");
-}
-
-void eventlog_output_ipbytes(unsigned int len, const unsigned char* data)
-{
-
-    /* If there are 4 bytes, print them as an IPv4 address. */
-    if (len == 4) {
-        fprintf(out, "%u.%u.%u.%u", data[0], data[1], data[2], data[3]);
-    }
-
-    /* If there are 16 bytes, print them as an IPv6 address. */
-    else if (len == 16) {
-        /* If there are 16 bytes, print them as an IPv6 address. */
-        fprintf(out, "%x:%x:%x:%x:%x:%x:%x:%x",
-            ((unsigned int)data[0]) << 8 | data[1],
-            ((unsigned int)data[2]) << 8 | data[3],
-            ((unsigned int)data[4]) << 8 | data[5],
-            ((unsigned int)data[6]) << 8 | data[7],
-            ((unsigned int)data[8]) << 8 | data[9],
-            ((unsigned int)data[10]) << 8 | data[11],
-            ((unsigned int)data[12]) << 8 | data[13],
-            ((unsigned int)data[14]) << 8 | data[15]);
-    }
+    ldns_pkt_free(pkt);
+    ldns_buffer_free(buf);
 }

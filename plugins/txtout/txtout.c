@@ -44,6 +44,7 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include <ldns/ldns.h>
 
 #include "dnscap_common.h"
 
@@ -177,25 +178,41 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
      */
     if (opt_s) {
         if (flags & DNSCAP_OUTPUT_ISDNS) {
-            ns_msg msg;
-            int    qdcount, err = 0;
-            ns_rr  rr;
-            if (ns_initparse(payload, payloadlen, &msg) < 0) {
+            ldns_pkt* pkt;
+
+            if (ldns_wire2pkt(&pkt, payload, payloadlen) < 0) {
                 if (tcpstate_getcurr && tcpstate_reset)
                     tcpstate_reset(tcpstate_getcurr(), "");
                 return;
             }
-            qdcount = ns_msg_count(msg, ns_s_qd);
 
-            if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr)) && ns_rr_class(rr) == 1) {
-                fprintf(out, "%s %s\n",
-                    p_type(ns_rr_type(rr)),
-                    ns_rr_name(rr));
+            ldns_rr_list* qds = ldns_pkt_question(pkt);
+            if (qds) {
+                ldns_rr* qd = ldns_rr_list_rr(qds, 0);
+
+                if (qd && ldns_rr_get_class(qd) == LDNS_RR_CLASS_IN) {
+                    ldns_buffer* buf = ldns_buffer_new(512);
+                    if (!buf) {
+                        logerr("out of memmory\n");
+                        exit(1);
+                    }
+
+                    if (ldns_rr_type2buffer_str(buf, ldns_rr_get_type(qd)) == LDNS_STATUS_OK) {
+                        fprintf(out, "%s", (char*)ldns_buffer_begin(buf));
+                    } else {
+                        fprintf(out, "ERR");
+                    }
+
+                    ldns_buffer_clear(buf);
+                    if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
+                        fprintf(out, " %.*s\n", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+                    } else {
+                        fprintf(out, "ERR\n");
+                    }
+                    ldns_buffer_free(buf);
+                }
             }
-            if (err < 0) {
-                if (tcpstate_getcurr && tcpstate_reset)
-                    tcpstate_reset(tcpstate_getcurr(), "");
-            }
+            ldns_pkt_free(pkt);
         }
         return;
     }
@@ -209,10 +226,9 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
     fprintf(out, " %hhu", proto);
 
     if (flags & DNSCAP_OUTPUT_ISDNS) {
-        ns_msg msg;
-        int    qdcount, err = 0;
-        ns_rr  rr;
-        if (ns_initparse(payload, payloadlen, &msg) < 0) {
+        ldns_pkt* pkt;
+
+        if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
             if (tcpstate_getcurr && tcpstate_reset)
                 tcpstate_reset(tcpstate_getcurr(), "");
             fprintf(out, "\n");
@@ -222,36 +238,59 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
         /*
          * DNS Header
          */
-        fprintf(out, " %u", ns_msg_id(msg));
-        fprintf(out, " %u", ns_msg_getflag(msg, ns_f_opcode));
-        fprintf(out, " %u", ns_msg_getflag(msg, ns_f_rcode));
+        fprintf(out, " %u", ldns_pkt_id(pkt));
+        fprintf(out, " %u", ldns_pkt_get_opcode(pkt));
+        fprintf(out, " %u", ldns_pkt_get_rcode(pkt));
         fprintf(out, " |");
-        if (ns_msg_getflag(msg, ns_f_qr))
+        if (ldns_pkt_qr(pkt))
             fprintf(out, "QR|");
-        if (ns_msg_getflag(msg, ns_f_aa))
+        if (ldns_pkt_aa(pkt))
             fprintf(out, "AA|");
-        if (ns_msg_getflag(msg, ns_f_tc))
+        if (ldns_pkt_tc(pkt))
             fprintf(out, "TC|");
-        if (ns_msg_getflag(msg, ns_f_rd))
+        if (ldns_pkt_rd(pkt))
             fprintf(out, "RD|");
-        if (ns_msg_getflag(msg, ns_f_ra))
+        if (ldns_pkt_ra(pkt))
             fprintf(out, "RA|");
-        if (ns_msg_getflag(msg, ns_f_ad))
+        if (ldns_pkt_ad(pkt))
             fprintf(out, "AD|");
-        if (ns_msg_getflag(msg, ns_f_cd))
+        if (ldns_pkt_cd(pkt))
             fprintf(out, "CD|");
 
-        qdcount = ns_msg_count(msg, ns_s_qd);
-        if (qdcount > 0 && 0 == (err = ns_parserr(&msg, ns_s_qd, 0, &rr))) {
-            fprintf(out, " %s %s %s",
-                p_class(ns_rr_class(rr)),
-                p_type(ns_rr_type(rr)),
-                ns_rr_name(rr));
+        ldns_rr_list* qds = ldns_pkt_question(pkt);
+        if (qds) {
+            ldns_rr* qd = ldns_rr_list_rr(qds, 0);
+
+            if (qd) {
+                ldns_buffer* buf = ldns_buffer_new(512);
+                if (!buf) {
+                    logerr("out of memmory\n");
+                    exit(1);
+                }
+
+                if (ldns_rr_class2buffer_str(buf, ldns_rr_get_class(qd)) == LDNS_STATUS_OK) {
+                    fprintf(out, " %s", (char*)ldns_buffer_begin(buf));
+                } else {
+                    fprintf(out, " ERR");
+                }
+
+                ldns_buffer_clear(buf);
+                if (ldns_rr_type2buffer_str(buf, ldns_rr_get_type(qd)) == LDNS_STATUS_OK) {
+                    fprintf(out, " %s", (char*)ldns_buffer_begin(buf));
+                } else {
+                    fprintf(out, " ERR");
+                }
+
+                ldns_buffer_clear(buf);
+                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
+                    fprintf(out, " %.*s", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+                } else {
+                    fprintf(out, "ERR");
+                }
+                ldns_buffer_free(buf);
+            }
         }
-        if (err < 0) {
-            if (tcpstate_getcurr && tcpstate_reset)
-                tcpstate_reset(tcpstate_getcurr(), "");
-        }
+        ldns_pkt_free(pkt);
     }
     /*
      * Done

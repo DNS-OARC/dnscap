@@ -37,6 +37,8 @@
 #include "bpft.h"
 #include "iaddr.h"
 
+#include <ldns/ldns.h>
+
 void prepare_bpft(void)
 {
     unsigned  udp10_mbs, udp10_mbc, udp11_mbc; //udp11_mbs
@@ -55,10 +57,10 @@ void prepare_bpft(void)
     }
     if ((msg_wanted & MSG_UPDATE) != 0) {
         if ((msg_wanted & (MSG_QUERY | MSG_NOTIFY)) == 0)
-            udp10_mbs |= (ns_o_update << UDP10_OP_SHIFT);
+            udp10_mbs |= (LDNS_PACKET_UPDATE << UDP10_OP_SHIFT);
     } else if ((msg_wanted & MSG_NOTIFY) != 0) {
         if ((msg_wanted & (MSG_QUERY | MSG_UPDATE)) == 0)
-            udp10_mbs |= (ns_o_notify << UDP10_OP_SHIFT);
+            udp10_mbs |= (LDNS_PACKET_NOTIFY << UDP10_OP_SHIFT);
     } else if ((msg_wanted & MSG_QUERY) != 0) {
         udp10_mbc |= UDP10_OP_MASK;
     }

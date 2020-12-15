@@ -78,22 +78,17 @@ AM_CONDITIONAL([ENABLE_GCOV], [test "x$enable_gcov" != "xno"])
 AM_EXTRA_RECURSIVE_TARGETS([gcov])
 
 # Checks for libraries.
-AC_CHECK_LIB([bind], [ns_initparse], [], [AC_CHECK_LIB([bind], [__ns_initparse])])
-AC_CHECK_LIB([resolv], [res_mkquery], [], [
-	AC_CHECK_LIB([resolv], [__res_mkquery], [], [
-		AC_CHECK_LIB([resolv], [res_9_mkquery])
-	])
-])
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([tinycbor], [cbor_parser_init])
 AM_CONDITIONAL([HAVE_CBOR], [test "x$ac_cv_lib_tinycbor_cbor_parser_init" = "xyes"])
-AC_CHECK_LIB([ldns], [ldns_wire2pkt])
-AM_CONDITIONAL([HAVE_LDNS], [test "x$ac_cv_lib_ldns_ldns_wire2pkt" = "xyes"])
 AC_CHECK_LIB([z], [gzopen])
 PKG_CHECK_MODULES([libcrypto], [libcrypto],
     [AC_DEFINE([HAVE_LIBCRYPTO], [1], [Define to 1 if you have libcrypto.])])
 AC_CHECK_LIB([cryptopant], [scramble_init], [], [
     AC_CHECK_LIB([cryptopANT], [scramble_init])
+])
+PKG_CHECK_MODULES([libldns], [libldns], , [
+  PKG_CHECK_MODULES([libldns], [ldns])
 ])
 
 # Check for OS specific libraries
@@ -122,41 +117,12 @@ AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([zlib.h])
 AC_CHECK_HEADERS([openssl/conf.h openssl/evp.h openssl/err.h])
 AC_CHECK_HEADERS([cryptopANT.h])
+AC_CHECK_HEADERS([endian.h sys/endian.h machine/endian.h])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
 AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid initgroups setgroups])
 AC_CHECK_FUNCS([funopen fopencookie gzopen])
-AC_CHECK_FUNC([ns_initparse],
-    [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])],
-    [AC_CHECK_FUNC(__ns_initparse,
-        [AC_DEFINE([HAVE_NS_INITPARSE], [1], [Define to 1 if you have the `ns_initparse' function.])]
-    )]
-)
-AC_CHECK_FUNC([ns_parserr],
-    [AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])],
-    [AC_CHECK_FUNC(__ns_parserr,
-        [AC_DEFINE([HAVE_NS_PARSERR], [1], [Define to 1 if you have the `ns_parserr' function.])]
-    )]
-)
-AC_CHECK_FUNC([ns_sprintrr],
-    [AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])],
-    [AC_CHECK_FUNC(__ns_sprintrr,
-        [AC_DEFINE([HAVE_NS_SPRINTRR], [1], [Define to 1 if you have the `ns_sprintrr' function.])]
-    )]
-)
-AC_CHECK_FUNC([ns_name_uncompress],
-    [AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])],
-    [AC_CHECK_FUNC(__ns_name_uncompress,
-        [AC_DEFINE([HAVE_NS_NAME_UNCOMPRESS], [1], [Define to 1 if you have the `ns_name_uncompress' function.])]
-    )]
-)
-AC_CHECK_FUNC([p_rcode],
-    [AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])],
-    [AC_CHECK_FUNC(__p_rcode,
-        [AC_DEFINE([HAVE_P_RCODE], [1], [Define to 1 if you have the `p_rcode' function.])]
-    )]
-)
 AC_CHECK_FUNCS([__assertion_failed])
 
 # Check for SECCOMP
