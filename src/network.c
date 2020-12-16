@@ -829,6 +829,10 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         }
 
         /* Application. */
+        if (!dnspkt) {
+            tcpstate_discard(tcpstate, "no dns");
+            return;
+        }
         if (dnslen < sizeof dns) {
             tcpstate_discard(tcpstate, "too small");
             return;
@@ -1463,6 +1467,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         }
 
         /* Application. */
+        if (!dnspkt) {
+            tcpstate_discard(tcpstate, "no dns");
+            goto network_pkt_end;
+        }
         if (dnslen < sizeof dns) {
             tcpstate_discard(tcpstate, "too small");
             goto network_pkt_end;
