@@ -222,12 +222,14 @@ static void dump_dns_sect(ldns_rr_list* rrs, FILE* trace, const char* endline, l
                             break;
                         }
 
+                        fprintf(trace, ",edns0opt[ECS,family=%u,source=%u,scope=%u,", family, source_prefix_len, scope_prefix_len);
+
                         if (!in || !inet_ntop(af, in, addr, sizeof(addr) - 1)) {
-                            strncpy(addr, "invalid", sizeof(addr) - 1);
+                            fprintf(trace, "addr=INVALID]");
+                        } else {
+                            fprintf(trace, "addr=%s]", addr);
                         }
 
-                        fprintf(trace, ",edns0opt[ECS,family=%u,source=%u,scope=%u,addr=%s]",
-                            family, source_prefix_len, scope_prefix_len, addr);
                         break;
                     }
                 }
