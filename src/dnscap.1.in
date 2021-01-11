@@ -101,9 +101,10 @@ messages which passed through all of the filters.  If
 is also used, then every message will be dumped in both binary and
 presentation form.
 .It Fl 6
-Suppress the use of packet filter patterns that are known (as of 2007) to
-cause problems when processing IPv6 packets.  Recommended when IPv6 traffic is
-expected to be present.
+Used to suppress the use of packet filter patterns that cause problems when
+processing IPv6 packets.
+As of version 2.0.0 this option is deprecated and filters have been reworked
+to only match IPv4 packets, IPv6 filtering are processed at a higher level.
 .It Fl f
 Selects fragments (which could include unrelated flows since fragments do not
 contain port numbers), and includes fragments in the binary output.  Necessary
