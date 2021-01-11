@@ -44,19 +44,9 @@
 #include "dump_dns.h"
 #include "network.h"
 #include "tcpstate.h"
+#include "endian_compat.h"
 
 #include <ldns/ldns.h>
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#else
-#ifdef HAVE_SYS_ENDIAN_H
-#include <sys/endian.h>
-#else
-#ifdef HAVE_MACHINE_ENDIAN_H
-#include <machine/endian.h>
-#endif
-#endif
-#endif
 #include <netinet/in.h>
 
 static inline uint16_t _need16(const void* ptr)

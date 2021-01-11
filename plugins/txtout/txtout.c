@@ -180,7 +180,7 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
         if (flags & DNSCAP_OUTPUT_ISDNS) {
             ldns_pkt* pkt;
 
-            if (ldns_wire2pkt(&pkt, payload, payloadlen) < 0) {
+            if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
                 if (tcpstate_getcurr && tcpstate_reset)
                     tcpstate_reset(tcpstate_getcurr(), "");
                 return;
