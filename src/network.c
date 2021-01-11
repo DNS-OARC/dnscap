@@ -42,19 +42,9 @@
 #include "endpoint.h"
 #include "tcpstate.h"
 #include "tcpreasm.h"
+#include "endian_compat.h"
 
 #include <ldns/ldns.h>
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#else
-#ifdef HAVE_SYS_ENDIAN_H
-#include <sys/endian.h>
-#else
-#ifdef HAVE_MACHINE_ENDIAN_H
-#include <machine/endian.h>
-#endif
-#endif
-#endif
 
 struct ip6_hdr* network_ipv6 = 0;
 struct ip*      network_ip   = 0;
