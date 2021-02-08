@@ -61,10 +61,10 @@
 #define htole64(x) OSSwapHostToLittleInt64(x)
 #define be64toh(x) OSSwapBigToHostInt64(x)
 #define le64toh(x) OSSwapLittleToHostInt64(x)
-#define __BYTE_ORDER    BYTE_ORDER
-#define __BIG_ENDIAN    BIG_ENDIAN
+#define __BYTE_ORDER BYTE_ORDER
+#define __BIG_ENDIAN BIG_ENDIAN
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
-#define __PDP_ENDIAN    PDP_ENDIAN
+#define __PDP_ENDIAN PDP_ENDIAN
 #endif
 
 #if defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
@@ -99,10 +99,10 @@
 #else
 #error "byte order not supported"
 #endif
-#define __BYTE_ORDER    BYTE_ORDER
-#define __BIG_ENDIAN    BIG_ENDIAN
+#define __BYTE_ORDER BYTE_ORDER
+#define __BIG_ENDIAN BIG_ENDIAN
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
-#define __PDP_ENDIAN    PDP_ENDIAN
+#define __PDP_ENDIAN PDP_ENDIAN
 #endif
 
 #endif

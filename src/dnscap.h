@@ -140,6 +140,8 @@
 #include <zlib.h>
 #endif
 
+#include <ldns/ldns.h>
+
 #ifndef IPV6_VERSION
 #define IPV6_VERSION 0x60
 #endif
@@ -434,5 +436,7 @@ extern pcap_thread_t      pcap_thread;
 extern int                only_offline_pcaps;
 extern int                dont_drop_privileges;
 extern options_t          options;
+
+extern ldns_rr_type match_qtype, nmatch_qtype;
 
 #endif /* __dnscap_dnscap_h */

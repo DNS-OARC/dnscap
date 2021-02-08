@@ -41,6 +41,8 @@
 #include "tcpstate.h"
 #include "network.h"
 
+#include <ldns/ldns.h>
+
 /*
  * OpenBSD and Debian Stretch i386 need file local functions for export
  * to loaded modules, so use this for all platforms.
@@ -162,7 +164,8 @@ void help_1(void)
         "  [-t <lim>] [-c <lim>] [-C <lim>]\n"
         "  [-x <pat>]+ [-X <pat>]+\n"
         "  [-B <datetime>] [-E <datetime>]\n"
-        "  [-U <str>] [-P plugin.so <plugin options...>]\n",
+        "  [-U <str>] [-q <num|str>] [-Q <num|str>]\n"
+        "  [-P plugin.so <plugin options...>]\n",
         ProgramName);
 }
 
@@ -228,6 +231,8 @@ void help_2(void)
         "  -M         set monitor mode on interfaces\n"
         "  -D         set immediate mode on interfaces\n"
         "  -U <str>   append 'and <str>' to the pcap filter\n"
+        "  -q <num|str> select messages based on QTYPE\n"
+        "  -Q <num|str> filter out messages based on QTYPE\n"
         "  -P <plugin.so> load plugin, any argument after this is sent to the plugin!\n");
 }
 
@@ -262,7 +267,7 @@ void parse_args(int argc, char* argv[])
     vlan_ptr      vlan;
     unsigned      u;
     int           ch;
-    char*         p;
+    char *        p, *match_qtype_arg = 0;
 
     if ((p = strrchr(argv[0], '/')) == NULL)
         ProgramName = argv[0];
@@ -279,13 +284,13 @@ void parse_args(int argc, char* argv[])
     INIT_LIST(myregexes);
     INIT_LIST(plugins);
     while ((ch = getopt(argc, argv,
-                "a:bc:de:fgh:i:k:l:m:o:pr:s:t:u:w:x:yz:"
-                "A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:16?"))
+                "a:bc:de:fgh:i:k:l:m:o:pr:s:t:u:w:x:yz:q:"
+                "A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:Q:16?"))
            != EOF) {
         switch (ch) {
         case 'o':
             if (option_parse(&options, optarg)) {
-                fprintf(stderr, "%s: unknown or invalid extended option: %s\n", ProgramName, optarg);
+                fprintf(stderr, "%s: unknown or invalid extended -o option: %s\n", ProgramName, optarg);
                 exit(1);
             }
             break;
@@ -343,7 +348,7 @@ void parse_args(int argc, char* argv[])
         case 'l':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul > MAX_VLAN)
-                usage("vlan must be an integer 0..4095");
+                usage("-l vlan must be an integer 0..4095");
             vlan = calloc(1, sizeof *vlan);
             assert(vlan != NULL);
             INIT_LINK(vlan, link);
@@ -359,7 +364,7 @@ void parse_args(int argc, char* argv[])
         case 'L':
             ul = strtoul(optarg, &p, 0);
             if (*p != '\0' || ul > MAX_VLAN)
-                usage("vlan must be an integer 0..4095");
+                usage("-L vlan must be an integer 0..4095");
             vlan = calloc(1, sizeof *vlan);
             assert(vlan != NULL);
             INIT_LINK(vlan, link);
@@ -546,14 +551,14 @@ void parse_args(int argc, char* argv[])
             struct tm tm;
             memset(&tm, '\0', sizeof(tm));
             if (NULL == strptime(optarg, "%F %T", &tm))
-                usage("--B arg must have format YYYY-MM-DD HH:MM:SS");
+                usage("-B arg must have format YYYY-MM-DD HH:MM:SS");
             start_time = xtimegm(&tm);
         } break;
         case 'E': {
             struct tm tm;
             memset(&tm, '\0', sizeof(tm));
             if (NULL == strptime(optarg, "%F %T", &tm))
-                usage("--E arg must have format YYYY-MM-DD HH:MM:SS");
+                usage("-E arg must have format YYYY-MM-DD HH:MM:SS");
             stop_time = xtimegm(&tm);
         } break;
         case 'S':
@@ -640,7 +645,7 @@ void parse_args(int argc, char* argv[])
             use_seccomp = TRUE;
             break;
 #else
-            usage("seccomp-bpf not enabled");
+            usage("-y: seccomp-bpf not enabled");
 #endif
         case 'M':
             monitor_mode = TRUE;
@@ -648,6 +653,36 @@ void parse_args(int argc, char* argv[])
         case 'D':
             immediate_mode = TRUE;
             break;
+        case 'q': {
+            if (nmatch_qtype) {
+                usage("-q and -Q can't be used together");
+            }
+            free(match_qtype_arg); // fix clang scan-build
+            match_qtype_arg = strdup(optarg);
+            match_qtype     = ldns_get_rr_type_by_name(optarg);
+            if (!match_qtype) {
+                ul = strtoul(optarg, &p, 0);
+                if (*p != '\0' || ul < 1U || ul > 65535U)
+                    usage("-q QTYPE must be a valid type or an integer 1..65535");
+                match_qtype = (ldns_rr_type)ul;
+            }
+            break;
+        }
+        case 'Q': {
+            if (match_qtype) {
+                usage("-q and -Q can't be used together");
+            }
+            free(match_qtype_arg); // fix clang scan-build
+            match_qtype_arg = strdup(optarg);
+            nmatch_qtype    = ldns_get_rr_type_by_name(optarg);
+            if (!nmatch_qtype) {
+                ul = strtoul(optarg, &p, 0);
+                if (*p != '\0' || ul < 1U || ul > 65535U)
+                    usage("-Q QTYPE must be a valid type or an integer 1..65535");
+                nmatch_qtype = (ldns_rr_type)ul;
+            }
+            break;
+        }
         case '?':
             if (!optopt || optopt == '?') {
                 help_2();
@@ -678,7 +713,7 @@ void parse_args(int argc, char* argv[])
 
         fprintf(stderr, "%s: version %s\n", ProgramName, PACKAGE_VERSION);
         fprintf(stderr,
-            "%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu\n",
+            "%s: msg %c%c%c, side %c%c, hide %c%c, err %c%c%c%c%c%c%c%c, t %u, c %u, C %zu, %sq %s\n",
             ProgramName,
             (msg_wanted & MSG_QUERY) != 0 ? 'Q' : '.',
             (msg_wanted & MSG_UPDATE) != 0 ? 'U' : '.',
@@ -695,7 +730,8 @@ void parse_args(int argc, char* argv[])
             (err_wanted & ERR_NXDOMAIN) != 0 ? 'x' : '.',
             (err_wanted & ERR_NOTIMPL) != 0 ? 'i' : '.',
             (err_wanted & ERR_REFUSED) != 0 ? 'r' : '.',
-            limit_seconds, limit_packets, limit_pcapfilesize);
+            limit_seconds, limit_packets, limit_pcapfilesize,
+            nmatch_qtype ? "!" : "", match_qtype_arg);
         sep = "\tinit";
         for (ep = HEAD(initiators);
              ep != NULL;
@@ -806,4 +842,6 @@ void parse_args(int argc, char* argv[])
             usage("can't do byte for byte parsing of DNS without reassemble_tcp=yes");
         }
     }
+
+    free(match_qtype_arg);
 }

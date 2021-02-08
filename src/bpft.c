@@ -100,28 +100,28 @@ void prepare_bpft(void)
     }
     len += text_add(&bpfl, " ( udp port %d and ( ip6 or ( ip", dns_port);
     // if (!v6bug) {
-        if (udp10_mbc != 0)
-            len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
-                udp10_mbc);
-        if (udp10_mbs != 0)
-            len += text_add(&bpfl, " and udp[10] & 0x%x = 0x%x",
-                udp10_mbs, udp10_mbs);
-        if (udp11_mbc != 0)
-            len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
-                udp11_mbc);
-        /* Dead code, udp11_mbs never set
+    if (udp10_mbc != 0)
+        len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
+            udp10_mbc);
+    if (udp10_mbs != 0)
+        len += text_add(&bpfl, " and udp[10] & 0x%x = 0x%x",
+            udp10_mbs, udp10_mbs);
+    if (udp11_mbc != 0)
+        len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
+            udp11_mbc);
+    /* Dead code, udp11_mbs never set
         if (udp11_mbs != 0)
             len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
                     udp11_mbs, udp11_mbs);
 */
 
-        if (err_wanted != ERR_NO) {
-            len += text_add(&bpfl, " and (");
-            if ((err_wanted & ERR_TRUNC) != 0) {
-                len += text_add(&bpfl, " udp[10] & 0x%x = 0x%x or", UDP10_TC_MASK, UDP10_TC_MASK);
-            }
-            len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
+    if (err_wanted != ERR_NO) {
+        len += text_add(&bpfl, " and (");
+        if ((err_wanted & ERR_TRUNC) != 0) {
+            len += text_add(&bpfl, " udp[10] & 0x%x = 0x%x or", UDP10_TC_MASK, UDP10_TC_MASK);
         }
+        len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
+    }
     // }
     len += text_add(&bpfl, " )))"); /*  ... udp 53 ) */
     len += text_add(&bpfl, " )"); /*  ... ports ) */
