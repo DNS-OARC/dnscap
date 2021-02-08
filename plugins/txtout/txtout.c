@@ -205,7 +205,7 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
 
                     ldns_buffer_clear(buf);
                     if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
-                        fprintf(out, " %.*s\n", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+                        fprintf(out, " %s\n", (char*)ldns_buffer_begin(buf));
                     } else {
                         fprintf(out, "ERR\n");
                     }
@@ -283,7 +283,7 @@ void txtout_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsig
 
                 ldns_buffer_clear(buf);
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
-                    fprintf(out, " %.*s", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf));
+                    fprintf(out, " %s", (char*)ldns_buffer_begin(buf));
                 } else {
                     fprintf(out, "ERR");
                 }

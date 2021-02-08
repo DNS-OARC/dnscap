@@ -237,7 +237,7 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
             if (qds && (qd = ldns_rr_list_rr(qds, 0))) {
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
                     royparse_normalize((char*)ldns_buffer_begin(buf));
-                    fprintf(r_out, "%.*s%s,%u", (int)ldns_buffer_position(buf) - 1, (char*)ldns_buffer_begin(buf),
+                    fprintf(r_out, "%s%s,%u", (char*)ldns_buffer_begin(buf),
                         ((char*)ldns_buffer_begin(buf))[0] == '.' ? "" : ".",
                         ldns_rr_get_type(qd));
                 } else {
