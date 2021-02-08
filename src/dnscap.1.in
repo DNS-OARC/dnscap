@@ -48,6 +48,8 @@
 .Op Fl B Ar datetime
 .Op Fl E Ar datetime
 .Op Fl U Ar str
+.Op Fl q Ar num|str
+.Op Fl Q Ar num|str
 .Op Fl P Ar plugin.so ...
 .Sh DESCRIPTION
 .Nm
@@ -359,6 +361,14 @@ Enable immediate mode on interfaces.
 Append "and
 .Ar str
 " to the pcap filter.
+.It Fl q Ar num|str
+Only select DNS messages where QTYPE matches the specified type.
+Can not be used together with
+.Fl Q .
+.It Fl Q Ar num|str
+Only select DNS messages where QTYPE does not matches the specified type.
+Can not be used together with
+.Fl q .
 .It Fl P Ar plugin.so ...
 Load and use the specified plugin. Any options given after this are
 sent to the plugin.

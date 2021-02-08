@@ -459,6 +459,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
     tcpstate_ptr  tcpstate = NULL;
     size_t        len, dnslen = 0;
     HEADER        dns;
+    ldns_pkt*     lpkt = 0;
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -875,9 +876,52 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 return;
             }
         }
+        if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
+                /* DNS message may have padding, try get actual size */
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen) {
+                    if (ldns_wire2pkt(&lpkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
+                        tcpstate_discard(tcpstate, "failed parse");
+                        return;
+                    }
+                } else {
+                    tcpstate_discard(tcpstate, "failed parse");
+                    return;
+                }
+            }
+        }
+        if (match_qtype || nmatch_qtype) {
+            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
+            if (!rrs) {
+                ldns_pkt_free(lpkt);
+                tcpstate_discard(tcpstate, "failed to get list of questions");
+                return;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "failed to get question");
+                    return;
+                }
+
+                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "qtype not match");
+                    return;
+                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "!qtype match");
+                    return;
+                }
+            }
+        }
         if (!EMPTY(myregexes)) {
             int          match, negmatch;
-            ldns_pkt*    pkt;
             ldns_buffer* buf = ldns_buffer_new(512);
 
             if (!buf) {
@@ -887,26 +931,11 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
             match    = -1;
             negmatch = -1;
-            if (ldns_wire2pkt(&pkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
-                /* DNS message may have padding, try get actual size */
-                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                if (dnslen2 > 0 && dnslen2 < dnslen) {
-                    if (ldns_wire2pkt(&pkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
-                        ldns_buffer_free(buf);
-                        tcpstate_discard(tcpstate, "failed parse");
-                        return;
-                    }
-                } else {
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed parse");
-                    return;
-                }
-            }
             /* Look at each section of the message:
                  question, answer, authority, additional */
-            ldns_rr_list* rrs = ldns_pkt_all(pkt);
+            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
             if (!rrs) {
-                ldns_pkt_free(pkt);
+                ldns_pkt_free(lpkt);
                 ldns_buffer_free(buf);
                 tcpstate_discard(tcpstate, "failed to get list of RRs");
                 return;
@@ -918,7 +947,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 ldns_rr* rr = ldns_rr_list_rr(rrs, i);
                 if (!rr) {
                     ldns_rr_list_free(rrs);
-                    ldns_pkt_free(pkt);
+                    ldns_pkt_free(lpkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     return;
@@ -927,7 +956,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 ldns_buffer_clear(buf);
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
                     ldns_rr_list_free(rrs);
-                    ldns_pkt_free(pkt);
+                    ldns_pkt_free(lpkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     return;
@@ -963,7 +992,6 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 }
             }
             ldns_rr_list_free(rrs);
-            ldns_pkt_free(pkt);
             ldns_buffer_free(buf);
 
             /*
@@ -971,9 +999,13 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
              * indicates that there are only negative matching
              */
             if (negmatch > 0 || match == 0) {
+                ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, "failed regex match");
                 return;
             }
+        }
+        if (lpkt) {
+            ldns_pkt_free(lpkt);
         }
 
         /*
@@ -1009,6 +1041,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct ip*      ip;
     size_t          len, dnslen = 0;
     HEADER          dns;
+    ldns_pkt*       lpkt = 0;
 
     if (dumptrace >= 4)
         fprintf(stderr, "processing %s packet: len=%zu\n", (pf == PF_INET ? "IPv4" : (pf == PF_INET6 ? "IPv6" : "unknown")), olen);
@@ -1513,9 +1546,48 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 goto network_pkt_end;
             }
         }
+        if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
+                /* DNS message may have padding, try get actual size */
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen) {
+                    if (ldns_wire2pkt(&lpkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
+                        tcpstate_discard(tcpstate, "failed parse");
+                        goto network_pkt_end;
+                    }
+                } else {
+                    tcpstate_discard(tcpstate, "failed parse");
+                    goto network_pkt_end;
+                }
+            }
+        }
+        if (match_qtype || nmatch_qtype) {
+            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
+            if (!rrs) {
+                tcpstate_discard(tcpstate, "failed to get list of questions");
+                goto network_pkt_end;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    tcpstate_discard(tcpstate, "failed to get question");
+                    goto network_pkt_end;
+                }
+
+                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
+                    tcpstate_discard(tcpstate, "qtype not match");
+                    goto network_pkt_end;
+                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
+                    tcpstate_discard(tcpstate, "!qtype match");
+                    goto network_pkt_end;
+                }
+            }
+        }
         if (!EMPTY(myregexes)) {
             int          match, negmatch;
-            ldns_pkt*    pkt;
             ldns_buffer* buf = ldns_buffer_new(512);
 
             if (!buf) {
@@ -1525,26 +1597,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
             match    = -1;
             negmatch = -1;
-            if (ldns_wire2pkt(&pkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
-                /* DNS message may have padding, try get actual size */
-                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                if (dnslen2 > 0 && dnslen2 < dnslen) {
-                    if (ldns_wire2pkt(&pkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
-                        ldns_buffer_free(buf);
-                        tcpstate_discard(tcpstate, "failed parse");
-                        goto network_pkt_end;
-                    }
-                } else {
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed parse");
-                    goto network_pkt_end;
-                }
-            }
             /* Look at each section of the message:
                  question, answer, authority, additional */
-            ldns_rr_list* rrs = ldns_pkt_all(pkt);
+            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
             if (!rrs) {
-                ldns_pkt_free(pkt);
                 ldns_buffer_free(buf);
                 tcpstate_discard(tcpstate, "failed to get list of RRs");
                 goto network_pkt_end;
@@ -1556,7 +1612,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 ldns_rr* rr = ldns_rr_list_rr(rrs, i);
                 if (!rr) {
                     ldns_rr_list_free(rrs);
-                    ldns_pkt_free(pkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     goto network_pkt_end;
@@ -1565,7 +1620,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 ldns_buffer_clear(buf);
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
                     ldns_rr_list_free(rrs);
-                    ldns_pkt_free(pkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     goto network_pkt_end;
@@ -1601,7 +1655,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 }
             }
             ldns_rr_list_free(rrs);
-            ldns_pkt_free(pkt);
             ldns_buffer_free(buf);
 
             /*
@@ -1689,6 +1742,9 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 network_pkt_end:
     network_ip   = 0;
     network_ipv6 = 0;
+    if (lpkt) {
+        ldns_pkt_free(lpkt);
+    }
 }
 
 uint16_t in_checksum(const u_char* ptr, size_t len)

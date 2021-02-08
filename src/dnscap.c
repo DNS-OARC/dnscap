@@ -120,6 +120,8 @@ int                only_offline_pcaps   = FALSE;
 int                dont_drop_privileges = FALSE;
 options_t          options              = OPTIONS_T_DEFAULTS;
 
+ldns_rr_type match_qtype = 0, nmatch_qtype = 0;
+
 int main(int argc, char* argv[])
 {
     struct plugin* p;
