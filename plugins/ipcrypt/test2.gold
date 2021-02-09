@@ -1,33 +1,33 @@
 [87] 2018-11-27 15:52:00.414188 [#0 dns6.pcap-dist 4095] \
 	[150a:8a55:31dc:6eac:cbc:bc41:5a09:3606].51972 [830c:987b:b17f:8b55:cbc:bc41:6b7c:2e56].53  \
 	dns QUERY,NOERROR,51420,rd|ad \
-	1 google.com,IN,A 0 0 \
+	1 google.com.,IN,A 0 0 \
 	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0]
 [103] 2018-11-27 15:52:00.428453 [#1 dns6.pcap-dist 4095] \
 	[830c:987b:b17f:8b55:cbc:bc41:6b7c:2e56].53 [150a:8a55:31dc:6eac:cbc:bc41:5a09:3606].51972  \
 	dns QUERY,NOERROR,51420,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,299,172.217.20.46 0 \
+	1 google.com.,IN,A \
+	1 google.com.,IN,A,299,172.217.20.46 0 \
 	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]
 [87] 2018-11-27 15:52:00.414188 [#0 dns6.pcap-dist 4095] \
 	[150a:8a55:31dc:6eac:cbc:bc41:5a09:3606].51972 [2001:4860:4860::8888].53  \
 	dns QUERY,NOERROR,51420,rd|ad \
-	1 google.com,IN,A 0 0 \
+	1 google.com.,IN,A 0 0 \
 	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0]
 [103] 2018-11-27 15:52:00.428453 [#1 dns6.pcap-dist 4095] \
 	[2001:4860:4860::8888].53 [150a:8a55:31dc:6eac:cbc:bc41:5a09:3606].51972  \
 	dns QUERY,NOERROR,51420,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,299,172.217.20.46 0 \
+	1 google.com.,IN,A \
+	1 google.com.,IN,A,299,172.217.20.46 0 \
 	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]
 [87] 2018-11-27 15:52:00.414188 [#0 dns6.pcap-dist 4095] \
 	[2a01:3f0:0:57::245].51972 [830c:987b:b17f:8b55:cbc:bc41:6b7c:2e56].53  \
 	dns QUERY,NOERROR,51420,rd|ad \
-	1 google.com,IN,A 0 0 \
+	1 google.com.,IN,A 0 0 \
 	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0]
 [103] 2018-11-27 15:52:00.428453 [#1 dns6.pcap-dist 4095] \
 	[830c:987b:b17f:8b55:cbc:bc41:6b7c:2e56].53 [2a01:3f0:0:57::245].51972  \
 	dns QUERY,NOERROR,51420,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,299,172.217.20.46 0 \
+	1 google.com.,IN,A \
+	1 google.com.,IN,A,299,172.217.20.46 0 \
 	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]

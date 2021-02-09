@@ -66,7 +66,7 @@ static void dump_dns_rr(ldns_rr* rr, FILE* trace, ldns_buffer* lbuf, bool qsect)
     if (ldns_rdf2buffer_str(lbuf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
         goto error;
     }
-    fprintf(trace, "%.*s", (int)ldns_buffer_position(lbuf) - 1, (char*)ldns_buffer_begin(lbuf));
+    fprintf(trace, "%s", (char*)ldns_buffer_begin(lbuf));
 
     // class
     ldns_buffer_clear(lbuf);
@@ -96,7 +96,7 @@ static void dump_dns_rr(ldns_rr* rr, FILE* trace, ldns_buffer* lbuf, bool qsect)
             if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
                 goto error;
             }
-            fprintf(trace, ",%.*s", (int)ldns_buffer_position(lbuf) - 1, (char*)ldns_buffer_begin(lbuf));
+            fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
         }
         for (; i < 7; i++) {
             if (!(rdf = ldns_rr_rdf(rr, i))) {
@@ -133,7 +133,7 @@ static void dump_dns_rr(ldns_rr* rr, FILE* trace, ldns_buffer* lbuf, bool qsect)
         if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
             goto error;
         }
-        fprintf(trace, ",%.*s", (int)ldns_buffer_position(lbuf) - 1, (char*)ldns_buffer_begin(lbuf));
+        fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
         break;
 
     default:
