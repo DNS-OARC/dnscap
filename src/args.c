@@ -152,7 +152,7 @@ void help_1(void)
     fprintf(stderr, "%s: version %s\n\n", ProgramName, PACKAGE_VERSION);
     fprintf(stderr,
         "usage: %s\n"
-        "  [-?VbNpd1g6fTI"
+        "  [-?VbNpd1gfTI"
 #ifdef USE_SECCOMP
         "y"
 #endif
@@ -185,7 +185,6 @@ void help_2(void)
         "             times to increase debugging\n"
         "  -1         flush output on every packet\n"
         "  -g         dump packets dig-style on stderr\n"
-        "  -6         (deprecated) compensate for PCAP/BPF IPv6 bug\n"
         "  -f         include fragmented packets\n"
         "  -T         include TCP packets (DNS header filters will inspect only the\n"
         "             first DNS header, and the result will apply to all messages\n"
@@ -285,7 +284,7 @@ void parse_args(int argc, char* argv[])
     INIT_LIST(plugins);
     while ((ch = getopt(argc, argv,
                 "a:bc:de:fgh:i:k:l:m:o:pr:s:t:u:w:x:yz:q:"
-                "A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:Q:16?"))
+                "A:B:C:DE:F:IL:MNP:STU:VW:X:Y:Z:Q:1?"))
            != EOF) {
         switch (ch) {
         case 'o':
@@ -311,9 +310,6 @@ void parse_args(int argc, char* argv[])
             break;
         case 'g':
             preso = TRUE;
-            break;
-        case '6':
-            v6bug = TRUE;
             break;
         case 'f':
             wantfrags = TRUE;

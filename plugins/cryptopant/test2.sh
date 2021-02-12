@@ -8,16 +8,16 @@ fi
 
 ln -fs "$srcdir/../../src/test/dns6.pcap" dns6.pcap-dist
 
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" 2>test2.out || true
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" 2>test2.out || true
 if grep -q "no cryptopANT support built in" test2.out 2>/dev/null; then
     echo "No cryptopANT support, skipping tests"
     exit 0
 fi
 
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" 2>test2.out
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -6 24 2>test2.out
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -c 2>>test2.out
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -k "$srcdir/keyfile" -s 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" 2>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -6 24 2>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -c 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -k "$srcdir/keyfile" -s 2>>test2.out
 
 osrel=`uname -s`
 if [ "$osrel" = "OpenBSD" ]; then

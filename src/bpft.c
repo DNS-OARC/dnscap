@@ -99,7 +99,7 @@ void prepare_bpft(void)
          * not mbs/mbc. */
     }
     len += text_add(&bpfl, " ( udp port %d and ( ip6 or ( ip", dns_port);
-    // if (!v6bug) {
+
     if (udp10_mbc != 0)
         len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
             udp10_mbc);
@@ -122,7 +122,7 @@ void prepare_bpft(void)
         }
         len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
     }
-    // }
+
     len += text_add(&bpfl, " )))"); /*  ... udp 53 ) */
     len += text_add(&bpfl, " )"); /*  ... ports ) */
     if (options.bpf_hosts_apply_all) {

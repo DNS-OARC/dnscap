@@ -216,8 +216,14 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         }
     }
 
-    if (next_interval != 0 && firstpkt->pkthdr.ts.tv_sec >= next_interval && dumper_opened == dump_state)
-        dumper_close(firstpkt->pkthdr.ts);
+    if (next_interval != 0 && firstpkt->pkthdr.ts.tv_sec >= next_interval) {
+        if (preso)
+            goto breakloop;
+        if (dumper_opened == dump_state)
+            dumper_close(firstpkt->pkthdr.ts);
+        if (dump_type == to_stdout)
+            goto breakloop;
+    }
     if (dumper_closed == dump_state && dumper_open(firstpkt->pkthdr.ts))
         goto breakloop;
 
@@ -417,8 +423,14 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         descr[0] = '\0';
     }
 
-    if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper_opened == dump_state)
-        dumper_close(hdr->ts);
+    if (next_interval != 0 && hdr->ts.tv_sec >= next_interval) {
+        if (preso)
+            goto breakloop;
+        if (dumper_opened == dump_state)
+            dumper_close(hdr->ts);
+        if (dump_type == to_stdout)
+            goto breakloop;
+    }
     if (dumper_closed == dump_state && dumper_open(hdr->ts))
         goto breakloop;
 
