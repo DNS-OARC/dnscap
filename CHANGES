@@ -1,3 +1,60 @@
+2021-02-12 Jerry Lundström
+
+    Release 2.0.0
+
+    This major release contains three backward incompatible changes, two
+    new command line options and a completely restructured man-page(!),
+    please read the change notes carefully before upgrading!
+
+    The first backward incompatible change has to do with the removal of
+    libbind dependency. This library was causing segfaults on OpenBSD due to
+    shared (and overwritten) symbols with OpenBSD's libc.
+    It was replaced with LDNS and LDNS renders domain names as Fully
+    Qualified Domain Names (FQDN, the trailing dot!) so every output of a
+    domain name has been changed to a FQDN.
+    This also changes `-X`/`-x`, which will now match against FQDNs.
+
+    The second backward incompatible change is that `-6` has been removed.
+    This was used to alter the BPF in order to "fix" it, dnscap adds
+    specific filters to IP and UDP headers which does not work for IPv6
+    traffic.
+    The generated BPF has been changed to allow IPv6 to always pass, making
+    the option obsolete. IPv6 filtering is then done in dnscap.
+
+    The last backward incompatible change has to do with the output format
+    of `-g` related to EDNS0 and is now more consistent with the rest of
+    the parsable output:
+    - No more spaces in the output
+    - Fix incorrect `\` and extra empty new-line
+    - All EDNS0 options are added after `edns0[...]` using comma separation, example: `edns0[],edns0opt[],...`
+    - Client Subnet format: `edns0opt[ECS,family=nn,source=nn,scope=nn,addr=...]`
+    - Unknown/unsupported code: `edns0opt[code=nn,codelen=nn]`
+    - Parsing error messages have changed, they came from libbind, now comes from LDNS
+
+    New options:
+    - Add `-q` and `-Q` to filter on matched/not matched QTYPE
+
+    Bugfixes:
+    - Fix memory leak in EDNS0 ECS address parsing
+    - `network`: Fix sonarcloud issues, potential `memcpy()` of null pointer
+
+    Other changes:
+    - Fix CBOR output inclusion, LDNS is always available now
+    - Add macros for Apple and Windows endian functions
+    - Restructure and correct the man-page
+
+    557e5f5 man-page
+    025529f v6bug, interval
+    37b79e9 FQDN
+    ebcf434 QTYPE match, args, tests
+    0cb5562 v6bug
+    75f6115 Endian
+    aaeb213 Sonarcloud
+    8685946 CBOR output
+    3e26802 Sonarcloud
+    30aa366 libbind
+    3f94d0b Mattermost
+
 2020-10-22 Jerry Lundström
 
     Release 1.12.0
