@@ -1,7 +1,7 @@
 /*
  * Author Roy Arends
  *
- * Copyright (c) 2017-2020, OARC, Inc.
+ * Copyright (c) 2017-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <pcap.h>
+#include <ldns/ldns.h>
 
 static logerr_t* logerr;
 static char*     opt_q = 0;
@@ -175,49 +176,54 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
     const u_char* payload, unsigned payloadlen)
 {
     if (flags & DNSCAP_OUTPUT_ISDNS) {
-        int    rrmax;
-        ns_msg msg;
-        ns_rr  rr;
-        if (ns_initparse(payload, payloadlen, &msg) < 0) {
+        ldns_buffer* buf = ldns_buffer_new(512);
+        if (!buf) {
+            logerr("out of memmory\n");
+            exit(1);
+        }
+
+        ldns_pkt* pkt;
+        if (ldns_wire2pkt(&pkt, payload, payloadlen) != LDNS_STATUS_OK) {
             fprintf(r_out, "ERR\n");
+            ldns_buffer_free(buf);
             return;
         }
-        if (ns_msg_getflag(msg, ns_f_qr) != 0 && sport == 53) {
-            fprintf(r_out, "%cD_", ns_msg_getflag(msg, ns_f_rd) ? 'R' : 'N');
+        if (ldns_pkt_qr(pkt) && sport == 53) {
+            fprintf(r_out, "%cD_", ldns_pkt_rd(pkt) ? 'R' : 'N');
 
-            switch (ns_msg_getflag(msg, ns_f_opcode)) {
-            case ns_o_query:
+            switch (ldns_pkt_get_opcode(pkt)) {
+            case LDNS_PACKET_QUERY:
                 fprintf(r_out, "QUERY");
                 break;
-            case ns_o_notify:
+            case LDNS_PACKET_NOTIFY:
                 fprintf(r_out, "NOTIFY");
                 break;
-            case ns_o_update:
+            case LDNS_PACKET_UPDATE:
                 fprintf(r_out, "UPDATE");
                 break;
             default:
                 fprintf(r_out, "ELSE");
             }
 
-            fprintf(r_out, "_%u_%cA_", ns_msg_count(msg, ns_s_an) ? 1 : 0, ns_msg_getflag(msg, ns_f_aa) ? 'A' : 'N');
+            fprintf(r_out, "_%u_%cA_", ldns_pkt_ancount(pkt) ? 1 : 0, ldns_pkt_aa(pkt) ? 'A' : 'N');
 
-            switch (ns_msg_getflag(msg, ns_f_rcode)) {
-            case ns_r_noerror:
+            switch (ldns_pkt_get_rcode(pkt)) {
+            case LDNS_RCODE_NOERROR:
                 fprintf(r_out, "NOERROR");
                 break;
-            case ns_r_formerr:
+            case LDNS_RCODE_FORMERR:
                 fprintf(r_out, "FORMERR");
                 break;
-            case ns_r_nxdomain:
+            case LDNS_RCODE_NXDOMAIN:
                 fprintf(r_out, "NXDOMAIN");
                 break;
-            case ns_r_notimpl:
+            case LDNS_RCODE_NOTIMPL:
                 fprintf(r_out, "NOTIMP");
                 break;
-            case ns_r_refused:
+            case LDNS_RCODE_REFUSED:
                 fprintf(r_out, "REFUSED");
                 break;
-            case ns_r_notauth:
+            case LDNS_RCODE_NOTAUTH:
                 fprintf(r_out, "NOTAUTH");
                 break;
             default:
@@ -226,39 +232,41 @@ void royparse_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 
             fprintf(r_out, " %s,", royparse_ia_str(to));
 
-            if (ns_msg_count(msg, ns_s_qd) > 0) {
-                if (ns_parserr(&msg, ns_s_qd, 0, &rr) == 0) {
-                    royparse_normalize(ns_rr_name(rr));
-                    fprintf(r_out, "%s%s,%u", ns_rr_name(rr), (ns_rr_name(rr)[0] == '.') ? "" : ".", ns_rr_type(rr));
-                } else
+            ldns_rr_list* qds = ldns_pkt_question(pkt);
+            ldns_rr*      qd;
+            if (qds && (qd = ldns_rr_list_rr(qds, 0))) {
+                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
+                    royparse_normalize((char*)ldns_buffer_begin(buf));
+                    fprintf(r_out, "%s%s,%u", (char*)ldns_buffer_begin(buf),
+                        ((char*)ldns_buffer_begin(buf))[0] == '.' ? "" : ".",
+                        ldns_rr_get_type(qd));
+                } else {
                     fprintf(r_out, "ERR,ERR");
+                }
             } else
                 fprintf(r_out, ",");
 
-            fprintf(r_out, ",%ld,%s%s%s%s", (long)ns_msg_size(msg), ns_msg_id(msg) < 256 ? "-L" : "",
-                ns_msg_getflag(msg, ns_f_tc) ? "-TC" : "",
-                ns_msg_getflag(msg, ns_f_ad) ? "-AD" : "",
-                ns_msg_getflag(msg, ns_f_cd) ? "-CD" : "");
-            rrmax = ns_msg_count(msg, ns_s_ar);
-
-            while (rrmax > 0) {
-                rrmax--;
-                if (ns_parserr(&msg, ns_s_ar, rrmax, &rr) == 0) {
-                    if (ns_rr_type(rr) == ns_t_opt) {
-                        fprintf(r_out, "-%c", (u_long)ns_rr_ttl(rr) & NS_OPT_DNSSEC_OK ? 'D' : 'E');
-                        break;
-                    }
-                }
+            fprintf(r_out, ",%zu,%s%s%s%s", ldns_pkt_size(pkt), ldns_pkt_id(pkt) < 256 ? "-L" : "",
+                ldns_pkt_tc(pkt) ? "-TC" : "",
+                ldns_pkt_ad(pkt) ? "-AD" : "",
+                ldns_pkt_cd(pkt) ? "-CD" : "");
+            if (ldns_pkt_edns(pkt)) {
+                fprintf(r_out, "-%c", ldns_pkt_edns_do(pkt) ? 'D' : 'E');
             }
             fprintf(r_out, "\n");
-        } else if (opt_q != 0 && ns_msg_getflag(msg, ns_f_qr) == 0 && dport == 53) {
+        } else if (opt_q != 0 && !ldns_pkt_qr(pkt) && dport == 53) {
             struct pcap_pkthdr h;
-            if (flags & DNSCAP_OUTPUT_ISLAYER)
+            if (flags & DNSCAP_OUTPUT_ISLAYER) {
+                ldns_pkt_free(pkt);
+                ldns_buffer_free(buf);
                 return;
+            }
             memset(&h, 0, sizeof h);
             h.ts  = ts;
             h.len = h.caplen = olen;
             pcap_dump((u_char*)q_out, &h, pkt_copy);
         }
+        ldns_pkt_free(pkt);
+        ldns_buffer_free(buf);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,9 @@
 #include "endpoint.h"
 #include "tcpstate.h"
 #include "tcpreasm.h"
+#include "endian_compat.h"
+
+#include <ldns/ldns.h>
 
 struct ip6_hdr* network_ipv6 = 0;
 struct ip*      network_ip   = 0;
@@ -49,15 +52,19 @@ struct udphdr*  network_udp  = 0;
 
 extern tcpstate_ptr _curr_tcpstate; /* from tcpstate.c */
 
-#define MY_GET32(l, cp)                                          \
-    do {                                                         \
-        register const u_char* t_cp = (const u_char*)(cp);       \
-        (l)                         = ((u_int32_t)t_cp[0] << 24) \
-              | ((u_int32_t)t_cp[1] << 16)                       \
-              | ((u_int32_t)t_cp[2] << 8)                        \
-              | ((u_int32_t)t_cp[3]);                            \
-        (cp) += NS_INT32SZ;                                      \
-    } while (0)
+static inline uint16_t _need16(const void* ptr)
+{
+    uint16_t v;
+    memcpy(&v, ptr, sizeof(v));
+    return be16toh(v);
+}
+
+static inline uint32_t _need32(const void* ptr)
+{
+    uint32_t v;
+    memcpy(&v, ptr, sizeof(v));
+    return be32toh(v);
+}
 
 static int skip_vlan(unsigned vlan)
 {
@@ -209,8 +216,14 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         }
     }
 
-    if (next_interval != 0 && firstpkt->pkthdr.ts.tv_sec >= next_interval && dumper_opened == dump_state)
-        dumper_close(firstpkt->pkthdr.ts);
+    if (next_interval != 0 && firstpkt->pkthdr.ts.tv_sec >= next_interval) {
+        if (preso)
+            goto breakloop;
+        if (dumper_opened == dump_state)
+            dumper_close(firstpkt->pkthdr.ts);
+        if (dump_type == to_stdout)
+            goto breakloop;
+    }
     if (dumper_closed == dump_state && dumper_open(firstpkt->pkthdr.ts))
         goto breakloop;
 
@@ -269,32 +282,33 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     case DLT_NULL: {
         uint32_t x;
 
-        if (len < NS_INT32SZ)
+        if (len < 4)
             return;
-        x = *(const uint32_t*)pkt;
+        x = _need32(pkt);
         if (x == PF_INET)
             etype = ETHERTYPE_IP;
         else if (x == PF_INET6)
             etype = ETHERTYPE_IPV6;
         else
             return;
-        pkt += NS_INT32SZ;
-        len -= NS_INT32SZ;
+        pkt += 4;
+        len -= 4;
         break;
     }
     case DLT_LOOP: {
         uint32_t x;
 
-        if (len < NS_INT32SZ)
+        if (len < 4)
             return;
-        MY_GET32(x, pkt);
-        len -= NS_INT32SZ;
+        x = _need32(pkt);
         if (x == PF_INET)
             etype = ETHERTYPE_IP;
         else if (x == PF_INET6)
             etype = ETHERTYPE_IPV6;
         else
             return;
+        pkt += 4;
+        len -= 4;
         break;
     }
     case DLT_RAW: {
@@ -324,10 +338,10 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         if (etype == ETHERTYPE_VLAN) {
             if (len < 4)
                 return;
-            vlan = ntohs(*(const uint16_t*)pkt) & 0xFFF;
+            vlan = _need16(pkt) & 0xFFF;
             pkt += 2;
             len -= 2;
-            etype = ntohs(*(const uint16_t*)pkt);
+            etype = _need16(pkt);
             pkt += 2;
             len -= 2;
         }
@@ -337,7 +351,7 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     case DLT_LINUX_SLL: {
         if (len < 16)
             return;
-        etype = ntohs(*(const uint16_t*)&pkt[14]);
+        etype = _need16(&pkt[14]);
         pkt += 16;
         len -= 16;
         break;
@@ -409,8 +423,14 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         descr[0] = '\0';
     }
 
-    if (next_interval != 0 && hdr->ts.tv_sec >= next_interval && dumper_opened == dump_state)
-        dumper_close(hdr->ts);
+    if (next_interval != 0 && hdr->ts.tv_sec >= next_interval) {
+        if (preso)
+            goto breakloop;
+        if (dumper_opened == dump_state)
+            dumper_close(hdr->ts);
+        if (dump_type == to_stdout)
+            goto breakloop;
+    }
     if (dumper_closed == dump_state && dumper_open(hdr->ts))
         goto breakloop;
 
@@ -451,6 +471,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
     tcpstate_ptr  tcpstate = NULL;
     size_t        len, dnslen = 0;
     HEADER        dns;
+    ldns_pkt*     lpkt = 0;
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -811,6 +832,10 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         }
 
         /* Application. */
+        if (!dnspkt) {
+            tcpstate_discard(tcpstate, "no dns");
+            return;
+        }
         if (dnslen < sizeof dns) {
             tcpstate_discard(tcpstate, "too small");
             return;
@@ -846,7 +871,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             tcpstate_discard(tcpstate, "missing required host");
             return;
         }
-        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
+        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == LDNS_PACKET_QUERY) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == LDNS_PACKET_UPDATE) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == LDNS_PACKET_NOTIFY))) {
             tcpstate_discard(tcpstate, "unwanted opcode");
             return;
         }
@@ -863,19 +888,12 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 return;
             }
         }
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-        if (!EMPTY(myregexes)) {
-            int     match, negmatch;
-            ns_msg  msg;
-            ns_sect s;
-
-            match    = -1;
-            negmatch = -1;
-            if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
+        if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
                 /* DNS message may have padding, try get actual size */
-                if (errno == EMSGSIZE) {
-                    size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                    if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen) {
+                    if (ldns_wire2pkt(&lpkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
                         tcpstate_discard(tcpstate, "failed parse");
                         return;
                     }
@@ -884,74 +902,123 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     return;
                 }
             }
+        }
+        if (match_qtype || nmatch_qtype) {
+            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
+            if (!rrs) {
+                ldns_pkt_free(lpkt);
+                tcpstate_discard(tcpstate, "failed to get list of questions");
+                return;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "failed to get question");
+                    return;
+                }
+
+                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "qtype not match");
+                    return;
+                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
+                    ldns_pkt_free(lpkt);
+                    tcpstate_discard(tcpstate, "!qtype match");
+                    return;
+                }
+            }
+        }
+        if (!EMPTY(myregexes)) {
+            int          match, negmatch;
+            ldns_buffer* buf = ldns_buffer_new(512);
+
+            if (!buf) {
+                fprintf(stderr, "%s: out of memory", ProgramName);
+                exit(1);
+            }
+
+            match    = -1;
+            negmatch = -1;
             /* Look at each section of the message:
                  question, answer, authority, additional */
-            for (s = ns_s_qd; s < ns_s_max; s++) {
-                char        pres[SNAPLEN * 4];
-                const char* look;
-                int         count, n;
-                ns_rr       rr;
+            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
+            if (!rrs) {
+                ldns_pkt_free(lpkt);
+                ldns_buffer_free(buf);
+                tcpstate_discard(tcpstate, "failed to get list of RRs");
+                return;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    ldns_rr_list_free(rrs);
+                    ldns_pkt_free(lpkt);
+                    ldns_buffer_free(buf);
+                    tcpstate_discard(tcpstate, "failed to get RR");
+                    return;
+                }
 
-                /* Look at each RR in the section (or each QNAME in
-                   the question section). */
-                count = ns_msg_count(msg, s);
-                for (n = 0; n < count; n++) {
-                    myregex_ptr myregex;
+                ldns_buffer_clear(buf);
+                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
+                    ldns_rr_list_free(rrs);
+                    ldns_pkt_free(lpkt);
+                    ldns_buffer_free(buf);
+                    tcpstate_discard(tcpstate, "failed to get RR");
+                    return;
+                }
 
-                    if (ns_parserr(&msg, s, n, &rr) < 0) {
-                        tcpstate_discard(tcpstate, "failed parse");
-                        return;
-                    }
-                    if (s == ns_s_qd) {
-                        look = ns_rr_name(rr);
+                myregex_ptr myregex;
+                for (myregex = HEAD(myregexes);
+                     myregex != NULL;
+                     myregex = NEXT(myregex, link)) {
+                    if (myregex->not ) {
+                        if (negmatch < 0)
+                            negmatch = 0;
                     } else {
-                        if (ns_sprintrr(&msg, &rr, NULL, ".",
-                                pres, sizeof pres)
-                            < 0) {
-                            tcpstate_discard(tcpstate, "failed parse");
-                            return;
-                        }
-                        look = pres;
+                        if (match < 0)
+                            match = 0;
                     }
-                    for (myregex = HEAD(myregexes);
-                         myregex != NULL;
-                         myregex = NEXT(myregex, link)) {
-                        if (myregex->not ) {
-                            if (negmatch < 0)
-                                negmatch = 0;
-                        } else {
-                            if (match < 0)
-                                match = 0;
-                        }
 
-                        if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                            if (myregex->not )
-                                negmatch++;
-                            else
-                                match++;
+                    if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
+                        if (myregex->not )
+                            negmatch++;
+                        else
+                            match++;
 
-                            if (dumptrace >= 2)
-                                fprintf(stderr,
-                                    "; \"%s\" %s~ /%s/ %d %d\n",
-                                    look,
-                                    myregex->not ? "!" : "",
-                                    myregex->str,
-                                    match,
-                                    negmatch);
-                        }
+                        if (dumptrace >= 2)
+                            fprintf(stderr,
+                                "; \"%s\" %s~ /%s/ %d %d\n",
+                                (char*)ldns_buffer_begin(buf),
+                                myregex->not ? "!" : "",
+                                myregex->str,
+                                match,
+                                negmatch);
                     }
                 }
             }
+            ldns_rr_list_free(rrs);
+            ldns_buffer_free(buf);
+
             /*
              * Fail if any negative matching or if no match, match can be -1 which
              * indicates that there are only negative matching
              */
             if (negmatch > 0 || match == 0) {
+                ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, "failed regex match");
                 return;
             }
         }
-#endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
+        if (lpkt) {
+            ldns_pkt_free(lpkt);
+        }
 
         /*
          * TODO: Policy hiding.
@@ -986,6 +1053,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct ip*      ip;
     size_t          len, dnslen = 0;
     HEADER          dns;
+    ldns_pkt*       lpkt = 0;
 
     if (dumptrace >= 4)
         fprintf(stderr, "processing %s packet: len=%zu\n", (pf == PF_INET ? "IPv4" : (pf == PF_INET6 ? "IPv6" : "unknown")), olen);
@@ -1434,6 +1502,10 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         }
 
         /* Application. */
+        if (!dnspkt) {
+            tcpstate_discard(tcpstate, "no dns");
+            goto network_pkt_end;
+        }
         if (dnslen < sizeof dns) {
             tcpstate_discard(tcpstate, "too small");
             goto network_pkt_end;
@@ -1469,7 +1541,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             tcpstate_discard(tcpstate, "missing required host");
             goto network_pkt_end;
         }
-        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == ns_o_query) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == ns_o_update) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == ns_o_notify))) {
+        if (!(((msg_wanted & MSG_QUERY) != 0 && dns.opcode == LDNS_PACKET_QUERY) || ((msg_wanted & MSG_UPDATE) != 0 && dns.opcode == LDNS_PACKET_UPDATE) || ((msg_wanted & MSG_NOTIFY) != 0 && dns.opcode == LDNS_PACKET_NOTIFY))) {
             tcpstate_discard(tcpstate, "unwanted opcode");
             goto network_pkt_end;
         }
@@ -1486,19 +1558,12 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 goto network_pkt_end;
             }
         }
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR
-        if (!EMPTY(myregexes)) {
-            int     match, negmatch;
-            ns_msg  msg;
-            ns_sect s;
-
-            match    = -1;
-            negmatch = -1;
-            if (ns_initparse(dnspkt, dnslen, &msg) < 0) {
+        if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
                 /* DNS message may have padding, try get actual size */
-                if (errno == EMSGSIZE) {
-                    size_t dnslen2 = calcdnslen(dnspkt, dnslen);
-                    if (dnslen2 > 0 && dnslen2 < dnslen && ns_initparse(dnspkt, dnslen2, &msg) < 0) {
+                size_t dnslen2 = calcdnslen(dnspkt, dnslen);
+                if (dnslen2 > 0 && dnslen2 < dnslen) {
+                    if (ldns_wire2pkt(&lpkt, dnspkt, dnslen2) != LDNS_STATUS_OK) {
                         tcpstate_discard(tcpstate, "failed parse");
                         goto network_pkt_end;
                     }
@@ -1507,64 +1572,103 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     goto network_pkt_end;
                 }
             }
+        }
+        if (match_qtype || nmatch_qtype) {
+            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
+            if (!rrs) {
+                tcpstate_discard(tcpstate, "failed to get list of questions");
+                goto network_pkt_end;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    tcpstate_discard(tcpstate, "failed to get question");
+                    goto network_pkt_end;
+                }
+
+                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
+                    tcpstate_discard(tcpstate, "qtype not match");
+                    goto network_pkt_end;
+                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
+                    tcpstate_discard(tcpstate, "!qtype match");
+                    goto network_pkt_end;
+                }
+            }
+        }
+        if (!EMPTY(myregexes)) {
+            int          match, negmatch;
+            ldns_buffer* buf = ldns_buffer_new(512);
+
+            if (!buf) {
+                fprintf(stderr, "%s: out of memory", ProgramName);
+                exit(1);
+            }
+
+            match    = -1;
+            negmatch = -1;
             /* Look at each section of the message:
                  question, answer, authority, additional */
-            for (s = ns_s_qd; s < ns_s_max; s++) {
-                char        pres[SNAPLEN * 4];
-                const char* look;
-                int         count, n;
-                ns_rr       rr;
+            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
+            if (!rrs) {
+                ldns_buffer_free(buf);
+                tcpstate_discard(tcpstate, "failed to get list of RRs");
+                goto network_pkt_end;
+            }
+            /* Look at each RR in the section (or each QNAME in
+               the question section). */
+            size_t i, n;
+            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+                if (!rr) {
+                    ldns_rr_list_free(rrs);
+                    ldns_buffer_free(buf);
+                    tcpstate_discard(tcpstate, "failed to get RR");
+                    goto network_pkt_end;
+                }
 
-                /* Look at each RR in the section (or each QNAME in
-                   the question section). */
-                count = ns_msg_count(msg, s);
-                for (n = 0; n < count; n++) {
-                    myregex_ptr myregex;
+                ldns_buffer_clear(buf);
+                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
+                    ldns_rr_list_free(rrs);
+                    ldns_buffer_free(buf);
+                    tcpstate_discard(tcpstate, "failed to get RR");
+                    goto network_pkt_end;
+                }
 
-                    if (ns_parserr(&msg, s, n, &rr) < 0) {
-                        tcpstate_discard(tcpstate, "failed parse");
-                        goto network_pkt_end;
-                    }
-                    if (s == ns_s_qd) {
-                        look = ns_rr_name(rr);
+                myregex_ptr myregex;
+                for (myregex = HEAD(myregexes);
+                     myregex != NULL;
+                     myregex = NEXT(myregex, link)) {
+                    if (myregex->not ) {
+                        if (negmatch < 0)
+                            negmatch = 0;
                     } else {
-                        if (ns_sprintrr(&msg, &rr, NULL, ".",
-                                pres, sizeof pres)
-                            < 0) {
-                            tcpstate_discard(tcpstate, "failed parse");
-                            goto network_pkt_end;
-                        }
-                        look = pres;
+                        if (match < 0)
+                            match = 0;
                     }
-                    for (myregex = HEAD(myregexes);
-                         myregex != NULL;
-                         myregex = NEXT(myregex, link)) {
-                        if (myregex->not ) {
-                            if (negmatch < 0)
-                                negmatch = 0;
-                        } else {
-                            if (match < 0)
-                                match = 0;
-                        }
 
-                        if (regexec(&myregex->reg, look, 0, NULL, 0) == 0) {
-                            if (myregex->not )
-                                negmatch++;
-                            else
-                                match++;
+                    if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
+                        if (myregex->not )
+                            negmatch++;
+                        else
+                            match++;
 
-                            if (dumptrace >= 2)
-                                fprintf(stderr,
-                                    "; \"%s\" %s~ /%s/ %d %d\n",
-                                    look,
-                                    myregex->not ? "!" : "",
-                                    myregex->str,
-                                    match,
-                                    negmatch);
-                        }
+                        if (dumptrace >= 2)
+                            fprintf(stderr,
+                                "; \"%s\" %s~ /%s/ %d %d\n",
+                                (char*)ldns_buffer_begin(buf),
+                                myregex->not ? "!" : "",
+                                myregex->str,
+                                match,
+                                negmatch);
                     }
                 }
             }
+            ldns_rr_list_free(rrs);
+            ldns_buffer_free(buf);
+
             /*
              * Fail if any negative matching or if no match, match can be -1 which
              * indicates that there are only negative matching
@@ -1574,7 +1678,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 goto network_pkt_end;
             }
         }
-#endif /* HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_SPRINTRR */
 
         /* Policy hiding. */
         if (end_hide != 0) {
@@ -1651,6 +1754,9 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 network_pkt_end:
     network_ip   = 0;
     network_ipv6 = 0;
+    if (lpkt) {
+        ldns_pkt_free(lpkt);
+    }
 }
 
 uint16_t in_checksum(const u_char* ptr, size_t len)
@@ -1658,10 +1764,10 @@ uint16_t in_checksum(const u_char* ptr, size_t len)
     unsigned sum = 0, top;
 
     /* Main body. */
-    while (len >= NS_INT16SZ) {
+    while (len >= 2) {
         sum += *(const uint16_t*)ptr;
-        ptr += NS_INT16SZ;
-        len -= NS_INT16SZ;
+        ptr += 2;
+        len -= 2;
     }
 
     /* Leftover octet? */

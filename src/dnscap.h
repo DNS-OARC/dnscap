@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,6 @@
 #include <netdb.h>
 #include <pcap.h>
 #include <regex.h>
-#include <resolv.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -140,6 +139,8 @@
 #if HAVE_ZLIB_H
 #include <zlib.h>
 #endif
+
+#include <ldns/ldns.h>
 
 #ifndef IPV6_VERSION
 #define IPV6_VERSION 0x60
@@ -168,12 +169,12 @@
 
 #define ERR_TRUNC 0x0001
 #define ERR_RCODE_BASE 0x0002
-#define ERR_NO (ERR_RCODE_BASE << ns_r_noerror)
-#define ERR_FORMERR (ERR_RCODE_BASE << ns_r_formerr)
-#define ERR_SERVFAIL (ERR_RCODE_BASE << ns_r_servfail)
-#define ERR_NXDOMAIN (ERR_RCODE_BASE << ns_r_nxdomain)
-#define ERR_NOTIMPL (ERR_RCODE_BASE << ns_r_notimpl)
-#define ERR_REFUSED (ERR_RCODE_BASE << ns_r_refused)
+#define ERR_NO (ERR_RCODE_BASE << 0)
+#define ERR_FORMERR (ERR_RCODE_BASE << 1)
+#define ERR_SERVFAIL (ERR_RCODE_BASE << 2)
+#define ERR_NXDOMAIN (ERR_RCODE_BASE << 3)
+#define ERR_NOTIMPL (ERR_RCODE_BASE << 4)
+#define ERR_REFUSED (ERR_RCODE_BASE << 5)
 #define ERR_YES (0xffffffff & ~ERR_NO)
 
 #define END_INITIATOR 0x0001
@@ -412,7 +413,6 @@ extern int             monitor_mode;
 extern int             immediate_mode;
 extern int             background;
 extern char            errbuf[PCAP_ERRBUF_SIZE];
-extern int             v6bug;
 extern int             wantgzip;
 extern int             wantfrags;
 extern int             wanticmp;
@@ -435,5 +435,7 @@ extern pcap_thread_t      pcap_thread;
 extern int                only_offline_pcaps;
 extern int                dont_drop_privileges;
 extern options_t          options;
+
+extern ldns_rr_type match_qtype, nmatch_qtype;
 
 #endif /* __dnscap_dnscap_h */

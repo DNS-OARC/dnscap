@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,7 +96,6 @@ int             monitor_mode   = FALSE;
 int             immediate_mode = FALSE;
 int             background     = FALSE;
 char            errbuf[PCAP_ERRBUF_SIZE];
-int             v6bug     = FALSE;
 int             wantgzip  = 0;
 int             wantfrags = FALSE;
 int             wanticmp  = FALSE;
@@ -120,6 +119,8 @@ int                only_offline_pcaps   = FALSE;
 int                dont_drop_privileges = FALSE;
 options_t          options              = OPTIONS_T_DEFAULTS;
 
+ldns_rr_type match_qtype = 0, nmatch_qtype = 0;
+
 int main(int argc, char* argv[])
 {
     struct plugin* p;
@@ -133,7 +134,6 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-    res_init();
     parse_args(argc, argv);
     gettimeofday(&now, 0);
     if (!only_offline_pcaps && start_time) {

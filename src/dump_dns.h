@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,8 @@
 #ifndef __dnscap_dump_dns_h
 #define __dnscap_dump_dns_h
 
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline);
+#include <stdio.h>
+
+void dump_dns(const u_char* payload, size_t paylen, FILE* trace, const char* endline);
 
 #endif // __dnscap_dump_dns_h

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@
 #include "dnscap.h"
 #include "iaddr.h"
 
-#if HAVE_LIBLDNS && HAVE_LIBTINYCBOR
+#if HAVE_LIBTINYCBOR
 
 #include <ldns/ldns.h>
 #if HAVE_CBOR_CBOR_H
@@ -650,7 +650,7 @@ int have_cbor_support()
     return 1;
 }
 
-#else /* HAVE_LIBLDNS && HAVE_LIBTINYCBOR */
+#else /* HAVE_LIBTINYCBOR */
 
 int cbor_set_size(size_t size)
 {

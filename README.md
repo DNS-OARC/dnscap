@@ -23,27 +23,25 @@ More information may be found here:
 Issues should be reported here:
 - https://github.com/DNS-OARC/dnscap/issues
 
-Mailinglist:
-- https://lists.dns-oarc.net/mailman/listinfo/dnscap-users
+General support and discussion:
+- Mattermost: https://chat.dns-oarc.net/community/channels/oarc-software
+- mailing-list: https://lists.dns-oarc.net/mailman/listinfo/dnscap-users
 
 ## Dependencies
 
 `dnscap` requires a couple of libraries beside a normal C compiling
 environment with autoconf, automake, libtool and pkgconfig.
 
-`dnscap` has a non-optional dependency on the PCAP library and optional
-dependencies on LDNS. BIND library `libbind` is considered optional but it
-is needed under OpenBSD for various `arpa/nameser*` include headers, see
-[Linking with libbind](#linking-with-libbind).
+`dnscap` has a non-optional dependency on the PCAP library and LDNS.
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev libbind-dev zlib1g-dev libyaml-perl libssl-dev
+apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev
 ```
 
 To install the dependencies under CentOS (with EPEL enabled):
 ```
-yum install -y libpcap-devel ldns-devel openssl-devel bind-devel zlib-devel perl-YAML
+yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML
 ```
 
 For the following OS you will need to install some of the dependencies
@@ -102,21 +100,6 @@ make
 make install
 ```
 
-## Linking with libbind
-
-If you plan to use dnscap's -x/-X features, then you might need
-to have libbind installed.   These features use functions such
-as ns_parserr().  On some systems these functions will be found
-in libresolv.  If not, then you might need to install libbind.
-I suggest first building dnscap on your system as-is, then run
-
-```
-$ ./dnscap -x foo
-```
-
-If you see an error, install libbind either from your OS package system
-or by downloading the source from http://ftp.isc.org/isc/libbind/6.0/ .
-
 ### 64-bit libraries
 
 If you need to link against 64-bit libraries found in non-standard
@@ -129,40 +112,12 @@ $ env LDFLAGS=-L/usr/lib64 ./configure
 
 ### OpenBSD
 
-For OpenBSD you probably installed libpcap and libbind in `/usr/local`
-so you will need to tell `configure` that and libbind might install it's
-libraries and header files in a subdirectory:
+For OpenBSD you probably installed libpcap in `/usr/local` so you will need
+to tell `configure` where to find the libraries and header files:
 
 ```
-$ env CFLAGS="-I/usr/local/include -I/usr/local/include/bind" \
-  LDFLAGS="-L/usr/local/lib -L/usr/local/lib/bind" \
-  ./configure
+$ env CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" ./configure
 ```
-
-*KNOWN ISSUES*:
-- libbind export the symbol `_res` which also exists in OpenBSD's libc, this causes it to throw warnings like `dnscap:/usr/lib/libc.so.96.0: /usr/local/lib/libbind.so.6.1 : WARNING: symbol(_res) size mismatch, relink your program` and may segfault.
-- due to above, known to segfault in libpcap when using IPv6 addresses in BPF, see https://github.com/the-tcpdump-group/libpcap/issues/964
-- this will be addressed in future versions of `dnscap`, see https://github.com/DNS-OARC/dnscap/issues/11
-
-### FreeBSD
-
-If you've installed libbind for -x/-X then it probably went into
-/usr/local and you'll need to tell configure how to find it:
-
-```
-$ env CFLAGS="-I/usr/local/include -I/usr/local/include/bind" \
-  LDFLAGS="-L/usr/local/lib -L/usr/local/lib/bind" \
-  ./configure
-```
-
-Also note that we have observed significant memory leaks on FreeBSD
-(7.2) when using -x/-X.  To rectify:
-
-1. cd /usr/ports/dns/libbind
-1. make config
-1. de-select "Compile with thread support"
-1. reinstall the libbind port
-1. recompile and install dnscap
 
 ## Plugins
 

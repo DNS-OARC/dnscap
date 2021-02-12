@@ -18,5 +18,5 @@ ln -fs "$srcdir/../../src/test/dnso1tcp.pcap" dnso1tcp.pcap-dist
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -n test
 ! ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -X
 
-../../src/dnscap -6 -r dns6.pcap-dist -g -P "$plugin"
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin"
 ../../src/dnscap -T -r dnso1tcp.pcap-dist -g -P "$plugin"

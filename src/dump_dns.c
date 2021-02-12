@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,357 +41,279 @@
 
 #include "dnscap_common.h"
 
-#include <sys/types.h>
-#include <stdio.h>
 #include "dump_dns.h"
 #include "network.h"
 #include "tcpstate.h"
+#include "endian_compat.h"
 
-#if HAVE_NS_INITPARSE && HAVE_NS_PARSERR && HAVE_NS_NAME_UNCOMPRESS && HAVE_P_RCODE
-
-#ifdef __linux__
-#define _GNU_SOURCE
-#ifndef __USE_POSIX199309
-#define __USE_POSIX199309
-#endif
-#endif
-
-#ifdef __SVR4
-#define u_int32_t uint32_t
-#define u_int16_t uint16_t
-#endif
-
-#include <sys/socket.h>
-
+#include <ldns/ldns.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <arpa/nameser.h>
-#if HAVE_ARPA_NAMESER_COMPAT_H
-#include <arpa/nameser_compat.h>
-#endif
 
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <resolv.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <unistd.h>
-
-#ifdef p_rcode
-#undef p_rcode
-#endif
-#define p_rcode __p_rcode
-extern const char* p_rcode(int rcode);
-
-static const char* p_opcode(int opcode);
-static void        dump_dns_sect(ns_msg*, ns_sect, FILE*, const char*);
-static void        dump_dns_rr(ns_msg*, ns_rr*, ns_sect, FILE*);
-
-#define MY_GET16(s, cp)                                         \
-    do {                                                        \
-        register const u_char* t_cp = (const u_char*)(cp);      \
-        (s)                         = ((u_int16_t)t_cp[0] << 8) \
-              | ((u_int16_t)t_cp[1]);                           \
-        (cp) += NS_INT16SZ;                                     \
-    } while (0)
-
-#define MY_GET32(l, cp)                                          \
-    do {                                                         \
-        register const u_char* t_cp = (const u_char*)(cp);       \
-        (l)                         = ((u_int32_t)t_cp[0] << 24) \
-              | ((u_int32_t)t_cp[1] << 16)                       \
-              | ((u_int32_t)t_cp[2] << 8)                        \
-              | ((u_int32_t)t_cp[3]);                            \
-        (cp) += NS_INT32SZ;                                      \
-    } while (0)
-
-#include "dump_dns.h"
-
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline)
+static inline uint16_t _need16(const void* ptr)
 {
-    u_int        opcode, rcode, id;
+    uint16_t v;
+    memcpy(&v, ptr, sizeof(v));
+    return be16toh(v);
+}
+
+static void dump_dns_rr(ldns_rr* rr, FILE* trace, ldns_buffer* lbuf, bool qsect)
+{
+    size_t    rdlen, i;
+    ldns_rdf* rdf;
+
+    // owner
+    ldns_buffer_clear(lbuf);
+    if (ldns_rdf2buffer_str(lbuf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
+        goto error;
+    }
+    fprintf(trace, "%s", (char*)ldns_buffer_begin(lbuf));
+
+    // class
+    ldns_buffer_clear(lbuf);
+    if (ldns_rr_class2buffer_str(lbuf, ldns_rr_get_class(rr)) != LDNS_STATUS_OK) {
+        goto error;
+    }
+    fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+
+    // type
+    ldns_buffer_clear(lbuf);
+    if (ldns_rr_type2buffer_str(lbuf, ldns_rr_get_type(rr)) != LDNS_STATUS_OK) {
+        goto error;
+    }
+    fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+
+    if (qsect)
+        return;
+
+    fprintf(trace, ",%u", ldns_rr_ttl(rr));
+    switch (ldns_rr_get_type(rr)) {
+    case LDNS_RR_TYPE_SOA:
+        for (i = 0; i < 2; i++) {
+            if (!(rdf = ldns_rr_rdf(rr, i))) {
+                goto error;
+            }
+            ldns_buffer_clear(lbuf);
+            if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
+                goto error;
+            }
+            fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+        }
+        for (; i < 7; i++) {
+            if (!(rdf = ldns_rr_rdf(rr, i))) {
+                goto error;
+            }
+            ldns_buffer_clear(lbuf);
+            if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
+                goto error;
+            }
+            fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+        }
+        break;
+
+    case LDNS_RR_TYPE_A:
+    case LDNS_RR_TYPE_AAAA:
+    case LDNS_RR_TYPE_MX:
+        if (!(rdf = ldns_rr_rdf(rr, 0))) {
+            goto error;
+        }
+        ldns_buffer_clear(lbuf);
+        if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
+            goto error;
+        }
+        fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+        break;
+
+    case LDNS_RR_TYPE_NS:
+    case LDNS_RR_TYPE_PTR:
+    case LDNS_RR_TYPE_CNAME:
+        if (!(rdf = ldns_rr_rdf(rr, 0))) {
+            goto error;
+        }
+        ldns_buffer_clear(lbuf);
+        if (ldns_rdf2buffer_str(lbuf, rdf) != LDNS_STATUS_OK) {
+            goto error;
+        }
+        fprintf(trace, ",%s", (char*)ldns_buffer_begin(lbuf));
+        break;
+
+    default:
+        goto error;
+    }
+    return;
+
+error:
+    for (rdlen = 0, i = 0, rdf = ldns_rr_rdf(rr, i); rdf; rdf = ldns_rr_rdf(rr, ++i)) {
+        rdlen += ldns_rdf_size(rdf);
+    }
+    fprintf(trace, ",[%zu]", rdlen);
+}
+
+static void dump_dns_sect(ldns_rr_list* rrs, FILE* trace, const char* endline, ldns_buffer* lbuf, bool qsect, bool ansect, ldns_pkt* pkt)
+{
+    size_t      rrnum, rrmax;
+    const char* sep;
+
+    if (ansect && ldns_pkt_edns(pkt)) {
+        rrmax = ldns_rr_list_rr_count(rrs);
+        fprintf(trace, " %s%zu", endline, rrmax + 1);
+        sep = "";
+        for (rrnum = 0; rrnum < rrmax; rrnum++) {
+            fprintf(trace, " %s", sep);
+            dump_dns_rr(ldns_rr_list_rr(rrs, rrnum), trace, lbuf, qsect);
+            sep = endline;
+        }
+        ldns_rdf* edns_data = ldns_pkt_edns_data(pkt);
+        fprintf(trace, " %s.,%u,%u,0,edns0[len=%zu,UDP=%u,ver=%u,rcode=%u,DO=%u,z=%u]",
+            sep, ldns_pkt_edns_udp_size(pkt), ldns_pkt_edns_udp_size(pkt),
+            edns_data ? ldns_rdf_size(edns_data) : 0,
+            ldns_pkt_edns_udp_size(pkt),
+            ldns_pkt_edns_version(pkt),
+            ldns_pkt_edns_extended_rcode(pkt),
+            ldns_pkt_edns_do(pkt) ? 1 : 0,
+            ldns_pkt_edns_z(pkt));
+        if (edns_data) {
+            size_t   len = ldns_rdf_size(edns_data);
+            uint8_t* d   = ldns_rdf_data(edns_data);
+
+            while (len >= 4) {
+                uint16_t opcode = _need16(d);
+                uint16_t oplen  = _need16(d + 2);
+                len -= 4;
+                d += 4;
+
+                if (oplen > len) {
+                    break;
+                }
+                switch (opcode) {
+                case 8: {
+                    if (oplen >= 4) {
+                        uint16_t        family            = _need16(d);
+                        uint8_t         source_prefix_len = *(d + 2), scope_prefix_len = *(d + 3);
+                        char            addr[(INET_ADDRSTRLEN < INET6_ADDRSTRLEN ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN) + 1] = { 0 };
+                        struct in_addr  in4                                                                                 = { .s_addr = INADDR_ANY };
+                        struct in6_addr in6                                                                                 = IN6ADDR_ANY_INIT;
+                        void*           in                                                                                  = 0;
+                        int             af;
+
+                        switch (family) {
+                        case 1: {
+                            memcpy(&in4.s_addr, d + 4, oplen - 4 > sizeof(in4.s_addr) ? sizeof(in4.s_addr) : oplen - 4);
+                            in = &in4;
+                            af = AF_INET;
+                            break;
+                        }
+                        case 2: {
+                            memcpy(&in6.s6_addr, d + 4, oplen - 4 > sizeof(in6.s6_addr) ? sizeof(in6.s6_addr) : oplen - 4);
+                            in = &in6;
+                            af = AF_INET6;
+                            break;
+                        }
+                        default:
+                            break;
+                        }
+
+                        fprintf(trace, ",edns0opt[ECS,family=%u,source=%u,scope=%u,", family, source_prefix_len, scope_prefix_len);
+
+                        if (!in || !inet_ntop(af, in, addr, sizeof(addr) - 1)) {
+                            fprintf(trace, "addr=INVALID]");
+                        } else {
+                            fprintf(trace, "addr=%s]", addr);
+                        }
+
+                        break;
+                    }
+                }
+
+                default:
+                    fprintf(trace, ",edns0opt[code=%u,codelen=%u]", opcode, oplen);
+                    break;
+                }
+
+                len -= oplen;
+                d += oplen;
+            }
+        }
+        return;
+    }
+
+    rrmax = ldns_rr_list_rr_count(rrs);
+    if (rrmax == 0) {
+        fputs(" 0", trace);
+        return;
+    }
+    fprintf(trace, " %s%zu", endline, rrmax);
+    sep = "";
+    for (rrnum = 0; rrnum < rrmax; rrnum++) {
+        fprintf(trace, " %s", sep);
+        dump_dns_rr(ldns_rr_list_rr(rrs, rrnum), trace, lbuf, qsect);
+        sep = endline;
+    }
+}
+
+void dump_dns(const u_char* payload, size_t paylen, FILE* trace, const char* endline)
+{
     const char*  sep;
-    ns_msg       msg;
     tcpstate_ptr tcpstate;
+    ldns_pkt*    pkt  = 0;
+    ldns_buffer* lbuf = 0;
+    ldns_status  ret;
 
     fprintf(trace, " %sdns ", endline);
-    if (ns_initparse(payload, paylen, &msg) < 0) {
+    if ((ret = ldns_wire2pkt(&pkt, payload, paylen)) != LDNS_STATUS_OK) {
         /* DNS message may have padding, try get actual size */
-        if (errno == EMSGSIZE) {
-            size_t dnslen = calcdnslen(payload, paylen);
-            if (dnslen > 0 && dnslen < paylen && ns_initparse(payload, dnslen, &msg) < 0) {
-                fputs(strerror(errno), trace);
+        size_t dnslen = calcdnslen(payload, paylen);
+        if (dnslen > 0 && dnslen < paylen) {
+            if ((ret = ldns_wire2pkt(&pkt, payload, dnslen)) != LDNS_STATUS_OK) {
+                fputs(ldns_get_errorstr_by_id(ret), trace);
                 if ((tcpstate = tcpstate_getcurr()))
                     tcpstate_reset(tcpstate, strerror(errno));
                 return;
             }
         } else {
-            fputs(strerror(errno), trace);
+            fputs(ldns_get_errorstr_by_id(ret), trace);
             if ((tcpstate = tcpstate_getcurr()))
                 tcpstate_reset(tcpstate, strerror(errno));
             return;
         }
     }
-    opcode = ns_msg_getflag(msg, ns_f_opcode);
-    rcode  = ns_msg_getflag(msg, ns_f_rcode);
-    id     = ns_msg_id(msg);
-    fprintf(trace, "%s,%s,%u", p_opcode(opcode), p_rcode(rcode), id);
-    sep = ",";
+
+    if (!(lbuf = ldns_buffer_new(512))) {
+        fprintf(stderr, "%s: out of memory", ProgramName);
+        exit(1);
+    }
+
+    if (ldns_pkt_opcode2buffer_str(lbuf, ldns_pkt_get_opcode(pkt)) != LDNS_STATUS_OK) {
+        fprintf(stderr, "%s: unable to covert opcode to str", ProgramName);
+        exit(1);
+    }
+    fprintf(trace, "%s,", (char*)ldns_buffer_begin(lbuf));
+    ldns_buffer_clear(lbuf);
+    if (ldns_pkt_rcode2buffer_str(lbuf, ldns_pkt_get_rcode(pkt)) != LDNS_STATUS_OK) {
+        fprintf(stderr, "%s: unable to covert rcode to str", ProgramName);
+        exit(1);
+    }
+    fprintf(trace, "%s,%u,", (char*)ldns_buffer_begin(lbuf), ldns_pkt_id(pkt));
+
+    sep = "";
 #define FLAG(t, f)                      \
-    if (ns_msg_getflag(msg, f)) {       \
+    if (f) {                            \
         fprintf(trace, "%s%s", sep, t); \
         sep = "|";                      \
     }
-    FLAG("qr", ns_f_qr);
-    FLAG("aa", ns_f_aa);
-    FLAG("tc", ns_f_tc);
-    FLAG("rd", ns_f_rd);
-    FLAG("ra", ns_f_ra);
-    FLAG("z", ns_f_z);
-    FLAG("ad", ns_f_ad);
-    FLAG("cd", ns_f_cd);
+    FLAG("qr", ldns_pkt_qr(pkt));
+    FLAG("aa", ldns_pkt_aa(pkt));
+    FLAG("tc", ldns_pkt_tc(pkt));
+    FLAG("rd", ldns_pkt_rd(pkt));
+    FLAG("ra", ldns_pkt_ra(pkt));
+    FLAG("z", LDNS_Z_WIRE(payload));
+    FLAG("ad", ldns_pkt_ad(pkt));
+    FLAG("cd", ldns_pkt_cd(pkt));
 #undef FLAG
-    dump_dns_sect(&msg, ns_s_qd, trace, endline);
-    dump_dns_sect(&msg, ns_s_an, trace, endline);
-    dump_dns_sect(&msg, ns_s_ns, trace, endline);
-    dump_dns_sect(&msg, ns_s_ar, trace, endline);
+    dump_dns_sect(ldns_pkt_question(pkt), trace, endline, lbuf, true, false, 0);
+    dump_dns_sect(ldns_pkt_answer(pkt), trace, endline, lbuf, false, false, 0);
+    dump_dns_sect(ldns_pkt_authority(pkt), trace, endline, lbuf, false, false, 0);
+    dump_dns_sect(ldns_pkt_additional(pkt), trace, endline, lbuf, false, true, pkt);
+
+    ldns_buffer_free(lbuf);
+    ldns_pkt_free(pkt);
 }
-
-static void
-dump_dns_sect(ns_msg* msg, ns_sect sect, FILE* trace, const char* endline)
-{
-    int          rrnum, rrmax;
-    const char*  sep;
-    ns_rr        rr;
-    tcpstate_ptr tcpstate;
-
-    rrmax = ns_msg_count(*msg, sect);
-    if (rrmax == 0) {
-        fputs(" 0", trace);
-        return;
-    }
-    fprintf(trace, " %s%d", endline, rrmax);
-    sep = "";
-    for (rrnum = 0; rrnum < rrmax; rrnum++) {
-        if (ns_parserr(msg, sect, rrnum, &rr)) {
-            fprintf(trace, " %s", strerror(errno));
-            if ((tcpstate = tcpstate_getcurr()))
-                tcpstate_reset(tcpstate, strerror(errno));
-            return;
-        }
-        fprintf(trace, " %s", sep);
-        dump_dns_rr(msg, &rr, sect, trace);
-        sep = endline;
-    }
-}
-
-static void
-dump_dns_rr(ns_msg* msg, ns_rr* rr, ns_sect sect, FILE* trace)
-{
-    char buf[NS_MAXDNAME];
-    u_int class, type;
-    const u_char* rd;
-    u_int32_t     soa[5];
-    u_int16_t     mx;
-    int           n;
-
-    memset(buf, 0, sizeof(buf));
-    class = ns_rr_class(*rr);
-    type  = ns_rr_type(*rr);
-    fprintf(trace, "%s,%s,%s",
-        ns_rr_name(*rr),
-        p_class(class),
-        p_type(type));
-    if (sect == ns_s_qd)
-        return;
-    fprintf(trace, ",%lu", (u_long)ns_rr_ttl(*rr));
-    rd = ns_rr_rdata(*rr);
-    switch (type) {
-    case ns_t_soa:
-        n = ns_name_uncompress(ns_msg_base(*msg), ns_msg_end(*msg),
-            rd, buf, sizeof buf);
-        if (n < 0)
-            goto error;
-        putc(',', trace);
-        fputs(buf, trace);
-        rd += n;
-        n = ns_name_uncompress(ns_msg_base(*msg), ns_msg_end(*msg),
-            rd, buf, sizeof buf);
-        if (n < 0)
-            goto error;
-        putc(',', trace);
-        fputs(buf, trace);
-        rd += n;
-        if (ns_msg_end(*msg) - rd < 5 * NS_INT32SZ)
-            goto error;
-        for (n = 0; n < 5; n++)
-            MY_GET32(soa[n], rd);
-        snprintf(buf, sizeof(buf), "%u,%u,%u,%u,%u",
-            soa[0], soa[1], soa[2], soa[3], soa[4]);
-        break;
-    case ns_t_a:
-        if (ns_msg_end(*msg) - rd < 4)
-            goto error;
-        inet_ntop(AF_INET, rd, buf, sizeof buf);
-        break;
-    case ns_t_aaaa:
-        if (ns_msg_end(*msg) - rd < 16)
-            goto error;
-        inet_ntop(AF_INET6, rd, buf, sizeof buf);
-        break;
-    case ns_t_mx:
-        if (ns_msg_end(*msg) - rd < 2)
-            goto error;
-        MY_GET16(mx, rd);
-        fprintf(trace, ",%u", mx);
-    /* FALLTHROUGH */
-    case ns_t_ns:
-    case ns_t_ptr:
-    case ns_t_cname:
-        n = ns_name_uncompress(ns_msg_base(*msg), ns_msg_end(*msg),
-            rd, buf, sizeof buf);
-        if (n < 0)
-            goto error;
-        break;
-    /*
-     * GGM 2014/09/04 deal with edns0 a bit more clearly
-     */
-    case ns_t_opt: {
-        u_long  edns0csize;
-        u_short edns0version;
-        u_short edns0rcode;
-        u_char  edns0dobit;
-        u_char  edns0z;
-
-        /* class encodes client UDP size accepted */
-        edns0csize = (u_long)(class);
-
-        /*
-         * the first two bytes of ttl encode edns0 version, and the extended rcode
-         */
-        edns0version = ((u_long)ns_rr_ttl(*rr) & 0x00ff0000) >> 16;
-        edns0rcode   = ((u_long)ns_rr_ttl(*rr) & 0xff000000) >> 24;
-
-        /*
-         *  the next two bytes of ttl encode DO bit as the top bit, and the remainder is the 'z' value
-         */
-        edns0dobit = (u_long)ns_rr_ttl(*rr) & 0x8000 ? '1' : '0';
-        edns0z     = (u_long)ns_rr_ttl(*rr) & 0x7fff;
-
-        /* optlen is the size of the OPT rdata */
-        u_short optlen = ns_rr_rdlen(*rr);
-
-        fprintf(trace, ",edns0[len=%d,UDP=%lu,ver=%d,rcode=%d,DO=%c,z=%d] %c\n\t",
-            optlen, edns0csize, edns0version, edns0rcode, edns0dobit, edns0z, '\\');
-
-        /* if we have any data */
-        while (optlen >= 4) {
-            /* the next two shorts are the edns0 opt code, and the length of the optionsection */
-            u_short edns0optcod;
-            u_short edns0lenopt;
-            MY_GET16(edns0optcod, rd);
-            MY_GET16(edns0lenopt, rd);
-            optlen -= 4;
-            fprintf(trace, "edns0[code=%d,codelen=%d] ", edns0optcod, edns0lenopt);
-
-            /*
-             * Check that the OPTION-LENGTH for this EDNS0 option doesn't
-             * exceed the size of the remaining OPT record rdata.  If it does,
-             * just bail.
-             */
-            if (edns0lenopt > optlen)
-                goto error;
-
-            /*
-             * "pre-consume" edns0lenopt bytes from optlen here because
-             * below we're going to decrement edns0lenopt as we go.
-             * At this point optlen will refer to the size of the remaining
-             * OPT_T rdata after parsing the current option.
-             */
-            optlen -= edns0lenopt;
-
-            /* if we have edns0_client_subnet */
-            if (edns0optcod == 0x08) {
-                if (edns0lenopt < 4)
-                    goto error;
-                u_short afi;
-                MY_GET16(afi, rd);
-                u_short masks;
-                MY_GET16(masks, rd);
-                edns0lenopt -= 4;
-                u_short srcmask = (masks & 0xff00) >> 8;
-                u_short scomask = (masks & 0xff);
-
-                char   buf[128];
-                u_char addr[16];
-                memset(addr, 0, sizeof addr);
-                memcpy(addr, rd, edns0lenopt < sizeof(addr) ? edns0lenopt : sizeof(addr));
-
-                buf[0] = 0;
-                if (afi == 0x1) {
-                    inet_ntop(AF_INET, addr, buf, sizeof buf);
-                } else if (afi == 0x2) {
-                    inet_ntop(AF_INET6, addr, buf, sizeof buf);
-                } else {
-                    fprintf(trace, "unknown AFI %d\n", afi);
-                }
-                fprintf(trace, "edns0_client_subnet=%s/%d (scope %d)", buf[0] ? buf : "<unknown>", srcmask, scomask);
-            }
-            /* increment the rd pointer by the remaining option data size */
-            rd += edns0lenopt;
-        }
-    } break;
-
-    default:
-    error:
-        snprintf(buf, sizeof(buf), "[%u]", ns_rr_rdlen(*rr));
-    }
-    if (buf[0] != '\0') {
-        putc(',', trace);
-        fputs(buf, trace);
-    }
-}
-
-static const char*
-p_opcode(int opcode)
-{
-    static char buf[20];
-    switch (opcode) {
-    case 0:
-        return "QUERY";
-    case 1:
-        return "IQUERY";
-    case 2:
-        return "CQUERYM";
-    case 3:
-        return "CQUERYU";
-    case 4:
-        return "NOTIFY";
-    case 5:
-        return "UPDATE";
-    case 14:
-        return "ZONEINIT";
-    case 15:
-        return "ZONEREF";
-    default:
-        snprintf(buf, sizeof(buf), "OPCODE%d", opcode);
-        return buf;
-    }
-    /* NOTREACHED */
-}
-
-#else
-
-void dump_dns(const u_char* payload, size_t paylen,
-    FILE* trace, const char* endline)
-{
-    (void)payload;
-    (void)paylen;
-    fprintf(trace, " %sNO BINDLIB", endline);
-}
-
-#endif

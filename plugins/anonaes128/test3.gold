@@ -1,13 +1,11 @@
 [87] 2018-11-27 15:52:00.414188 [#0 test3.pcap.20181127.155200.414188 4095] \
 	[2a01:3f0:0:57::245].51972 [2001:4860:4860::8888].53  \
 	dns QUERY,NOERROR,51420,rd|ad \
-	1 google.com,IN,A 0 0 \
-	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0] \
-	
+	1 google.com.,IN,A 0 0 \
+	1 .,4096,4096,0,edns0[len=0,UDP=4096,ver=0,rcode=0,DO=0,z=0]
 [103] 2018-11-27 15:52:00.428453 [#1 test3.pcap.20181127.155200.414188 4095] \
 	[2001:4860:4860::8888].53 [2a01:3f0:0:57::245].51972  \
 	dns QUERY,NOERROR,51420,qr|rd|ra \
-	1 google.com,IN,A \
-	1 google.com,IN,A,299,172.217.20.46 0 \
-	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0] \
-	
+	1 google.com.,IN,A \
+	1 google.com.,IN,A,299,172.217.20.46 0 \
+	1 .,512,512,0,edns0[len=0,UDP=512,ver=0,rcode=0,DO=0,z=0]

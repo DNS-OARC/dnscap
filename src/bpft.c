@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, OARC, Inc.
+ * Copyright (c) 2016-2021, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
 #include "bpft.h"
 #include "iaddr.h"
 
+#include <ldns/ldns.h>
+
 void prepare_bpft(void)
 {
     unsigned  udp10_mbs, udp10_mbc, udp11_mbc; //udp11_mbs
@@ -55,10 +57,10 @@ void prepare_bpft(void)
     }
     if ((msg_wanted & MSG_UPDATE) != 0) {
         if ((msg_wanted & (MSG_QUERY | MSG_NOTIFY)) == 0)
-            udp10_mbs |= (ns_o_update << UDP10_OP_SHIFT);
+            udp10_mbs |= (LDNS_PACKET_UPDATE << UDP10_OP_SHIFT);
     } else if ((msg_wanted & MSG_NOTIFY) != 0) {
         if ((msg_wanted & (MSG_QUERY | MSG_UPDATE)) == 0)
-            udp10_mbs |= (ns_o_notify << UDP10_OP_SHIFT);
+            udp10_mbs |= (LDNS_PACKET_NOTIFY << UDP10_OP_SHIFT);
     } else if ((msg_wanted & MSG_QUERY) != 0) {
         udp10_mbc |= UDP10_OP_MASK;
     }
@@ -96,32 +98,32 @@ void prepare_bpft(void)
         /* tcp packets can be filtered by initiators/responders, but
          * not mbs/mbc. */
     }
-    len += text_add(&bpfl, " ( udp port %d", dns_port);
-    if (!v6bug) {
-        if (udp10_mbc != 0)
-            len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
-                udp10_mbc);
-        if (udp10_mbs != 0)
-            len += text_add(&bpfl, " and udp[10] & 0x%x = 0x%x",
-                udp10_mbs, udp10_mbs);
-        if (udp11_mbc != 0)
-            len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
-                udp11_mbc);
-        /* Dead code, udp11_mbs never set
+    len += text_add(&bpfl, " ( udp port %d and ( ip6 or ( ip", dns_port);
+
+    if (udp10_mbc != 0)
+        len += text_add(&bpfl, " and udp[10] & 0x%x = 0",
+            udp10_mbc);
+    if (udp10_mbs != 0)
+        len += text_add(&bpfl, " and udp[10] & 0x%x = 0x%x",
+            udp10_mbs, udp10_mbs);
+    if (udp11_mbc != 0)
+        len += text_add(&bpfl, " and udp[11] & 0x%x = 0",
+            udp11_mbc);
+    /* Dead code, udp11_mbs never set
         if (udp11_mbs != 0)
             len += text_add(&bpfl, " and udp[11] & 0x%x = 0x%x",
                     udp11_mbs, udp11_mbs);
 */
 
-        if (err_wanted != ERR_NO) {
-            len += text_add(&bpfl, " and (");
-            if ((err_wanted & ERR_TRUNC) != 0) {
-                len += text_add(&bpfl, " udp[10] & 0x%x = 0x%x or", UDP10_TC_MASK, UDP10_TC_MASK);
-            }
-            len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
+    if (err_wanted != ERR_NO) {
+        len += text_add(&bpfl, " and (");
+        if ((err_wanted & ERR_TRUNC) != 0) {
+            len += text_add(&bpfl, " udp[10] & 0x%x = 0x%x or", UDP10_TC_MASK, UDP10_TC_MASK);
         }
+        len += text_add(&bpfl, " 0x%x << (udp[11] & 0xf) & 0x%x != 0 )", ERR_RCODE_BASE, err_wanted);
     }
-    len += text_add(&bpfl, " )"); /*  ... udp 53 ) */
+
+    len += text_add(&bpfl, " )))"); /*  ... udp 53 ) */
     len += text_add(&bpfl, " )"); /*  ... ports ) */
     if (options.bpf_hosts_apply_all) {
         len += text_add(&bpfl, " )"); /*  ... dns ) */
