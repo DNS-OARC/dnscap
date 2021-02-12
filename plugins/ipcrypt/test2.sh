@@ -8,9 +8,9 @@ fi
 
 ln -fs "$srcdir/../../src/test/dns6.pcap" dns6.pcap-dist
 
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 -k "some 16-byte key" 2>test2.out
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 -k "some 16-byte key" -c 2>>test2.out
-../../src/dnscap -r dns6.pcap-dist -6 -g -P "$plugin" -6 -k "some 16-byte key" -s 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -6 -k "some 16-byte key" 2>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -6 -k "some 16-byte key" -c 2>>test2.out
+../../src/dnscap -r dns6.pcap-dist -g -P "$plugin" -6 -k "some 16-byte key" -s 2>>test2.out
 
 osrel=`uname -s`
 if [ "$osrel" = "OpenBSD" ]; then

@@ -413,7 +413,6 @@ extern int             monitor_mode;
 extern int             immediate_mode;
 extern int             background;
 extern char            errbuf[PCAP_ERRBUF_SIZE];
-extern int             v6bug;
 extern int             wantgzip;
 extern int             wantfrags;
 extern int             wanticmp;

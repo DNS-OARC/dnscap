@@ -96,7 +96,6 @@ int             monitor_mode   = FALSE;
 int             immediate_mode = FALSE;
 int             background     = FALSE;
 char            errbuf[PCAP_ERRBUF_SIZE];
-int             v6bug     = FALSE;
 int             wantgzip  = 0;
 int             wantfrags = FALSE;
 int             wanticmp  = FALSE;
