@@ -374,7 +374,7 @@ void eventlog_output(const char* descr, iaddr from, iaddr to, uint8_t proto, uns
 
         ldns_buffer_clear(buf);
         if (ldns_rdf2buffer_str(buf, ldns_rr_owner(qd)) == LDNS_STATUS_OK) {
-            fprintf(out, " name=%s\n", (char*)ldns_buffer_begin(buf));
+            fprintf(out, " name=%s", (char*)ldns_buffer_begin(buf));
         } else {
             fprintf(out, " **ERROR parsing response record**\n");
             ldns_pkt_free(pkt);
