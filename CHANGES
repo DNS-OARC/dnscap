@@ -1,3 +1,11 @@
+2021-03-11 Jerry Lundström
+
+    Release 2.0.1
+
+    Fixed incorrect line break in eventlog's (plugin) output.
+
+    5df363c remove trailing newline
+
 2021-02-12 Jerry Lundström
 
     Release 2.0.0

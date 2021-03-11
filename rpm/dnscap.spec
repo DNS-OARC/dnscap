@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.0.0
+Version:        2.0.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Mar 11 2021 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.1-1
+- Release 2.0.1
+  * Fixed incorrect line break in eventlog's (plugin) output.
+  * Commits:
+    5df363c remove trailing newline
 * Fri Feb 12 2021 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.0-1
 - Release 2.0.0
   * This major release contains three backward incompatible changes, two
