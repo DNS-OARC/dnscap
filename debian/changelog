@@ -1,3 +1,13 @@
+dnscap (2.0.1-1~unstable+1) unstable; urgency=low
+
+  * Release 2.0.1
+
+    Fixed incorrect line break in eventlog's (plugin) output.
+
+    5df363c remove trailing newline
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 11 Mar 2021 16:45:00 +0100
+
 dnscap (2.0.0-1~unstable+1) unstable; urgency=low
 
   * Release 2.0.0
