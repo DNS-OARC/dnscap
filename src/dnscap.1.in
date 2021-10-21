@@ -212,9 +212,17 @@ Can be given as "\-" to indicate standard input.
 .TP
 .BI "\-i " if
 Select an interface to be monitored.
+
 On BSD systems, the default is the first interface that was configured at
 system boot time.
-On Linux systems, the default is to monitor all interfaces.
+
+On Linux systems, the default might be to monitor all interfaces but most
+commonly it will also capture on the first interface.
+This depends on the libpcap version.
+
+If you want to make sure you're capturing on all interfaces then use the
+special "any" or "all" (depends on system).
+
 More than one interface may be selected which will cause output to be
 interleaved from all selected interfaces.
 .TP
