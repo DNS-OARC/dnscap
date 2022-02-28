@@ -958,7 +958,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
                 ldns_rr* rr = ldns_rr_list_rr(rrs, i);
                 if (!rr) {
-                    ldns_rr_list_free(rrs);
+                    ldns_rr_list_deep_free(rrs);
                     ldns_pkt_free(lpkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
@@ -967,7 +967,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
                 ldns_buffer_clear(buf);
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
-                    ldns_rr_list_free(rrs);
+                    ldns_rr_list_deep_free(rrs);
                     ldns_pkt_free(lpkt);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
@@ -1003,7 +1003,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     }
                 }
             }
-            ldns_rr_list_free(rrs);
+            ldns_rr_list_deep_free(rrs);
             ldns_buffer_free(buf);
 
             /*
@@ -1623,7 +1623,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
                 ldns_rr* rr = ldns_rr_list_rr(rrs, i);
                 if (!rr) {
-                    ldns_rr_list_free(rrs);
+                    ldns_rr_list_deep_free(rrs);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     goto network_pkt_end;
@@ -1631,7 +1631,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
                 ldns_buffer_clear(buf);
                 if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
-                    ldns_rr_list_free(rrs);
+                    ldns_rr_list_deep_free(rrs);
                     ldns_buffer_free(buf);
                     tcpstate_discard(tcpstate, "failed to get RR");
                     goto network_pkt_end;
@@ -1666,7 +1666,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     }
                 }
             }
-            ldns_rr_list_free(rrs);
+            ldns_rr_list_deep_free(rrs);
             ldns_buffer_free(buf);
 
             /*
