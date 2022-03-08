@@ -1,3 +1,20 @@
+2022-03-08 Jerry Lundström
+
+    Release 2.0.2
+
+    Thanks to a patch from Duane Wessels (@wessels) this release fixes
+    memory leaks when using `-x`/`-X` regexp filtering due to incorrect
+    usage of LDNS library.
+
+    Other minor changes:
+    - Clarify what happens if you don't specify `-i` and add information about `any` and `all`
+    - Update debhelper compatibility level to 10
+
+    a8925a7 ldns_pkt_all() clones RRs which need to be freed with ldns_rr_list_deep_free()
+    5104814 Doc
+    30c36aa debhelper
+    4ae4356 Bye Travis
+
 2021-03-11 Jerry Lundström
 
     Release 2.0.1
