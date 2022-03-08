@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.0.1
+Version:        2.0.2
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,19 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Mar 08 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.2-1
+- Release 2.0.2
+  * Thanks to a patch from Duane Wessels (@wessels) this release fixes
+    memory leaks when using `-x`/`-X` regexp filtering due to incorrect
+    usage of LDNS library.
+  * Other minor changes:
+    - Clarify what happens if you don't specify `-i` and add information about `any` and `all`
+    - Update debhelper compatibility level to 10
+  * Commits:
+    a8925a7 ldns_pkt_all() clones RRs which need to be freed with ldns_rr_list_deep_free()
+    5104814 Doc
+    30c36aa debhelper
+    4ae4356 Bye Travis
 * Thu Mar 11 2021 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.1-1
 - Release 2.0.1
   * Fixed incorrect line break in eventlog's (plugin) output.
