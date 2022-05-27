@@ -1,0 +1,5 @@
+project: rnshah9/dnscap
+target: dnscap
+
+cmds:
+  - cmd: /repo/src/dnscap -g -r @@

@@ -1,0 +1,10 @@
+FROM --platform=linux/amd64 ubuntu:22.04
+
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y automake pkg-config libtool libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev build-essential
+
+COPY . /repo
+WORKDIR /repo
+RUN ./autogen.sh
+RUN ./configure
+RUN make -j8
