@@ -460,6 +460,149 @@ breakloop:
     main_exit = TRUE;
 }
 
+/*
+ * Determine if packet should be filtered based on query type
+ * return values: -1 error
+ *                 0 don't filter
+ *                 1 filter
+ * for non-zero return status, reason should be set to a
+ * static string.
+ */
+static int
+network_filter_by_qtype(const ldns_pkt *lpkt, char **reason)
+{
+    ldns_rr_list* rrs;
+    if (!match_qtype && !nmatch_qtype)
+        return 0;
+    rrs = ldns_pkt_question(lpkt);
+    if (!rrs) {
+        *reason = "failed to get list of questions";
+        return -1;
+    }
+    /* Look at each RR in the section (or each QNAME in
+       the question section). */
+    size_t i, n;
+    for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+        ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+        if (!rr) {
+            *reason = "failed to get question";
+            return -1;
+        }
+        if (match_qtype && ldns_rr_get_type(rr) == match_qtype) {
+            if (dumptrace >= 2)
+                fprintf(stderr, "Packet query type %u matches filter on type == %u\n", ldns_rr_get_type(rr), match_qtype);
+            return 0;
+        } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
+            if (dumptrace >= 2)
+                fprintf(stderr, "Packet query type %u matches filter on type != %u\n", ldns_rr_get_type(rr), nmatch_qtype);
+            *reason = "matched unwanted qtype";
+            return 1;
+        }
+    }
+    if (match_qtype) {
+        *reason = "didn't match wanted qtype";
+        return 1;       // didn't match any question RRs
+    }
+    return 0;
+}
+
+/*
+ * Determine if packet should be filtered based on query name
+ * return values: -1 error
+ *                 0 don't filter
+ *                 1 filter
+ * for non-zero return status, reason should be set to a
+ * static string.
+ */
+static int
+network_filter_by_qname(const ldns_pkt *lpkt, char **reason)
+{
+    int match = -1;
+    int negmatch = -1;
+    ldns_buffer* buf;
+    if (EMPTY(myregexes))
+        return 0;
+    buf = ldns_buffer_new(512);
+    if (!buf) {
+        fprintf(stderr, "%s: out of memory", ProgramName);
+        exit(1);
+    }
+
+    /* Look at each section of the message:
+         question, answer, authority, additional */
+    ldns_rr_list* rrs = ldns_pkt_all(lpkt);
+    if (!rrs) {
+        ldns_buffer_free(buf);
+        *reason = "failed to get list of RRs";
+        return -1;
+    }
+
+    /*
+     * Initialize matching counters
+     */
+    myregex_ptr myregex;
+    for (myregex = HEAD(myregexes); myregex != NULL; myregex = NEXT(myregex, link)) {
+         if (myregex->not) {
+             negmatch = 0;
+         } else {
+             match = 0;
+         }
+    }
+
+    /* Look at each RR in the section (or each QNAME in
+       the question section). */
+    size_t i, n;
+    for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+        ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+        if (!rr) {
+            ldns_rr_list_deep_free(rrs);
+            ldns_buffer_free(buf);
+            *reason = "failed to get RR";
+            return -1;
+        }
+
+        ldns_buffer_clear(buf);
+        if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
+            ldns_rr_list_deep_free(rrs);
+            ldns_buffer_free(buf);
+            *reason = "failed to get RR";
+            return -1;
+        }
+
+        for (myregex = HEAD(myregexes);
+             myregex != NULL;
+             myregex = NEXT(myregex, link)) {
+
+            if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
+                if (myregex->not)
+                    negmatch++;
+                else
+                    match++;
+
+                if (dumptrace >= 2)
+                    fprintf(stderr,
+                        "; \"%s\" %s~ /%s/ %d %d\n",
+                        (char*)ldns_buffer_begin(buf),
+                        myregex->not ? "!" : "",
+                        myregex->str,
+                        match,
+                        negmatch);
+            }
+        }
+    }
+    ldns_rr_list_deep_free(rrs);
+    ldns_buffer_free(buf);
+
+    /*
+     * Fail if any negative matches or if no positive matches
+     */
+    if (negmatch > 0 || match == 0) {
+        *reason = "failed regex match";
+        return 1;
+    }
+    return 0;
+}
+
 void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length)
 {
     u_char        pkt_copy[SNAPLEN], *pkt = pkt_copy;
@@ -903,119 +1046,23 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                 }
             }
         }
-        if (match_qtype || nmatch_qtype) {
-            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
-            if (!rrs) {
+        {
+            char *reason = 0;
+            if (network_filter_by_qtype(lpkt, &reason)) {
                 ldns_pkt_free(lpkt);
-                tcpstate_discard(tcpstate, "failed to get list of questions");
-                return;
-            }
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            size_t i, n;
-            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
-                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
-                if (!rr) {
-                    ldns_pkt_free(lpkt);
-                    tcpstate_discard(tcpstate, "failed to get question");
-                    return;
-                }
-
-                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
-                    ldns_pkt_free(lpkt);
-                    tcpstate_discard(tcpstate, "qtype not match");
-                    return;
-                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
-                    ldns_pkt_free(lpkt);
-                    tcpstate_discard(tcpstate, "!qtype match");
-                    return;
-                }
-            }
-        }
-        if (!EMPTY(myregexes)) {
-            int          match, negmatch;
-            ldns_buffer* buf = ldns_buffer_new(512);
-
-            if (!buf) {
-                fprintf(stderr, "%s: out of memory", ProgramName);
-                exit(1);
-            }
-
-            match    = -1;
-            negmatch = -1;
-            /* Look at each section of the message:
-                 question, answer, authority, additional */
-            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
-            if (!rrs) {
-                ldns_pkt_free(lpkt);
-                ldns_buffer_free(buf);
-                tcpstate_discard(tcpstate, "failed to get list of RRs");
-                return;
-            }
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            size_t i, n;
-            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
-                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
-                if (!rr) {
-                    ldns_rr_list_deep_free(rrs);
-                    ldns_pkt_free(lpkt);
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed to get RR");
-                    return;
-                }
-
-                ldns_buffer_clear(buf);
-                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
-                    ldns_rr_list_deep_free(rrs);
-                    ldns_pkt_free(lpkt);
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed to get RR");
-                    return;
-                }
-
-                myregex_ptr myregex;
-                for (myregex = HEAD(myregexes);
-                     myregex != NULL;
-                     myregex = NEXT(myregex, link)) {
-                    if (myregex->not ) {
-                        if (negmatch < 0)
-                            negmatch = 0;
-                    } else {
-                        if (match < 0)
-                            match = 0;
-                    }
-
-                    if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
-                        if (myregex->not )
-                            negmatch++;
-                        else
-                            match++;
-
-                        if (dumptrace >= 2)
-                            fprintf(stderr,
-                                "; \"%s\" %s~ /%s/ %d %d\n",
-                                (char*)ldns_buffer_begin(buf),
-                                myregex->not ? "!" : "",
-                                myregex->str,
-                                match,
-                                negmatch);
-                    }
-                }
-            }
-            ldns_rr_list_deep_free(rrs);
-            ldns_buffer_free(buf);
-
-            /*
-             * Fail if any negative matching or if no match, match can be -1 which
-             * indicates that there are only negative matching
-             */
-            if (negmatch > 0 || match == 0) {
-                ldns_pkt_free(lpkt);
-                tcpstate_discard(tcpstate, "failed regex match");
+                tcpstate_discard(tcpstate, reason);
                 return;
             }
         }
+        {
+            char *reason = 0;
+            if (network_filter_by_qname(lpkt, &reason)) {
+                ldns_pkt_free(lpkt);
+                tcpstate_discard(tcpstate, reason);
+                return;
+            }
+        }
+
         if (lpkt) {
             ldns_pkt_free(lpkt);
         }
@@ -1573,111 +1620,21 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 }
             }
         }
-        if (match_qtype || nmatch_qtype) {
-            ldns_rr_list* rrs = ldns_pkt_question(lpkt);
-            if (!rrs) {
-                tcpstate_discard(tcpstate, "failed to get list of questions");
-                goto network_pkt_end;
-            }
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            size_t i, n;
-            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
-                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
-                if (!rr) {
-                    tcpstate_discard(tcpstate, "failed to get question");
-                    goto network_pkt_end;
-                }
-
-                if (match_qtype && ldns_rr_get_type(rr) != match_qtype) {
-                    tcpstate_discard(tcpstate, "qtype not match");
-                    goto network_pkt_end;
-                } else if (nmatch_qtype && ldns_rr_get_type(rr) == nmatch_qtype) {
-                    tcpstate_discard(tcpstate, "!qtype match");
-                    goto network_pkt_end;
-                }
-            }
-        }
-        if (!EMPTY(myregexes)) {
-            int          match, negmatch;
-            ldns_buffer* buf = ldns_buffer_new(512);
-
-            if (!buf) {
-                fprintf(stderr, "%s: out of memory", ProgramName);
-                exit(1);
-            }
-
-            match    = -1;
-            negmatch = -1;
-            /* Look at each section of the message:
-                 question, answer, authority, additional */
-            ldns_rr_list* rrs = ldns_pkt_all(lpkt);
-            if (!rrs) {
-                ldns_buffer_free(buf);
-                tcpstate_discard(tcpstate, "failed to get list of RRs");
-                goto network_pkt_end;
-            }
-            /* Look at each RR in the section (or each QNAME in
-               the question section). */
-            size_t i, n;
-            for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
-                ldns_rr* rr = ldns_rr_list_rr(rrs, i);
-                if (!rr) {
-                    ldns_rr_list_deep_free(rrs);
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed to get RR");
-                    goto network_pkt_end;
-                }
-
-                ldns_buffer_clear(buf);
-                if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
-                    ldns_rr_list_deep_free(rrs);
-                    ldns_buffer_free(buf);
-                    tcpstate_discard(tcpstate, "failed to get RR");
-                    goto network_pkt_end;
-                }
-
-                myregex_ptr myregex;
-                for (myregex = HEAD(myregexes);
-                     myregex != NULL;
-                     myregex = NEXT(myregex, link)) {
-                    if (myregex->not ) {
-                        if (negmatch < 0)
-                            negmatch = 0;
-                    } else {
-                        if (match < 0)
-                            match = 0;
-                    }
-
-                    if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
-                        if (myregex->not )
-                            negmatch++;
-                        else
-                            match++;
-
-                        if (dumptrace >= 2)
-                            fprintf(stderr,
-                                "; \"%s\" %s~ /%s/ %d %d\n",
-                                (char*)ldns_buffer_begin(buf),
-                                myregex->not ? "!" : "",
-                                myregex->str,
-                                match,
-                                negmatch);
-                    }
-                }
-            }
-            ldns_rr_list_deep_free(rrs);
-            ldns_buffer_free(buf);
-
-            /*
-             * Fail if any negative matching or if no match, match can be -1 which
-             * indicates that there are only negative matching
-             */
-            if (negmatch > 0 || match == 0) {
-                tcpstate_discard(tcpstate, "failed regex match");
+        {
+            char *reason = 0;
+            if (network_filter_by_qtype(lpkt, &reason)) {
+                tcpstate_discard(tcpstate, reason);
                 goto network_pkt_end;
             }
         }
+        {
+            char *reason = 0;
+            if (network_filter_by_qname(lpkt, &reason)) {
+                tcpstate_discard(tcpstate, reason);
+                goto network_pkt_end;
+            }
+        }
+
 
         /* Policy hiding. */
         if (end_hide != 0) {
