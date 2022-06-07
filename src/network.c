@@ -469,12 +469,9 @@ breakloop:
  * static string.
  */
 static int
-network_filter_by_qtype(const ldns_pkt *lpkt, char **reason)
+_filter_by_qtype(const ldns_pkt* lpkt, char** reason)
 {
-    ldns_rr_list* rrs;
-    if (!match_qtype && !nmatch_qtype)
-        return 0;
-    rrs = ldns_pkt_question(lpkt);
+    ldns_rr_list* rrs = ldns_pkt_question(lpkt);
     if (!rrs) {
         *reason = "failed to get list of questions";
         return -1;
@@ -501,7 +498,7 @@ network_filter_by_qtype(const ldns_pkt *lpkt, char **reason)
     }
     if (match_qtype) {
         *reason = "didn't match wanted qtype";
-        return 1;       // didn't match any question RRs
+        return 1; // didn't match any question RRs
     }
     return 0;
 }
@@ -515,14 +512,11 @@ network_filter_by_qtype(const ldns_pkt *lpkt, char **reason)
  * static string.
  */
 static int
-network_filter_by_qname(const ldns_pkt *lpkt, char **reason)
+_filter_by_qname(const ldns_pkt* lpkt, char** reason)
 {
-    int match = -1;
-    int negmatch = -1;
-    ldns_buffer* buf;
-    if (EMPTY(myregexes))
-        return 0;
-    buf = ldns_buffer_new(512);
+    int          match    = -1;
+    int          negmatch = -1;
+    ldns_buffer* buf      = ldns_buffer_new(512);
     if (!buf) {
         fprintf(stderr, "%s: out of memory", ProgramName);
         exit(1);
@@ -542,11 +536,11 @@ network_filter_by_qname(const ldns_pkt *lpkt, char **reason)
      */
     myregex_ptr myregex;
     for (myregex = HEAD(myregexes); myregex != NULL; myregex = NEXT(myregex, link)) {
-         if (myregex->not) {
-             negmatch = 0;
-         } else {
-             match = 0;
-         }
+        if (myregex->not) {
+            negmatch = 0;
+        } else {
+            match = 0;
+        }
     }
 
     /* Look at each RR in the section (or each QNAME in
@@ -614,7 +608,6 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
     tcpstate_ptr  tcpstate = NULL;
     size_t        len, dnslen = 0;
     HEADER        dns;
-    ldns_pkt*     lpkt = 0;
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -1032,6 +1025,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             }
         }
         if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            ldns_pkt* lpkt = 0;
             if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
                 /* DNS message may have padding, try get actual size */
                 size_t dnslen2 = calcdnslen(dnspkt, dnslen);
@@ -1045,25 +1039,17 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     return;
                 }
             }
-        }
-        {
-            char *reason = 0;
-            if (network_filter_by_qtype(lpkt, &reason)) {
+            char* reason = 0;
+            if ((match_qtype || nmatch_qtype) && _filter_by_qtype(lpkt, &reason)) {
                 ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, reason);
                 return;
             }
-        }
-        {
-            char *reason = 0;
-            if (network_filter_by_qname(lpkt, &reason)) {
+            if (!EMPTY(myregexes) && _filter_by_qname(lpkt, &reason)) {
                 ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, reason);
                 return;
             }
-        }
-
-        if (lpkt) {
             ldns_pkt_free(lpkt);
         }
 
@@ -1100,7 +1086,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct ip*      ip;
     size_t          len, dnslen = 0;
     HEADER          dns;
-    ldns_pkt*       lpkt = 0;
 
     if (dumptrace >= 4)
         fprintf(stderr, "processing %s packet: len=%zu\n", (pf == PF_INET ? "IPv4" : (pf == PF_INET6 ? "IPv6" : "unknown")), olen);
@@ -1606,6 +1591,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             }
         }
         if (!EMPTY(myregexes) || match_qtype || nmatch_qtype) {
+            ldns_pkt* lpkt = 0;
             if (ldns_wire2pkt(&lpkt, dnspkt, dnslen) != LDNS_STATUS_OK) {
                 /* DNS message may have padding, try get actual size */
                 size_t dnslen2 = calcdnslen(dnspkt, dnslen);
@@ -1619,22 +1605,17 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                     goto network_pkt_end;
                 }
             }
-        }
-        {
-            char *reason = 0;
-            if (network_filter_by_qtype(lpkt, &reason)) {
+            char* reason = 0;
+            if ((match_qtype || nmatch_qtype) && _filter_by_qtype(lpkt, &reason)) {
                 tcpstate_discard(tcpstate, reason);
                 goto network_pkt_end;
             }
-        }
-        {
-            char *reason = 0;
-            if (network_filter_by_qname(lpkt, &reason)) {
+            if (!EMPTY(myregexes) && _filter_by_qname(lpkt, &reason)) {
                 tcpstate_discard(tcpstate, reason);
                 goto network_pkt_end;
             }
+            ldns_pkt_free(lpkt);
         }
-
 
         /* Policy hiding. */
         if (end_hide != 0) {
@@ -1711,9 +1692,6 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 network_pkt_end:
     network_ip   = 0;
     network_ipv6 = 0;
-    if (lpkt) {
-        ldns_pkt_free(lpkt);
-    }
 }
 
 uint16_t in_checksum(const u_char* ptr, size_t len)
