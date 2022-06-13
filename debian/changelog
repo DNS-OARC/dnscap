@@ -1,3 +1,17 @@
+dnscap (2.0.3-1~unstable+1) unstable; urgency=low
+
+  * Release 2.0.3
+
+    Thanks to a patch from Duane Wessels (@wessels) this release fixes
+    an issue with filtering where DNS messages without a question section
+    would bypass it.
+
+    ba2112c Fix COPR
+    0e019ab Filtering
+    c7e1c8f Refactor and fix qtype and qname matching/filtering.
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 13 Jun 2022 13:52:04 +0200
+
 dnscap (2.0.2-1~unstable+1) unstable; urgency=low
 
   * Release 2.0.2

@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.0.2
+Version:        2.0.3
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jun 13 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.3-1
+- Release 2.0.3
+  * Thanks to a patch from Duane Wessels (@wessels) this release fixes
+    an issue with filtering where DNS messages without a question section
+    would bypass it.
+  * Commits:
+    ba2112c Fix COPR
+    0e019ab Filtering
+    c7e1c8f Refactor and fix qtype and qname matching/filtering.
 * Tue Mar 08 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.2-1
 - Release 2.0.2
   * Thanks to a patch from Duane Wessels (@wessels) this release fixes
