@@ -1,8 +1,8 @@
-project: rnshah9/dnscap
+project: dnscap
 target: dnscap
-tests:
+testsuite:
   - file://src/test/dns.pcap
 
 cmds:
-  - cmd: /repo/src/dnscap -g -r @@
+  - cmd: /repo/src/dnscap -g -r /test.pcap
     filepath: /test.pcap
