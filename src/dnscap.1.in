@@ -163,6 +163,9 @@ functions, unless options
 .B \-N
 is given or only reading from files.
 .TP
+.BI "\-o pid_file" =...
+Specify the file to write the PID to when running as a daemon (default none).
+.TP
 .BI "\-o user" =...
 Specify the user to drop privileges to (default nobody).
 .TP

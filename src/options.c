@@ -228,6 +228,13 @@ int option_parse(options_t* options, const char* option)
             options->bpf_hosts_apply_all = 1;
             return 0;
         }
+    } else if (have("pid_file")) {
+        if (options->pid_file) {
+            free(options->pid_file);
+        }
+        if ((options->pid_file = strdup(argument))) {
+            return 0;
+        }
     }
 
     return 1;
@@ -243,6 +250,10 @@ void options_free(options_t* options)
         if (options->group) {
             free(options->group);
             options->group = 0;
+        }
+        if (options->pid_file) {
+            free(options->pid_file);
+            options->pid_file = 0;
         }
     }
 }

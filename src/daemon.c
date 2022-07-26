@@ -224,6 +224,57 @@ void drop_privileges(void)
 #endif
 }
 
+void write_pid_file(void)
+{
+    FILE*        fp;
+    int          fd, flags;
+    struct flock lock;
+
+    if (!options.pid_file)
+        return;
+
+    if ((fd = open(options.pid_file, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) == -1) {
+        fprintf(stderr, "unable to open PID file %s: %s", options.pid_file, strerror(errno));
+        exit(1);
+    }
+
+    if ((flags = fcntl(fd, F_GETFD)) == -1) {
+        fprintf(stderr, "unable to get PID file flags: %s", strerror(errno));
+        exit(1);
+    }
+    flags |= FD_CLOEXEC;
+    if (fcntl(fd, F_SETFD, flags) == 1) {
+        fprintf(stderr, "unable to set PID file flags: %s", strerror(errno));
+        exit(1);
+    }
+
+    lock.l_type   = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start  = 0;
+    lock.l_len    = 0;
+
+    if (fcntl(fd, F_SETLK, &lock) == -1) {
+        if (errno == EACCES || errno == EAGAIN) {
+            fprintf(stderr, "PID file locked by other process");
+            exit(1);
+        }
+
+        fprintf(stderr, "unable to lock PID file: %s", strerror(errno));
+        exit(1);
+    }
+
+    if (ftruncate(fd, 0) == -1) {
+        fprintf(stderr, "unable to truncate PID file: %s", strerror(errno));
+        exit(1);
+    }
+
+    fp = fdopen(fd, "w");
+    if (!fp || fprintf(fp, "%d\n", getpid()) < 1 || fflush(fp)) {
+        fprintf(stderr, "unable to write to PID file: %s", strerror(errno));
+        exit(1);
+    }
+}
+
 void daemonize(void)
 {
     pid_t pid;
@@ -235,6 +286,7 @@ void daemonize(void)
         exit(1);
     } else if (pid > 0)
         exit(0);
+    write_pid_file();
     openlog("dnscap", 0, LOG_DAEMON);
     if (setsid() < 0) {
         logerr("setsid failed: %s", strerror(errno));

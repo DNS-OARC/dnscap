@@ -72,6 +72,8 @@ enum dump_format {
 \
     0, 0, 0, 0, 0, \
 \
+    0, \
+\
     0 \
 }
 
@@ -113,6 +115,8 @@ struct options {
     int    reassemble_tcp_bfbparsedns;
 
     int bpf_hosts_apply_all;
+
+    char* pid_file;
 };
 
 int  option_parse(options_t* options, const char* option);
