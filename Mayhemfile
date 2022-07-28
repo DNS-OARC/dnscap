@@ -4,5 +4,4 @@ testsuite:
   - file://src/test/dns.pcap
 
 cmds:
-  - cmd: /repo/src/dnscap -g -r /test.pcap
-    filepath: /test.pcap
+  - cmd: /install/bin/dnscap -g -r @@
