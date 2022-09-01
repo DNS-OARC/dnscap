@@ -82,6 +82,7 @@ output_t rssm_output;
 #define MAX_TBL_ADDRS 2000000
 #define MAX_TBL_ADDRS2 200000
 #define MAX_RCODE (1 << 12)
+#define MAX_LABEL_COUNT 36    /* enough for IPv6 PTR */
 
 typedef struct {
     hashtbl*     tbl;
@@ -111,6 +112,7 @@ struct {
     uint64_t    udp_response_size[MAX_SIZE_INDEX];
     uint64_t    tcp_response_size[MAX_SIZE_INDEX];
     uint64_t    rcodes[MAX_RCODE];
+    uint64_t    label_count[MAX_LABEL_COUNT];
     my_hashtbl  sources;
     my_hashtbl2 aggregated;
     uint64_t    num_ipv4_sources;
@@ -396,6 +398,13 @@ void rssm_save_counts(const char* sbuf)
             }
         }
 
+        fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: label-count\n", service_name, tz);
+        for (i = 0; i < MAX_LABEL_COUNT; i++) {
+            if (counts.label_count[i]) {
+                fprintf(fp, "%d: %" PRIu64 "\n", i, counts.label_count[i]);
+            }
+        }
+
         fprintf(fp, "\n---\nversion: rssac002v3\nservice: %s\nstart-period: %s\nmetric: unique-sources\n", service_name, tz);
         fprintf(fp, "num-sources-ipv4: %" PRIu64 "\n", counts.num_ipv4_sources);
         fprintf(fp, "num-sources-ipv6: %" PRIu64 "\n", counts.num_ipv6_sources);
@@ -463,6 +472,10 @@ void rssm_save_counts(const char* sbuf)
             if (counts.rcodes[i])
                 fprintf(fp, "dns-rcode %d %" PRIu64 "\n",
                     i, counts.rcodes[i]);
+        for (i = 0; i < MAX_LABEL_COUNT; i++)
+            if (counts.label_count[i])
+                fprintf(fp, "dns-label-count %d %" PRIu64 "\n",
+                    i, counts.label_count[i]);
         fprintf(fp, "num-sources %u\n", counts.sources.num_addrs);
         if (sources_into_counters) {
             for (i = 0; i < counts.sources.num_addrs; i++) {
@@ -634,6 +647,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
 {
     unsigned  dnslen;
     ldns_pkt* pkt = 0;
+    ldns_rr_list *question_list = NULL;
 
     if (!(flags & DNSCAP_OUTPUT_ISDNS))
         return;
@@ -664,6 +678,16 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_udp_queries_received_ipv6++;
             } else if (IPPROTO_TCP == proto) {
                 counts.dns_tcp_queries_received_ipv6++;
+            }
+        }
+        question_list = ldns_pkt_question(pkt);
+        if (question_list != NULL) {
+            ldns_rr* rr = ldns_rr_list_rr(question_list, 0);
+            if (rr != NULL) {
+                uint8_t lc = ldns_rr_label_count (rr);
+                if (lc >= MAX_LABEL_COUNT)
+                    lc = MAX_LABEL_COUNT - 1;
+                counts.label_count[lc] += 1;
             }
         }
     } else {
