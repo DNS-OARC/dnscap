@@ -56,3 +56,11 @@ service: test1
 start-period: 2016-10-20T15:23:01Z
 metric: dnscap-rssm-aggregated-sources
 aggregated-sources: {}
+
+---
+version: rssac002v5-draft
+service: test1
+start-period: 2016-10-20T15:23:01Z
+metric: label-count
+2: 24
+6: 17
