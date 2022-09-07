@@ -6,6 +6,6 @@ if [ -z "$plugin" ]; then
     exit 1
 fi
 
-../../src/dnscap -N -T -r "$srcdir/../../src/test/dns.pcap" -P "$plugin" -w test1 -Y -n test1 -A -S -D
+../../src/dnscap -N -T -r "$srcdir/../../src/test/dns.pcap" -P "$plugin" -w test1 -Y -n test1 -A -S -D -L
 
 diff test1.20161020.152301.075993 "$srcdir/test1.gold"

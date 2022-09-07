@@ -75,6 +75,9 @@ static int   aggregated_into_counters = 0;
 static char* service_name             = 0;
 static int   rssac002v3_yaml          = 0;
 
+// RSSAC002v5 draft metrics
+static int label_count = 0;
+
 output_t rssm_output;
 
 #define MAX_SIZE_INDEX 4096
@@ -82,6 +85,7 @@ output_t rssm_output;
 #define MAX_TBL_ADDRS 2000000
 #define MAX_TBL_ADDRS2 200000
 #define MAX_RCODE (1 << 12)
+#define MAX_LABELS 128
 
 typedef struct {
     hashtbl*     tbl;
@@ -111,6 +115,7 @@ struct {
     uint64_t    udp_response_size[MAX_SIZE_INDEX];
     uint64_t    tcp_response_size[MAX_SIZE_INDEX];
     uint64_t    rcodes[MAX_RCODE];
+    uint64_t    labels[MAX_LABELS];
     my_hashtbl  sources;
     my_hashtbl2 aggregated;
     uint64_t    num_ipv4_sources;
@@ -178,13 +183,14 @@ void rssm_usage()
         "\t           with the prefix \"aggregated-source\" or ...\n"
         "\t-a <name>  write aggregated IPv6(/64) sources to\n"
         "\t           <name>.<timesec>.<timeusec>\n"
+        "\t-L         Add \"label-count\" metric (RSSAC002v5 WIP)\n"
         "\t-D         don't fork on close\n");
 }
 
 void rssm_getopt(int* argc, char** argv[])
 {
     int c;
-    while ((c = getopt(*argc, *argv, "?w:Yn:Ss:Aa:D")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?w:Yn:Ss:Aa:DL")) != EOF) {
         switch (c) {
         case 'w':
             if (counts_prefix)
@@ -217,6 +223,9 @@ void rssm_getopt(int* argc, char** argv[])
             break;
         case 'D':
             dont_fork_on_close = 1;
+            break;
+        case 'L':
+            label_count = 1;
             break;
         case '?':
             rssm_usage();
@@ -424,6 +433,15 @@ void rssm_save_counts(const char* sbuf)
                 fprintf(fp, "aggregated-sources: {}\n");
             }
         }
+
+        if (label_count) {
+            fprintf(fp, "\n---\nversion: rssac002v5-draft\nservice: %s\nstart-period: %s\nmetric: label-count\n", service_name, tz);
+            for (i = 0; i < MAX_LABELS; i++) {
+                if (counts.labels[i]) {
+                    fprintf(fp, "%d: %" PRIu64 "\n", i, counts.labels[i]);
+                }
+            }
+        }
     } else {
         fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
         fprintf(fp, "last-packet-time %ld\n", (long)close_ts.tv_sec);
@@ -472,6 +490,13 @@ void rssm_save_counts(const char* sbuf)
         if (aggregated_into_counters) {
             for (i = 0; i < counts.aggregated.num_addrs; i++) {
                 fprintf(fp, "aggregated-source %s %" PRIu64 "\n", ia_str(counts.aggregated.addrs[i]), counts.aggregated.count[i]);
+            }
+        }
+        if (label_count) {
+            for (i = 0; i < MAX_LABELS; i++) {
+                if (counts.labels[i]) {
+                    fprintf(fp, "label-count %d %" PRIu64 "\n", i, counts.labels[i]);
+                }
             }
         }
     }
@@ -664,6 +689,16 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_udp_queries_received_ipv6++;
             } else if (IPPROTO_TCP == proto) {
                 counts.dns_tcp_queries_received_ipv6++;
+            }
+        }
+        if (label_count) {
+            ldns_rr_list* question_list = ldns_pkt_question(pkt);
+            if (question_list) {
+                ldns_rr* rr = ldns_rr_list_rr(question_list, 0);
+                if (rr) {
+                    uint8_t lc = ldns_rr_label_count(rr);
+                    counts.labels[lc < MAX_LABELS ? lc : MAX_LABELS - 1] += 1;
+                }
             }
         }
     } else {
