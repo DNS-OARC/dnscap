@@ -37,7 +37,7 @@ use warnings;
 use YAML;
 
 unless (scalar @ARGV > 1) {
-    print "usage: dnscap-rssm-rssac002 [--no-recompile|--keep-dnscap-rssm|--sort] <YAML files to merge...>\n";
+    print "usage: dnscap-rssm-rssac002 [--no-recompile|--keep-dnscap-rssm|--sort|--skip-unsupported] <YAML files to merge...>\n";
     exit(1);
 }
 
@@ -46,6 +46,7 @@ my $earliest_start_period;
 my $recompile = 1;
 my $keep_dnscap_rssm = 0;
 my $sort = 0;
+my $skip_unsupported = 0;
 
 foreach my $file (@ARGV) {
     if ($file eq '--no-recompile') {
@@ -56,6 +57,9 @@ foreach my $file (@ARGV) {
         next;
     } elsif ($file eq '--sort') {
         $sort = 1;
+        next;
+    } elsif ($file eq '--skip-unsupported') {
+        $skip_unsupported = 1;
         next;
     }
     foreach my $doc (YAML::LoadFile($file)) {
@@ -76,6 +80,9 @@ foreach my $file (@ARGV) {
             die "$file: not valid RSSAC002 YAML, missing metric";
         }
         unless ($version eq 'rssac002v3') {
+            if ($skip_unsupported) {
+                next;
+            }
             die "$file: unsupported RSSAC002 version $version";
         }
 

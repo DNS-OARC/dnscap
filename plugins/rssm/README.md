@@ -39,3 +39,4 @@ Options:
   `start-period:` and `metric:`, rest of the values are not ordered by label.
   This option enabled sorting of them, which is not required by the
   specification but may help in debugging and testing cases.
+- `--skip-unsupported`: Skip unsupported RSSAC002 version metrics

@@ -4,11 +4,12 @@ CLEANFILES = *.gcda *.gcno *.gcov
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/isc \
-    $(SECCOMPFLAGS)
+    $(SECCOMPFLAGS) \
+    $(libldns_CFLAGS)
 
 pkglib_LTLIBRARIES = royparse.la
 royparse_la_SOURCES = royparse.c
-royparse_la_LDFLAGS = -module -avoid-version
+royparse_la_LDFLAGS = -module -avoid-version $(libldns_LIBS)
 
 TESTS = test1.sh
 EXTRA_DIST = $(TESTS)
