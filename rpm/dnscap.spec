@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.0.3
+Version:        2.1.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,24 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Sep 09 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.0-1
+- Release 2.1.0
+  * This release adds a new option (`-o pid_file=<file>`) to specify a PID
+    file when running as daemon, corrects handling of LDNS include files
+    for some plugins and updates the Root Server Scaling Measurement (RSSM)
+    plugin w.r.t. the upcoming version 5 of RSSAC002 specifications.
+  * The RSSM plugin can now optionally generate `label-count` metric. This
+    is enabled with `-L` and is tagged as `rssac002v5-draft` until v5 is
+    finalized.
+    The merge tool `dnscap-rssm-rssac002` has also been updated because of
+    this, there is now `--skip-unsupported` to skip all unsupported
+    RSSAC002 version metrics instead of `die()`'ing.
+  * Commits:
+    ca7707d RSSAC002v5 label-count metric
+    3ebee80 Made label count metric optional
+    41b029a Adding support for label acount metric
+    799c3fe Missing includes
+    7089f12 PID file
 * Mon Jun 13 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.0.3-1
 - Release 2.0.3
   * Thanks to a patch from Duane Wessels (@wessels) this release fixes
