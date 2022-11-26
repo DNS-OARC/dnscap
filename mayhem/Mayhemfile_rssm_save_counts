@@ -1,0 +1,6 @@
+project: dnscap
+target: rssm-save-counts
+testsuite:
+  - file://mayhem/corpus
+cmds:
+  - cmd: /fuzz_rssm_save_counts
