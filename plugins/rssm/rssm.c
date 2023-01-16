@@ -721,7 +721,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_tcp_responses_sent_ipv6++;
             }
         }
-        if (ldns_pkt_arcount(pkt)) {
+        if (ldns_pkt_edns(pkt)) {
             rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
         }
         counts.rcodes[rcode]++;
