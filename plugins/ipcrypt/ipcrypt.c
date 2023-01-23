@@ -273,8 +273,10 @@ int ipcrypt_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, uns
 {
     for (;;) {
         if (only_clients && sport == dns_port) {
-            from = 0;
-            break;
+            if (sport != dport) {
+                from = 0;
+                break;
+            }
         }
         if (only_servers && sport != dns_port) {
             from = 0;
@@ -309,8 +311,10 @@ int ipcrypt_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, uns
 
     for (;;) {
         if (only_clients && dport == dns_port) {
-            to = 0;
-            break;
+            if (dport != sport) {
+                to = 0;
+                break;
+            }
         }
         if (only_servers && dport != dns_port) {
             to = 0;
