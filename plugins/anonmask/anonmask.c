@@ -182,8 +182,10 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
 
     for (;;) {
         if (only_clients && sport == mask_port) {
-            from = 0;
-            break;
+            if (sport != dport) {
+                from = 0;
+                break;
+            }
         }
         if (only_servers && sport != mask_port) {
             from = 0;
@@ -210,8 +212,10 @@ int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, un
 
     for (;;) {
         if (only_clients && dport == mask_port) {
-            to = 0;
-            break;
+            if (dport != sport) {
+                to = 0;
+                break;
+            }
         }
         if (only_servers && dport != mask_port) {
             to = 0;
