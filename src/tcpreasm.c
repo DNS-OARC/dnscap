@@ -356,7 +356,7 @@ int pcap_handle_tcp_segment(u_char* segment, int len, uint32_t seq, tcpstate_ptr
             if (!tcpstate->segbuf[s])
                 continue;
             /* TODO: seq >= 0 */
-            if (tcpstate->segbuf[s]->seq - seq > 0 && tcpstate->segbuf[s]->seq - seq < dnslen) {
+            if (tcpstate->segbuf[s]->seq > seq && tcpstate->segbuf[s]->seq - seq < dnslen) {
                 tcp_segbuf_t* segbuf = tcpstate->segbuf[s];
                 tcpstate->segbuf[s]  = NULL;
                 dfprintf(1, "pcap_handle_tcp_segment: %s", "message reassembled");

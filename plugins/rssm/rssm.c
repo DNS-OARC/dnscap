@@ -566,7 +566,6 @@ int rssm_close(my_bpftimeval ts)
     struct tm tm;
 
     if (dont_fork_on_close) {
-        struct tm tm;
         gmtime_r((time_t*)&open_ts.tv_sec, &tm);
         strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
         close_ts = ts;

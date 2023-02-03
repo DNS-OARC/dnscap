@@ -564,71 +564,71 @@ void parse_args(int argc, char* argv[])
             char*          fn = strdup(optarg);
             char*          t;
             char           sn[256];
-            struct plugin* p = calloc(1, sizeof(*p));
-            assert(p != NULL);
-            INIT_LINK(p, link);
-            t       = strrchr(fn, '/');
-            p->name = strdup(t ? t + 1 : fn);
-            if ((t = strstr(p->name, ".so")))
+            struct plugin* pl = calloc(1, sizeof(*pl));
+            assert(pl != NULL);
+            INIT_LINK(pl, link);
+            t        = strrchr(fn, '/');
+            pl->name = strdup(t ? t + 1 : fn);
+            if ((t = strstr(pl->name, ".so")))
                 *t = 0;
-            p->handle = dlopen(fn, RTLD_NOW);
-            if (!p->handle) {
+            pl->handle = dlopen(fn, RTLD_NOW);
+            if (!pl->handle) {
                 logerr("%s: %s", fn, dlerror());
                 exit(1);
             }
-            snprintf(sn, sizeof(sn), "%s_type", p->name);
-            p->type = dlsym(p->handle, sn);
-            if (p->type) {
-                p->pt = (*p->type)();
-                switch (p->pt) {
+            snprintf(sn, sizeof(sn), "%s_type", pl->name);
+            pl->type = dlsym(pl->handle, sn);
+            if (pl->type) {
+                pl->pt = (*pl->type)();
+                switch (pl->pt) {
                 case plugin_output:
                 case plugin_filter:
                     break;
                 default:
-                    logerr("invalid plugin type for plugin '%s'", p->name);
+                    logerr("invalid plugin type for plugin '%s'", pl->name);
                     exit(1);
                 }
             } else {
-                p->pt = plugin_output;
+                pl->pt = plugin_output;
             }
-            snprintf(sn, sizeof(sn), "%s_start", p->name);
-            p->start = dlsym(p->handle, sn);
-            snprintf(sn, sizeof(sn), "%s_stop", p->name);
-            p->stop = dlsym(p->handle, sn);
-            snprintf(sn, sizeof(sn), "%s_open", p->name);
-            p->open = dlsym(p->handle, sn);
-            snprintf(sn, sizeof(sn), "%s_close", p->name);
-            p->close = dlsym(p->handle, sn);
-            snprintf(sn, sizeof(sn), "%s_output", p->name);
-            p->output = dlsym(p->handle, sn);
-            if (p->pt == plugin_output && !p->output) {
+            snprintf(sn, sizeof(sn), "%s_start", pl->name);
+            pl->start = dlsym(pl->handle, sn);
+            snprintf(sn, sizeof(sn), "%s_stop", pl->name);
+            pl->stop = dlsym(pl->handle, sn);
+            snprintf(sn, sizeof(sn), "%s_open", pl->name);
+            pl->open = dlsym(pl->handle, sn);
+            snprintf(sn, sizeof(sn), "%s_close", pl->name);
+            pl->close = dlsym(pl->handle, sn);
+            snprintf(sn, sizeof(sn), "%s_output", pl->name);
+            pl->output = dlsym(pl->handle, sn);
+            if (pl->pt == plugin_output && !pl->output) {
                 logerr("%s", dlerror());
                 exit(1);
             }
-            snprintf(sn, sizeof(sn), "%s_filter", p->name);
-            p->filter = dlsym(p->handle, sn);
-            if (p->pt == plugin_filter && !p->filter) {
+            snprintf(sn, sizeof(sn), "%s_filter", pl->name);
+            pl->filter = dlsym(pl->handle, sn);
+            if (pl->pt == plugin_filter && !pl->filter) {
                 logerr("%s", dlerror());
                 exit(1);
             }
-            snprintf(sn, sizeof(sn), "%s_usage", p->name);
-            p->usage = dlsym(p->handle, sn);
-            snprintf(sn, sizeof(sn), "%s_extension", p->name);
-            p->extension = dlsym(p->handle, sn);
-            if (p->extension) {
-                (*p->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
-                (*p->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
-                (*p->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
-                (*p->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
-                (*p->extension)(DNSCAP_EXT_SET_IADDR, (void*)set_iaddr);
+            snprintf(sn, sizeof(sn), "%s_usage", pl->name);
+            pl->usage = dlsym(pl->handle, sn);
+            snprintf(sn, sizeof(sn), "%s_extension", pl->name);
+            pl->extension = dlsym(pl->handle, sn);
+            if (pl->extension) {
+                (*pl->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
+                (*pl->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
+                (*pl->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
+                (*pl->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
+                (*pl->extension)(DNSCAP_EXT_SET_IADDR, (void*)set_iaddr);
             }
-            snprintf(sn, sizeof(sn), "%s_getopt", p->name);
-            p->getopt = dlsym(p->handle, sn);
-            if (p->getopt)
-                (*p->getopt)(&argc, &argv);
-            APPEND(plugins, p, link);
+            snprintf(sn, sizeof(sn), "%s_getopt", pl->name);
+            pl->getopt = dlsym(pl->handle, sn);
+            if (pl->getopt)
+                (*pl->getopt)(&argc, &argv);
+            APPEND(plugins, pl, link);
             if (dumptrace)
-                fprintf(stderr, "Plugin '%s' loaded\n", p->name);
+                fprintf(stderr, "Plugin '%s' loaded\n", pl->name);
             free(fn);
         } break;
         case 'U':

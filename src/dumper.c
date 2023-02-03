@@ -241,8 +241,6 @@ int dumper_close(my_bpftimeval ts)
             dumper = FALSE;
         }
     } else if (options.dump_format == cbor) {
-        int ret;
-
         if (dump_type == to_stdout) {
             ret = dump_cbor(stdout);
 
@@ -265,8 +263,6 @@ int dumper_close(my_bpftimeval ts)
             }
         }
     } else if (options.dump_format == cds) {
-        int ret;
-
         if (dump_type == to_stdout) {
             ret = dump_cds(stdout);
 
