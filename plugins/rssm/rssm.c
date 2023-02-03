@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2022, OARC, Inc.
+ * Copyright (c) 2016-2023, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -566,7 +566,6 @@ int rssm_close(my_bpftimeval ts)
     struct tm tm;
 
     if (dont_fork_on_close) {
-        struct tm tm;
         gmtime_r((time_t*)&open_ts.tv_sec, &tm);
         strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
         close_ts = ts;
@@ -721,7 +720,7 @@ void rssm_output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigne
                 counts.dns_tcp_responses_sent_ipv6++;
             }
         }
-        if (ldns_pkt_arcount(pkt)) {
+        if (ldns_pkt_edns(pkt)) {
             rcode |= ((uint16_t)ldns_pkt_edns_extended_rcode(pkt) << 4);
         }
         counts.rcodes[rcode]++;

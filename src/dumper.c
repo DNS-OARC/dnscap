@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2022, OARC, Inc.
+ * Copyright (c) 2016-2023, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,8 +241,6 @@ int dumper_close(my_bpftimeval ts)
             dumper = FALSE;
         }
     } else if (options.dump_format == cbor) {
-        int ret;
-
         if (dump_type == to_stdout) {
             ret = dump_cbor(stdout);
 
@@ -265,8 +263,6 @@ int dumper_close(my_bpftimeval ts)
             }
         }
     } else if (options.dump_format == cds) {
-        int ret;
-
         if (dump_type == to_stdout) {
             ret = dump_cds(stdout);
 

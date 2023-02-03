@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, OARC, Inc.
+ * Copyright (c) 2018-2023, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,17 @@ tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport,
     static time_t next_gc = 0;
     tcpstate_ptr  tcpstate;
 
+#ifndef __clang_analyzer__
+    /* disabled during scan-build due to false-positives */
+    if (t >= next_gc || tcpstate_count > MAX_TCP_IDLE_COUNT) {
+        /* garbage collect stale states */
+        while ((tcpstate = TAIL(tcpstates)) && tcpstate->last_use < t - MAX_TCP_IDLE_TIME) {
+            tcpstate_discard(tcpstate, "gc stale");
+        }
+        next_gc = t + TCP_GC_TIME;
+    }
+#endif
+
     for (tcpstate = HEAD(tcpstates);
          tcpstate != NULL;
          tcpstate = NEXT(tcpstate, link)) {
@@ -63,22 +74,11 @@ tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport,
         }
     }
 
-    if (t >= next_gc || tcpstate_count > MAX_TCP_IDLE_COUNT) {
-        /* garbage collect stale states */
-        time_t min_last_use = t - MAX_TCP_IDLE_TIME;
-        while ((tcpstate = TAIL(tcpstates)) && tcpstate->last_use < min_last_use) {
-            UNLINK(tcpstates, tcpstate, link);
-            tcpstate_count--;
-        }
-        next_gc = t + TCP_GC_TIME;
-    }
-
     return tcpstate;
 }
 
 tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
 {
-
     tcpstate_ptr tcpstate = calloc(1, sizeof *tcpstate);
     if (tcpstate == NULL) {
         /* Out of memory; recycle the least recently used */
@@ -86,6 +86,7 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
                "discarding some TCP state early");
         tcpstate = TAIL(tcpstates);
         assert(tcpstate != NULL);
+        UNLINK(tcpstates, tcpstate, link);
     } else {
         tcpstate_count++;
     }
@@ -96,6 +97,13 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
     INIT_LINK(tcpstate, link);
     PREPEND(tcpstates, tcpstate, link);
     return tcpstate;
+}
+
+tcpstate_ptr _curr_tcpstate = 0;
+
+tcpstate_ptr tcpstate_getcurr(void)
+{
+    return _curr_tcpstate;
 }
 
 /* Discard this packet.  If it's part of TCP stream, all subsequent pkts on
@@ -110,16 +118,11 @@ void tcpstate_discard(tcpstate_ptr tcpstate, const char* msg)
             tcpreasm_free(tcpstate->reasm);
         }
         free(tcpstate);
+        if (_curr_tcpstate == tcpstate) {
+            _curr_tcpstate = 0;
+        }
         tcpstate_count--;
-        return;
     }
-}
-
-tcpstate_ptr _curr_tcpstate = 0;
-
-tcpstate_ptr tcpstate_getcurr(void)
-{
-    return _curr_tcpstate;
 }
 
 void tcpstate_reset(tcpstate_ptr tcpstate, const char* msg)

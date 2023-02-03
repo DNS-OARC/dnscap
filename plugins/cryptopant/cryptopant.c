@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, OARC, Inc.
+ * Copyright (c) 2018-2023, OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -187,8 +187,10 @@ int cryptopant_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
 #ifdef USE_CRYPTOPANT
     for (;;) {
         if (only_clients && sport == dns_port) {
-            from = 0;
-            break;
+            if (sport != dport) {
+                from = 0;
+                break;
+            }
         }
         if (only_servers && sport != dns_port) {
             from = 0;
@@ -211,8 +213,10 @@ int cryptopant_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, 
 
     for (;;) {
         if (only_clients && dport == dns_port) {
-            to = 0;
-            break;
+            if (dport != sport) {
+                to = 0;
+                break;
+            }
         }
         if (only_servers && dport != dns_port) {
             to = 0;

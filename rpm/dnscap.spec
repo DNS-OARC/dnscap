@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.1.0
+Version:        2.1.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,34 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Feb 03 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.1-1
+- Release 2.1.1
+  * This release includes fixes to TCP state code, anonymizing plugins and
+    handling of EDNS extended error code.
+    - Ken Renards @kdrenard (PR #275) fixed handling of EDNS extended error
+      code, the previous code looked at `arcount` but ldns "consumes" OPT
+      records so the count could be zero even with existing extended error
+      code.
+    - Changed anonymizing plugins to anonymize both sending and receiving
+      IP address if both used the server port, part of issue #276 reported
+      by Duane Wessels @wessels. This fixes situations where clients
+      weren't anonymize because they sent using that port.
+    - Fixed multiple issues with garbage collection in TCP state handling.
+      It was reusing a pointer that was meant to return the current TCP
+      state so it could return the wrong state when garbage collection
+      was triggered.
+      It also just unlinked stale states and didn't free them, new code
+      uses the discard function so released state is also tagged as
+      "gc stale".
+      Lastly the discard function was fixed to clear the current TCP state
+      pointer used by plugins if the discarded state was it.
+  * Commits:
+    7f2ddcf Copyright
+    fd5b744 CodeQL alerts
+    726d241 TCP state GC
+    dff421e Anonymize clients
+    2eb8489 Add CodeQL workflow for GitHub code scanning
+    c5a0919 Better test for presence of EDNS option with extended error code
 * Fri Sep 09 2022 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.0-1
 - Release 2.1.0
   * This release adds a new option (`-o pid_file=<file>`) to specify a PID
