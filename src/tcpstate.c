@@ -50,9 +50,8 @@ void tcpstate_discard(tcpstate_ptr tcpstate, const char* msg);
 void tcpstate_gc (time_t t)
 {
     static time_t next_gc = 0;
+    tcpstate_ptr  tcpstate;
     tcpstate_list *tcpstates_p;
-    tcpstate_ptr tcpstate;
-static int X = 0;
 
     if (tcpstates_hash == NULL) return;
 #ifndef __clang_analyzer__
