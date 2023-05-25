@@ -65,7 +65,7 @@ unsigned        msg_wanted = MSG_QUERY;
 unsigned        dir_wanted = DIR_INITIATE | DIR_RESPONSE;
 unsigned        end_hide   = 0U;
 unsigned        err_wanted = ERR_NO | ERR_YES; /* accept all by default */
-tcpstate_list   tcpstates;
+tcpstate_hash_t *tcpstates_hash = NULL;
 int             tcpstate_count = 0;
 endpoint_list   initiators, not_initiators;
 endpoint_list   responders, not_responders;
@@ -121,6 +121,9 @@ options_t          options              = OPTIONS_T_DEFAULTS;
 
 ldns_rr_type match_qtype = 0, nmatch_qtype = 0;
 
+extern tcpstate_hash_t *tcpstate_hash_init(int nbits);
+extern void tcpstate_hash_free(tcpstate_hash_t *hash);
+
 int main(int argc, char* argv[])
 {
     struct plugin* p;
@@ -156,7 +159,11 @@ int main(int argc, char* argv[])
             exit(1);
         }
     }
-    INIT_LIST(tcpstates);
+    tcpstates_hash = tcpstate_hash_init (TCPSTATE_HASH_BITS);
+    if (tcpstates_hash == NULL) {
+        logerr("Error initializing tcpstates hash table");
+        exit(1);
+    }
 
     if (!dont_drop_privileges && !only_offline_pcaps) {
         drop_privileges();
@@ -238,6 +245,7 @@ int main(int argc, char* argv[])
             (*p->stop)();
     }
     options_free(&options);
+    tcpstate_hash_free(tcpstates_hash);
 
 #ifdef INIT_OPENSSL
     EVP_cleanup();

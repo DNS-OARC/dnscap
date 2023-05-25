@@ -317,6 +317,13 @@ struct tcpstate {
 };
 typedef struct tcpstate* tcpstate_ptr;
 typedef LIST(struct tcpstate) tcpstate_list;
+#define TCPSTATE_HASH_BITS 12
+typedef struct _tcpstate_hash {
+    int num_bins;
+    tcpstate_list *bins;
+    int (*hash_func) (struct _tcpstate_hash *h, iaddr from, iaddr to,
+                          unsigned sport, unsigned dport);
+} tcpstate_hash_t;
 
 struct endpoint {
     LINK(struct endpoint)
@@ -382,7 +389,7 @@ extern unsigned        msg_wanted;
 extern unsigned        dir_wanted;
 extern unsigned        end_hide;
 extern unsigned        err_wanted;
-extern tcpstate_list   tcpstates;
+extern tcpstate_hash_t* tcpstates_hash;
 extern int             tcpstate_count;
 extern endpoint_list   initiators, not_initiators;
 extern endpoint_list   responders, not_responders;
