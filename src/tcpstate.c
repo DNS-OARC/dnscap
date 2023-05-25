@@ -64,6 +64,7 @@ void tcpstate_gc (time_t t)
                 tcpstate_discard_from_list (tcpstates_p, tcpstate, "gc stale");
             }
         }
+        next_gc = t + TCP_GC_TIME;
     }
 #endif
 }
