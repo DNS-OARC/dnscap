@@ -214,6 +214,7 @@
 #include "dump_cbor.h"
 #include "dump_cds.h"
 #include "options.h"
+#include "hashtbl.h"
 #include "pcap-thread/pcap_thread.h"
 
 struct text {
@@ -249,6 +250,7 @@ typedef LIST(struct vlan) vlan_list;
 #define MAX_TCP_SEGS 8
 #define MAX_TCP_HOLES 8
 #define MAX_TCP_DNS_MSG 8
+#define TCPSTATE_HASH_TABLE_SIZE 4096
 
 typedef struct tcphole    tcphole_t;
 typedef struct tcp_msgbuf tcp_msgbuf_t;
@@ -317,6 +319,7 @@ struct tcpstate {
 };
 typedef struct tcpstate* tcpstate_ptr;
 typedef LIST(struct tcpstate) tcpstate_list;
+extern hashtbl *tcpstate_hashtbl;
 
 struct endpoint {
     LINK(struct endpoint)
@@ -382,7 +385,6 @@ extern unsigned        msg_wanted;
 extern unsigned        dir_wanted;
 extern unsigned        end_hide;
 extern unsigned        err_wanted;
-extern tcpstate_list   tcpstates;
 extern int             tcpstate_count;
 extern endpoint_list   initiators, not_initiators;
 extern endpoint_list   responders, not_responders;
