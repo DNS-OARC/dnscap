@@ -1,3 +1,14 @@
+2023-06-15 Jerry Lundström
+
+    Release 2.1.2
+
+    This release fixes reusing of TCP state during an out-of-memory event,
+    the reused structure was not cleared of old information. And fixes
+    compatibility with OpenSSL v3.0+ due to deprecated functions.
+
+    756f78a OpenSSL 3.0+
+    d2bd12f tcpstate on out of memory
+
 2023-02-03 Jerry Lundström
 
     Release 2.1.1
