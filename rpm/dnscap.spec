@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.1.1
+Version:        2.1.2
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Jun 15 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.2-1
+- Release 2.1.2
+  * This release fixes reusing of TCP state during an out-of-memory event,
+    the reused structure was not cleared of old information. And fixes
+    compatibility with OpenSSL v3.0+ due to deprecated functions.
+  * Commits:
+    756f78a OpenSSL 3.0+
+    d2bd12f tcpstate on out of memory
 * Fri Feb 03 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.1-1
 - Release 2.1.1
   * This release includes fixes to TCP state code, anonymizing plugins and
