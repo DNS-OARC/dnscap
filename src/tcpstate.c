@@ -77,6 +77,8 @@ tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport,
     return tcpstate;
 }
 
+tcpstate_ptr _curr_tcpstate = 0;
+
 tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
 {
     tcpstate_ptr tcpstate = calloc(1, sizeof *tcpstate);
@@ -87,6 +89,13 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
         tcpstate = TAIL(tcpstates);
         assert(tcpstate != NULL);
         UNLINK(tcpstates, tcpstate, link);
+        if (tcpstate->reasm) {
+            tcpreasm_free(tcpstate->reasm);
+        }
+        if (_curr_tcpstate == tcpstate) {
+            _curr_tcpstate = 0;
+        }
+        memset(tcpstate, 0, sizeof(*tcpstate));
     } else {
         tcpstate_count++;
     }
@@ -98,8 +107,6 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
     PREPEND(tcpstates, tcpstate, link);
     return tcpstate;
 }
-
-tcpstate_ptr _curr_tcpstate = 0;
 
 tcpstate_ptr tcpstate_getcurr(void)
 {
