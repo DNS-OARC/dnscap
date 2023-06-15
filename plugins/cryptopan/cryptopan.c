@@ -228,7 +228,14 @@ void cryptopan_getopt(int* argc, char** argv[])
     }
     if (!EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, iv, 1)) {
         unsigned long e = ERR_get_error();
-        fprintf(stderr, "%s:%s:%s\n", ERR_lib_error_string(e), ERR_func_error_string(e), ERR_reason_error_string(e));
+        fprintf(stderr, "%s:%s:%s\n",
+            ERR_lib_error_string(e),
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+            ERR_func_error_string(e),
+#else
+            "",
+#endif
+            ERR_reason_error_string(e));
         usage("unable to initialize AES128 cipher");
     }
     EVP_CIPHER_CTX_set_padding(ctx, 0);
