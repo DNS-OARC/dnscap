@@ -720,14 +720,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             _curr_tcpstate = 0;
 
             /* End of stream; deallocate the tcpstate. */
-            if (tcpstate) {
-                UNLINK(tcpstates, tcpstate, link);
-                if (tcpstate->reasm) {
-                    tcpreasm_free(tcpstate->reasm);
-                }
-                free(tcpstate);
-                tcpstate_count--;
-            }
+            tcpstate_discard(tcpstate, "FIN/RST");
             return;
         }
         if (packet->tcphdr.th_flags & TH_SYN) {
@@ -1304,14 +1297,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 pkt_copy, olen, NULL, 0);
             _curr_tcpstate = 0;
             /* End of stream; deallocate the tcpstate. */
-            if (tcpstate) {
-                UNLINK(tcpstates, tcpstate, link);
-                if (tcpstate->reasm) {
-                    tcpreasm_free(tcpstate->reasm);
-                }
-                free(tcpstate);
-                tcpstate_count--;
-            }
+            tcpstate_discard(tcpstate, "FIN/RST");
             goto network_pkt_end;
         }
         if (tcp->th_flags & TH_SYN) {

@@ -55,6 +55,10 @@
 #define INIT_OPENSSL 1
 #endif
 
+extern int tcpstate_cmp (const void* _a, const void* _b);
+extern unsigned int tcpstate_hash (const void *key);
+hashtbl *tcpstate_hashtbl = NULL;
+
 plugin_list     plugins;
 const char*     ProgramName = "amnesia";
 int             dumptrace   = 0;
@@ -65,7 +69,6 @@ unsigned        msg_wanted = MSG_QUERY;
 unsigned        dir_wanted = DIR_INITIATE | DIR_RESPONSE;
 unsigned        end_hide   = 0U;
 unsigned        err_wanted = ERR_NO | ERR_YES; /* accept all by default */
-tcpstate_list   tcpstates;
 int             tcpstate_count = 0;
 endpoint_list   initiators, not_initiators;
 endpoint_list   responders, not_responders;
@@ -156,7 +159,12 @@ int main(int argc, char* argv[])
             exit(1);
         }
     }
-    INIT_LIST(tcpstates);
+    tcpstate_hashtbl = hash_create (TCPSTATE_HASH_TABLE_SIZE, tcpstate_hash, tcpstate_cmp, NULL);
+    if (tcpstate_hashtbl == NULL) {
+        logerr("Error allocating TCP hash table");
+        exit(1);
+    }
+
 
     if (!dont_drop_privileges && !only_offline_pcaps) {
         drop_privileges();
@@ -237,6 +245,7 @@ int main(int argc, char* argv[])
         if (p->stop)
             (*p->stop)();
     }
+    hash_free (tcpstate_hashtbl);
     options_free(&options);
 
 #ifdef INIT_OPENSSL
