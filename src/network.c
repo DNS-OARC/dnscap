@@ -512,6 +512,50 @@ _filter_by_qtype(const ldns_pkt* lpkt, char** reason)
  * static string.
  */
 static int
+_match_rr(const ldns_rr_list* rrs, char** reason, int* negmatch, int* match, ldns_buffer* buf)
+{
+    /* Look at each RR in the section (or each QNAME in
+       the question section). */
+    myregex_ptr myregex;
+    size_t i, n;
+    for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
+        ldns_rr* rr = ldns_rr_list_rr(rrs, i);
+        if (!rr) {
+            *reason = "failed to get RR";
+            return -1;
+        }
+
+        ldns_buffer_clear(buf);
+        if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
+            *reason = "failed to get RR";
+            return -1;
+        }
+
+        for (myregex = HEAD(myregexes);
+             myregex != NULL;
+             myregex = NEXT(myregex, link)) {
+
+            if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
+                if (myregex->not)
+                    (*negmatch)++;
+                else
+                    (*match)++;
+
+                if (dumptrace >= 2)
+                    fprintf(stderr,
+                        "; \"%s\" %s~ /%s/ %d %d\n",
+                        (char*)ldns_buffer_begin(buf),
+                        myregex->not ? "!" : "",
+                        myregex->str,
+                        *match,
+                        *negmatch);
+            }
+        }
+    }
+    return 0;
+}
+
+static int
 _filter_by_qname(const ldns_pkt* lpkt, char** reason)
 {
     int          match    = -1;
@@ -520,15 +564,6 @@ _filter_by_qname(const ldns_pkt* lpkt, char** reason)
     if (!buf) {
         fprintf(stderr, "%s: out of memory", ProgramName);
         exit(1);
-    }
-
-    /* Look at each section of the message:
-         question, answer, authority, additional */
-    ldns_rr_list* rrs = ldns_pkt_all(lpkt);
-    if (!rrs) {
-        ldns_buffer_free(buf);
-        *reason = "failed to get list of RRs";
-        return -1;
     }
 
     /*
@@ -543,48 +578,23 @@ _filter_by_qname(const ldns_pkt* lpkt, char** reason)
         }
     }
 
-    /* Look at each RR in the section (or each QNAME in
-       the question section). */
-    size_t i, n;
-    for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
-        ldns_rr* rr = ldns_rr_list_rr(rrs, i);
-        if (!rr) {
-            ldns_rr_list_deep_free(rrs);
-            ldns_buffer_free(buf);
-            *reason = "failed to get RR";
+    ldns_rr_list* rrs;
+    if ((rrs = ldns_pkt_question(lpkt))) {
+        if (_match_rr(rrs, reason, &negmatch, &match, buf))
             return -1;
-        }
-
-        ldns_buffer_clear(buf);
-        if (ldns_rdf2buffer_str(buf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
-            ldns_rr_list_deep_free(rrs);
-            ldns_buffer_free(buf);
-            *reason = "failed to get RR";
-            return -1;
-        }
-
-        for (myregex = HEAD(myregexes);
-             myregex != NULL;
-             myregex = NEXT(myregex, link)) {
-
-            if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
-                if (myregex->not)
-                    negmatch++;
-                else
-                    match++;
-
-                if (dumptrace >= 2)
-                    fprintf(stderr,
-                        "; \"%s\" %s~ /%s/ %d %d\n",
-                        (char*)ldns_buffer_begin(buf),
-                        myregex->not ? "!" : "",
-                        myregex->str,
-                        match,
-                        negmatch);
-            }
-        }
     }
-    ldns_rr_list_deep_free(rrs);
+    if ((rrs = ldns_pkt_answer(lpkt))) {
+        if (_match_rr(rrs, reason, &negmatch, &match, buf))
+            return -1;
+    }
+    if ((rrs = ldns_pkt_authority(lpkt))) {
+        if (_match_rr(rrs, reason, &negmatch, &match, buf))
+            return -1;
+    }
+    if ((rrs = ldns_pkt_additional(lpkt))) {
+        if (_match_rr(rrs, reason, &negmatch, &match, buf))
+            return -1;
+    }
     ldns_buffer_free(buf);
 
     /*
@@ -1607,10 +1617,12 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
             }
             char* reason = 0;
             if ((match_qtype || nmatch_qtype) && _filter_by_qtype(lpkt, &reason)) {
+                ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, reason);
                 goto network_pkt_end;
             }
             if (!EMPTY(myregexes) && _filter_by_qname(lpkt, &reason)) {
+                ldns_pkt_free(lpkt);
                 tcpstate_discard(tcpstate, reason);
                 goto network_pkt_end;
             }
