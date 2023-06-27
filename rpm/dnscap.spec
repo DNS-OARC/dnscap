@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.1.2
+Version:        2.1.3
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jun 27 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.3-1
+- Release 2.1.3
+  * This release fixes a memory leak when using pattern matching options
+    `-x` or `-X`, the LDNS packet was not freed correctly.
+  * The processing of the LDNS packet during matching has also been
+    improved.
+  * Commits:
+    3990795 Test
+    ee5d554 Pattern match
 * Thu Jun 15 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.2-1
 - Release 2.1.2
   * This release fixes reusing of TCP state during an out-of-memory event,
