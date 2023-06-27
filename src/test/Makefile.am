@@ -15,10 +15,12 @@ CLEANFILES = test*.log test*.trs \
   test11.out \
   test12.out test12.20161020.152301.075993.gz \
   test13.out \
-  test14.out
+  test14.out \
+  test_regex_match.out
 
 TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh test6.sh test7.sh \
-  test8.sh test9.sh test10.sh test11.sh test12.sh test13.sh test14.sh
+  test8.sh test9.sh test10.sh test11.sh test12.sh test13.sh test14.sh \
+  test_regex_match.sh
 
 test1.sh: dns.pcap-dist
 
@@ -50,6 +52,8 @@ test13.sh: dns.pcap-dist
 
 test14.sh: dns.pcap-dist
 
+test_regex_match.sh: dns.pcap-dist
+
 .pcap.pcap-dist:
 	cp "$<" "$@"
 
@@ -65,4 +69,5 @@ EXTRA_DIST = $(TESTS) \
   dnso1tcp-bighole.pcap \
   test9.gold \
   dns6.pcap test10.gold \
-  test14.gold
+  test14.gold \
+  test_regex_match.gold
