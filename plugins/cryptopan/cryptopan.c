@@ -47,6 +47,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netinet/in.h>
+#ifndef s6_addr32
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
 
 #include "dnscap_common.h"
 
@@ -55,12 +59,13 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #define USE_OPENSSL 1
+#include "edns0_ecs.c"
 #endif
 
 static set_iaddr_t cryptopan_set_iaddr = 0;
 
 static logerr_t*     logerr;
-static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v6 = 0, decrypt = 0;
+static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v6 = 0, decrypt = 0, edns = 0;
 static unsigned char key[16];
 static unsigned char iv[16];
 static unsigned char pad[16];
@@ -94,7 +99,9 @@ void cryptopan_usage()
         "\t-c            Only en/de-crypt clients (port != 53)\n"
         "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
-        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n");
+        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n"
+        "\t-e            Also en/de-crypt EDNS(0) Client Subnet\n"
+        "\t-E            ONLY en/de-crypt EDNS(0) Client Subnet, not IP addresses\n");
 }
 
 void cryptopan_extension(int ext, void* arg)
@@ -112,7 +119,7 @@ void cryptopan_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:K:i:I:a:A:Dcsp:6")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:K:i:I:a:A:Dcsp:6eE")) != EOF) {
         switch (c) {
         case 'k':
             if (strlen(optarg) != 16) {
@@ -206,6 +213,13 @@ void cryptopan_getopt(int* argc, char** argv[])
             break;
         case '6':
             encrypt_v6 = 1;
+            break;
+        case 'e':
+            if (!edns)
+                edns = 1;
+            break;
+        case 'E':
+            edns = -1;
             break;
         case '?':
             cryptopan_usage();
@@ -396,12 +410,56 @@ static inline void _decrypt(uint32_t* in)
 }
 #endif
 
+#ifdef USE_OPENSSL
+void ecs_callback(int family, u_char* buf, size_t len)
+{
+    struct in6_addr in6 = IN6ADDR_ANY_INIT;
+
+    switch (family) {
+    case 1: // IPv4
+        if (len > sizeof(struct in_addr))
+            break;
+        memcpy(&in6, buf, len);
+        decrypt ? _decrypt((uint32_t*)&in6) : _encrypt((uint32_t*)&in6);
+        memcpy(buf, &in6, len);
+        break;
+    case 2: // IPv6
+        if (len > sizeof(struct in6_addr))
+            break;
+        if (encrypt_v6) {
+            memcpy(&in6, buf, len);
+            if (decrypt) {
+                _decrypt(&in6.s6_addr32[0]);
+                _decrypt(&in6.s6_addr32[1]);
+                _decrypt(&in6.s6_addr32[2]);
+                _decrypt(&in6.s6_addr32[3]);
+            } else {
+                _encrypt(&in6.s6_addr32[0]);
+                _encrypt(&in6.s6_addr32[1]);
+                _encrypt(&in6.s6_addr32[2]);
+                _encrypt(&in6.s6_addr32[3]);
+            }
+            memcpy(buf, &in6, len);
+        }
+        break;
+    default:
+        break;
+    }
+}
+#endif
+
 int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char* pkt_copy, const unsigned olen,
-    const u_char* payload, const unsigned payloadlen)
+    u_char* pkt_copy, const unsigned olen,
+    u_char* payload, const unsigned payloadlen)
 {
 #ifdef USE_OPENSSL
+    if (edns && flags & DNSCAP_OUTPUT_ISDNS && payload && payloadlen > DNS_MSG_HDR_SZ) {
+        parse_for_edns0_ecs(payload, payloadlen, ecs_callback);
+        if (edns < 0)
+            return 0;
+    }
+
     for (;;) {
         if (only_clients && sport == dns_port) {
             if (sport != dport) {
@@ -421,15 +479,15 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
         case AF_INET6:
             if (encrypt_v6) {
                 if (decrypt) {
-                    _decrypt((uint32_t*)&from->u.a6);
-                    _decrypt(((uint32_t*)&from->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
-                    _decrypt(((uint32_t*)&from->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
-                    _decrypt(((uint32_t*)&from->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(&from->u.a6.s6_addr32[0]);
+                    _decrypt(&from->u.a6.s6_addr32[1]);
+                    _decrypt(&from->u.a6.s6_addr32[2]);
+                    _decrypt(&from->u.a6.s6_addr32[3]);
                 } else {
-                    _encrypt((uint32_t*)&from->u.a6);
-                    _encrypt(((uint32_t*)&from->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
-                    _encrypt(((uint32_t*)&from->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
-                    _encrypt(((uint32_t*)&from->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(&from->u.a6.s6_addr32[0]);
+                    _encrypt(&from->u.a6.s6_addr32[1]);
+                    _encrypt(&from->u.a6.s6_addr32[2]);
+                    _encrypt(&from->u.a6.s6_addr32[3]);
                 }
                 break;
             }
@@ -459,15 +517,15 @@ int cryptopan_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, u
         case AF_INET6:
             if (encrypt_v6) {
                 if (decrypt) {
-                    _decrypt((uint32_t*)&to->u.a6);
-                    _decrypt(((uint32_t*)&to->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
-                    _decrypt(((uint32_t*)&to->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
-                    _decrypt(((uint32_t*)&to->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
+                    _decrypt(&to->u.a6.s6_addr32[0]);
+                    _decrypt(&to->u.a6.s6_addr32[1]);
+                    _decrypt(&to->u.a6.s6_addr32[2]);
+                    _decrypt(&to->u.a6.s6_addr32[3]);
                 } else {
-                    _encrypt((uint32_t*)&to->u.a6);
-                    _encrypt(((uint32_t*)&to->u.a6) + 1); // lgtm [cpp/suspicious-pointer-scaling]
-                    _encrypt(((uint32_t*)&to->u.a6) + 2); // lgtm [cpp/suspicious-pointer-scaling]
-                    _encrypt(((uint32_t*)&to->u.a6) + 3); // lgtm [cpp/suspicious-pointer-scaling]
+                    _encrypt(&to->u.a6.s6_addr32[0]);
+                    _encrypt(&to->u.a6.s6_addr32[1]);
+                    _encrypt(&to->u.a6.s6_addr32[2]);
+                    _encrypt(&to->u.a6.s6_addr32[3]);
                 }
                 break;
             }

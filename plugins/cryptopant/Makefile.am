@@ -1,9 +1,10 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
-CLEANFILES = *.gcda *.gcno *.gcov
+CLEANFILES = *.gcda *.gcno *.gcov *.pcap-dist
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/isc \
+    -I$(top_srcdir)/plugins/shared \
     $(SECCOMPFLAGS) $(libcrypto_CFLAGS)
 
 pkglib_LTLIBRARIES = cryptopant.la

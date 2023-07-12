@@ -42,6 +42,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 
 #include "dnscap_common.h"
 
@@ -50,12 +51,13 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #define USE_OPENSSL 1
+#include "edns0_ecs.c"
 #endif
 
 static set_iaddr_t anonaes128_set_iaddr = 0;
 
 static logerr_t*     logerr;
-static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v4 = 0, decrypt = 0;
+static int           only_clients = 0, only_servers = 0, dns_port = 53, encrypt_v4 = 0, decrypt = 0, edns = 0;
 static unsigned char key[16];
 static unsigned char iv[16];
 #ifdef USE_OPENSSL
@@ -86,7 +88,9 @@ void anonaes128_usage()
         "\t-c            Only en/de-crypt clients (port != 53)\n"
         "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
-        "\t-4            Encrypt IPv4 addresses, not default or recommended\n");
+        "\t-4            Encrypt IPv4 addresses, not default or recommended\n"
+        "\t-e            Also en/de-crypt EDNS(0) Client Subnet\n"
+        "\t-E            ONLY en/de-crypt EDNS(0) Client Subnet, not IP addresses\n");
 }
 
 void anonaes128_extension(int ext, void* arg)
@@ -104,7 +108,7 @@ void anonaes128_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:K:i:I:Dcsp:4")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:K:i:I:Dcsp:4eE")) != EOF) {
         switch (c) {
         case 'k':
             if (strlen(optarg) != 16) {
@@ -174,6 +178,13 @@ void anonaes128_getopt(int* argc, char** argv[])
         case '4':
             encrypt_v4 = 1;
             break;
+        case 'e':
+            if (!edns)
+                edns = 1;
+            break;
+        case 'E':
+            edns = -1;
+            break;
         case '?':
             anonaes128_usage();
             if (!optopt || optopt == '?') {
@@ -242,12 +253,66 @@ int anonaes128_close(my_bpftimeval ts)
     return 0;
 }
 
+#ifdef USE_OPENSSL
+void ecs_callback(int family, u_char* buf, size_t len)
+{
+    unsigned char outbuf[16 + EVP_MAX_BLOCK_LENGTH] = { 0 };
+    int           outlen                            = 0;
+
+    struct in6_addr in6 = IN6ADDR_ANY_INIT;
+
+    switch (family) {
+    case 1: // IPv4
+        if (len > sizeof(struct in_addr))
+            break;
+        if (encrypt_v4) {
+            memcpy(&in6, buf, len);
+            memcpy(((uint8_t*)&in6) + 4, &in6, 4);
+            memcpy(((uint8_t*)&in6) + 8, &in6, 4);
+            memcpy(((uint8_t*)&in6) + 12, &in6, 4);
+            if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (void*)&in6, 16)) {
+                logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+                exit(1);
+            }
+            if (outlen != 16) {
+                logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
+                exit(1);
+            }
+            memcpy(buf, outbuf, len);
+        }
+        break;
+    case 2: // IPv6
+        if (len > sizeof(struct in6_addr))
+            break;
+        memcpy(&in6, buf, len);
+        if (!EVP_CipherUpdate(ctx, outbuf, &outlen, (void*)&in6, 16)) {
+            logerr("anonaes128.so: error en/de-crypting IP address: %s", ERR_reason_error_string(ERR_get_error()));
+            exit(1);
+        }
+        if (outlen != 16) {
+            logerr("anonaes128.so: error en/de-crypted output is not 16 bytes");
+            exit(1);
+        }
+        memcpy(buf, outbuf, len);
+        break;
+    default:
+        break;
+    }
+}
+#endif
+
 int anonaes128_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char* pkt_copy, const unsigned olen,
-    const u_char* payload, const unsigned payloadlen)
+    u_char* pkt_copy, const unsigned olen,
+    u_char* payload, const unsigned payloadlen)
 {
 #ifdef USE_OPENSSL
+    if (edns && flags & DNSCAP_OUTPUT_ISDNS && payload && payloadlen > DNS_MSG_HDR_SZ) {
+        parse_for_edns0_ecs(payload, payloadlen, ecs_callback);
+        if (edns < 0)
+            return 0;
+    }
+
     unsigned char outbuf[16 + EVP_MAX_BLOCK_LENGTH];
     int           outlen = 0;
 

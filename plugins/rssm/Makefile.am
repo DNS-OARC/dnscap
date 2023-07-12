@@ -1,5 +1,5 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
-CLEANFILES = *.gcda *.gcno *.gcov
+CLEANFILES = *.gcda *.gcno *.gcov *.pcap-dist
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \

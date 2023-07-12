@@ -287,7 +287,7 @@ void rzkeychange_submit_counts(void)
 {
     char      qname[256];
     ldns_pkt* pkt;
-    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec; //NOSONAR
+    double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec; // NOSONAR
     int       k;
 
     k = snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",

@@ -104,7 +104,7 @@ static int dns_protocol_handler(tcpreasm_t* t, u_char* segment, uint16_t dnslen,
             }
 
             t->bfb_buf[t->bfb_at++] = dnslen >> 8;
-            t->bfb_buf[t->bfb_at++] = dnslen & 0xff; //NOSONAR
+            t->bfb_buf[t->bfb_at++] = dnslen & 0xff; // NOSONAR
             memcpy(&t->bfb_buf[t->bfb_at], segment, dnslen);
             t->bfb_at += dnslen;
             t->seq_bfb += 2 + dnslen;

@@ -42,13 +42,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 
 #include "dnscap_common.h"
+
+#include "edns0_ecs.c"
 
 static set_iaddr_t ipcrypt_set_iaddr = 0;
 
 static logerr_t* logerr;
-static int       only_clients = 0, only_servers = 0, dns_port = 53, iterations = 1, encrypt_v6 = 0, decrypt = 0;
+static int       only_clients = 0, only_servers = 0, dns_port = 53, iterations = 1, encrypt_v6 = 0, decrypt = 0, edns = 0;
 static uint8_t   key[16];
 
 /*
@@ -157,7 +160,9 @@ void ipcrypt_usage()
         "\t-s            Only en/de-crypt servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s, default 53\n"
         "\t-i <num>      Number of en/de-cryption iterations, default 1\n"
-        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n");
+        "\t-6            En/de-crypt IPv6 addresses, not default or recommended\n"
+        "\t-e            Also en/de-crypt EDNS(0) Client Subnet\n"
+        "\t-E            ONLY en/de-crypt EDNS(0) Client Subnet, not IP addresses\n");
 }
 
 void ipcrypt_extension(int ext, void* arg)
@@ -175,7 +180,7 @@ void ipcrypt_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?k:f:Dcsp:i:6")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:f:Dcsp:i:6eE")) != EOF) {
         switch (c) {
         case 'k':
             if (strlen(optarg) != 16) {
@@ -226,6 +231,13 @@ void ipcrypt_getopt(int* argc, char** argv[])
         case '6':
             encrypt_v6 = 1;
             break;
+        case 'e':
+            if (!edns)
+                edns = 1;
+            break;
+        case 'E':
+            edns = -1;
+            break;
         case '?':
             ipcrypt_usage();
             if (!optopt || optopt == '?') {
@@ -266,11 +278,55 @@ int ipcrypt_close(my_bpftimeval ts)
     return 0;
 }
 
+void ecs_callback(int family, u_char* buf, size_t len)
+{
+    switch (family) {
+    case 1: // IPv4
+    {
+        if (len > sizeof(struct in_addr))
+            break;
+        struct in_addr in = { INADDR_ANY };
+        memcpy(&in, buf, len);
+        decrypt ? _decrypt((uint8_t*)&in) : _encrypt((uint8_t*)&in);
+        memcpy(buf, &in, len);
+        break;
+    }
+    case 2: // IPv6
+        if (len > sizeof(struct in6_addr))
+            break;
+        if (encrypt_v6) {
+            struct in6_addr in = IN6ADDR_ANY_INIT;
+            memcpy(&in, buf, len);
+            if (decrypt) {
+                _decrypt((uint8_t*)&in);
+                _decrypt(((uint8_t*)&in) + 4);
+                _decrypt(((uint8_t*)&in) + 8);
+                _decrypt(((uint8_t*)&in) + 12);
+            } else {
+                _encrypt((uint8_t*)&in);
+                _encrypt(((uint8_t*)&in) + 4);
+                _encrypt(((uint8_t*)&in) + 8);
+                _encrypt(((uint8_t*)&in) + 12);
+            }
+            memcpy(buf, &in, len);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 int ipcrypt_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char* pkt_copy, const unsigned olen,
-    const u_char* payload, const unsigned payloadlen)
+    u_char* pkt_copy, const unsigned olen,
+    u_char* payload, const unsigned payloadlen)
 {
+    if (edns && flags & DNSCAP_OUTPUT_ISDNS && payload && payloadlen > DNS_MSG_HDR_SZ) {
+        parse_for_edns0_ecs(payload, payloadlen, ecs_callback);
+        if (edns < 0)
+            return 0;
+    }
+
     for (;;) {
         if (only_clients && sport == dns_port) {
             if (sport != dport) {
