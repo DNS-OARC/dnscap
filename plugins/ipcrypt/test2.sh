@@ -19,12 +19,4 @@ if [ "$osrel" = "OpenBSD" ]; then
     rm test2.out.old
 fi
 
-# TODO: Remove when #133 is fixed
-cat test2.out | \
-  sed 's%,CLASS4096,OPT,%,4096,4096,%' | \
-  sed 's%,CLASS512,OPT,%,512,512,%' | \
-  sed 's%,41,41,0,edns0\[len=0,UDP=4096,%,4096,4096,0,edns0[len=0,UDP=4096,%' | \
-  sed 's%,41,41,0,edns0\[len=0,UDP=512,%,512,512,0,edns0[len=0,UDP=512,%' >test2.new
-mv test2.new test2.out
-
 diff test2.out "$srcdir/test2.gold"
