@@ -1,6 +1,8 @@
 #!/bin/sh -xe
 
-../dnscap -g -r dns.pcap-dist 2>dns.out
+test -e dns.pcap || ln -s "$srcdir/dns.pcap" dns.pcap
+
+../dnscap -g -r dns.pcap 2>dns.out
 
 mv dns.out dns.out.old
 grep -v "^libgcov profiling error:" dns.out.old > dns.out
