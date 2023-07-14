@@ -14,6 +14,11 @@ ln -fs "$srcdir/../../src/test/dns.pcap" dns.pcap-dist
 ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -s 2>>test1.out
 ! ../../src/dnscap -r dns.pcap-dist -g -P "$plugin" -c -s 2>>test1.out
 
+ln -fs "$srcdir/../../src/test/edns.pcap" edns.pcap-dist
+
+../../src/dnscap -r edns.pcap-dist -g -P "$plugin" -4 8 -e 2>>test1.out
+../../src/dnscap -r edns.pcap-dist -g -P "$plugin" -4 8 -E 2>>test1.out
+
 osrel=`uname -s`
 if [ "$osrel" = "OpenBSD" ]; then
     mv test1.out test1.out.old

@@ -39,18 +39,20 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "dnscap_common.h"
 
 #if defined(HAVE_LIBCRYPTOPANT) && defined(HAVE_CRYPTOPANT_H)
 #include <cryptopANT.h>
 #define USE_CRYPTOPANT 1
+#include "edns0_ecs.c"
 #endif
 
 static set_iaddr_t cryptopant_set_iaddr = 0;
 
 static logerr_t* logerr;
-static int       only_clients = 0, only_servers = 0, dns_port = 53, pass4 = 0, pass6 = 0, decrypt = 0;
+static int       only_clients = 0, only_servers = 0, dns_port = 53, pass4 = 0, pass6 = 0, decrypt = 0, edns = 0;
 
 enum plugin_type cryptopant_type()
 {
@@ -74,7 +76,9 @@ void cryptopant_usage()
         "\t-D            Decrypt IP addresses\n"
         "\t-c            Only encrypt clients (port != 53)\n"
         "\t-s            Only encrypt servers (port == 53)\n"
-        "\t-p <port>     Set port for -c/-s, default 53\n");
+        "\t-p <port>     Set port for -c/-s, default 53\n"
+        "\t-e            Also en/de-crypt EDNS(0) Client Subnet\n"
+        "\t-E            ONLY en/de-crypt EDNS(0) Client Subnet, not IP addresses\n");
 }
 
 void cryptopant_extension(int ext, void* arg)
@@ -92,7 +96,7 @@ void cryptopant_getopt(int* argc, char** argv[])
     unsigned long ul;
     char *        p, *keyfile = 0;
 
-    while ((c = getopt(*argc, *argv, "?k:4:6:Dcsp:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?k:4:6:Dcsp:eE")) != EOF) {
         switch (c) {
         case 'k':
             if (keyfile) {
@@ -126,6 +130,13 @@ void cryptopant_getopt(int* argc, char** argv[])
             if (*p != '\0' || ul < 1U || ul > 65535U)
                 usage("port must be an integer 1..65535");
             dns_port = (unsigned)ul;
+            break;
+        case 'e':
+            if (!edns)
+                edns = 1;
+            break;
+        case 'E':
+            edns = -1;
             break;
         case '?':
             cryptopant_usage();
@@ -179,12 +190,48 @@ int cryptopant_close(my_bpftimeval ts)
     return 0;
 }
 
+#ifdef USE_CRYPTOPANT
+void ecs_callback(int family, u_char* buf, size_t len)
+{
+    switch (family) {
+    case 1: // IPv4
+    {
+        if (len > sizeof(struct in_addr))
+            break;
+        struct in_addr in = { INADDR_ANY };
+        memcpy(&in, buf, len);
+        in.s_addr = decrypt ? unscramble_ip4(in.s_addr, pass4) : scramble_ip4(in.s_addr, pass4);
+        memcpy(buf, &in, len);
+        break;
+    }
+    case 2: // IPv6
+    {
+        if (len > sizeof(struct in6_addr))
+            break;
+        struct in6_addr in = IN6ADDR_ANY_INIT;
+        memcpy(&in, buf, len);
+        decrypt ? unscramble_ip6(&in, pass6) : scramble_ip6(&in, pass6);
+        memcpy(buf, &in, len);
+        break;
+    }
+    default:
+        break;
+    }
+}
+#endif
+
 int cryptopant_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char* pkt_copy, const unsigned olen,
-    const u_char* payload, const unsigned payloadlen)
+    u_char* pkt_copy, const unsigned olen,
+    u_char* payload, const unsigned payloadlen)
 {
 #ifdef USE_CRYPTOPANT
+    if (edns && flags & DNSCAP_OUTPUT_ISDNS && payload && payloadlen > DNS_MSG_HDR_SZ) {
+        parse_for_edns0_ecs(payload, payloadlen, ecs_callback);
+        if (edns < 0)
+            return 0;
+    }
+
     for (;;) {
         if (only_clients && sport == dns_port) {
             if (sport != dport) {
