@@ -23,6 +23,10 @@ Files: m4/*
 Copyright: 2011 Free Software Foundation, Inc.
 License: FSF
 
+Files: src/ext/lookup3.c
+Copyright: 2006 Bob Jenkins
+License: Public Domain
+
 License: ISC
  Permission to use, copy, modify, and/or distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -89,3 +93,6 @@ License: FSF
  This file is free software; the Free Software Foundation gives
  unlimited permission to copy and/or distribute it, with or without
  modifications, as long as this notice is preserved.
+
+License: Public Domain
+ Public Domain.

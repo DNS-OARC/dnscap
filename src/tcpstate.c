@@ -38,10 +38,17 @@
 #include "iaddr.h"
 #include "log.h"
 #include "tcpreasm.h"
+#include "hashtbl.h"
+
+#ifndef s6_addr32
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
 
 #define MAX_TCP_IDLE_TIME 600
 #define MAX_TCP_IDLE_COUNT 4096
 #define TCP_GC_TIME 60
+
+static hashtbl* _hash = 0;
 
 tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport, time_t t)
 {
@@ -59,12 +66,15 @@ tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport,
     }
 #endif
 
-    for (tcpstate = HEAD(tcpstates);
-         tcpstate != NULL;
-         tcpstate = NEXT(tcpstate, link)) {
-        if (ia_equal(tcpstate->saddr, from) && ia_equal(tcpstate->daddr, to) && tcpstate->sport == sport && tcpstate->dport == dport)
-            break;
-    }
+    tcpstate_key key = {
+        .saddr = &from,
+        .daddr = &to,
+        .sport = sport,
+        .dport = dport
+    };
+
+    tcpstate = hash_find(&key, _hash);
+
     if (tcpstate != NULL) {
         tcpstate->last_use = t;
         if (tcpstate != HEAD(tcpstates)) {
@@ -77,10 +87,47 @@ tcpstate_ptr tcpstate_find(iaddr from, iaddr to, unsigned sport, unsigned dport,
     return tcpstate;
 }
 
+unsigned int tcpstate_hash(const tcpstate_key* key)
+{
+    uint32_t h = 0;
+
+    switch (key->saddr->af) {
+    case AF_INET:
+        h = hashword(&key->saddr->u.a4.s_addr, 1, h);
+        break;
+    case AF_INET6:
+        h = hashword(key->saddr->u.a6.s6_addr32, 4, h);
+        break;
+    }
+
+    switch (key->daddr->af) {
+    case AF_INET:
+        h = hashword(&key->daddr->u.a4.s_addr, 1, h);
+        break;
+    case AF_INET6:
+        h = hashword(key->daddr->u.a6.s6_addr32, 4, h);
+        break;
+    }
+
+    uint32_t p = (key->sport << 16) | (key->dport & 0xffff);
+    return hashword(&p, 1, h);
+}
+
+int tcpstate_cmp(const tcpstate_key* a, const tcpstate_key* b)
+{
+    if (ia_equalp(a->saddr, b->saddr) && ia_equalp(a->daddr, b->daddr) && a->sport == b->sport && a->dport == b->dport)
+        return 0;
+    return 1;
+}
+
 tcpstate_ptr _curr_tcpstate = 0;
 
 tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
 {
+    if (!_hash) {
+        _hash = hash_create(65535, (hashkey_func)tcpstate_hash, (hashkeycmp_func)tcpstate_cmp, 0);
+        assert(_hash);
+    }
     tcpstate_ptr tcpstate = calloc(1, sizeof *tcpstate);
     if (tcpstate == NULL) {
         /* Out of memory; recycle the least recently used */
@@ -95,6 +142,7 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
         if (_curr_tcpstate == tcpstate) {
             _curr_tcpstate = 0;
         }
+        hash_remove(&tcpstate->key, _hash);
         memset(tcpstate, 0, sizeof(*tcpstate));
     } else {
         tcpstate_count++;
@@ -105,6 +153,13 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport)
     tcpstate->dport = dport;
     INIT_LINK(tcpstate, link);
     PREPEND(tcpstates, tcpstate, link);
+
+    tcpstate->key.saddr = &tcpstate->saddr;
+    tcpstate->key.daddr = &tcpstate->daddr;
+    tcpstate->key.sport = sport;
+    tcpstate->key.dport = dport;
+    hash_add(&tcpstate->key, tcpstate, _hash);
+
     return tcpstate;
 }
 
@@ -124,6 +179,7 @@ void tcpstate_discard(tcpstate_ptr tcpstate, const char* msg)
         if (tcpstate->reasm) {
             tcpreasm_free(tcpstate->reasm);
         }
+        hash_remove(&tcpstate->key, _hash);
         free(tcpstate);
         if (_curr_tcpstate == tcpstate) {
             _curr_tcpstate = 0;
@@ -147,5 +203,21 @@ void tcpstate_reset(tcpstate_ptr tcpstate, const char* msg)
             tcpreasm_reset(tcpstate->reasm);
             tcpstate->reasm->seq_start = tcpstate->start;
         }
+    }
+}
+
+void tcpstate_free(tcpstate_ptr tcpstate)
+{
+    if (tcpstate) {
+        UNLINK(tcpstates, tcpstate, link);
+        if (tcpstate->reasm) {
+            tcpreasm_free(tcpstate->reasm);
+        }
+        hash_remove(&tcpstate->key, _hash);
+        free(tcpstate);
+        if (_curr_tcpstate == tcpstate) {
+            _curr_tcpstate = 0;
+        }
+        tcpstate_count--;
     }
 }
