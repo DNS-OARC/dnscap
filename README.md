@@ -39,7 +39,7 @@ To install the dependencies under Debian/Ubuntu:
 apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev
 ```
 
-To install the dependencies under CentOS (with EPEL enabled):
+To install the dependencies under CentOS (with EPEL/PowerTools enabled):
 ```
 yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML
 ```
