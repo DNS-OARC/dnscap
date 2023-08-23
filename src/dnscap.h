@@ -297,9 +297,19 @@ struct tcpreasm {
     size_t        bfb_at;
 };
 
+struct tcpstate_key {
+    iaddr*   saddr;
+    iaddr*   daddr;
+    unsigned sport;
+    unsigned dport;
+};
+typedef struct tcpstate_key tcpstate_key;
+
 struct tcpstate {
     LINK(struct tcpstate)
     link;
+    tcpstate_key key;
+
     iaddr    saddr;
     iaddr    daddr;
     uint16_t sport;

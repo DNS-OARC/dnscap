@@ -67,4 +67,13 @@ void     hash_remove(const void* key, hashtbl* tbl);
 void     hash_free(hashtbl* tbl);
 void     hash_destroy(hashtbl* tbl);
 
+/*
+ * found in lookup3.c
+ */
+#include <stddef.h>
+#include <stdint.h>
+extern uint32_t hashlittle(const void* key, size_t length, uint32_t initval);
+extern uint32_t hashbig(const void* key, size_t length, uint32_t initval);
+extern uint32_t hashword(const uint32_t* k, size_t length, uint32_t initval);
+
 #endif // __dnscap_hashtbl_h
