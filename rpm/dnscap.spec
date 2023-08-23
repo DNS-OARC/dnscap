@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.1.3
+Version:        2.2.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,25 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Aug 23 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.2.0-1
+- Release 2.2.0
+  * This release adds anonymization of EDNS Client Subnet to all
+    anonymizer plugins and improves TCP state handling by adding a hash
+    table for lookup rather than walking a list.
+  * Plugins that anonymize can now take two new options:
+    - `-e`: also anonymize EDNS Client Subnet
+    - `-E`: only anonymize EDNS Client Subnet
+  * Other changes:
+    - Cleanup and improvements to building and testing
+    - Mention PowerTools repository for building on CentOS etc
+    - Remove old workarounds in tests before #133
+  * Commits:
+    d4e0b2c TCP state hash table
+    1ea8d3f Doc
+    12ea061 EDNS Client Subnet anonymization
+    c9ed7be pcap-dist
+    b76f745 Cleanup
+    7682d41 hashtbl
 * Tue Jun 27 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.1.3-1
 - Release 2.1.3
   * This release fixes a memory leak when using pattern matching options
