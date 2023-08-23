@@ -43,10 +43,12 @@
 
 #include "dnscap_common.h"
 
+#include "edns0_ecs.c"
+
 static set_iaddr_t anonmask_set_iaddr = 0;
 
 static logerr_t*       logerr;
-static int             only_clients = 0, only_servers = 0, mask_port = 53, mask_v4 = 24, mask_v6 = 48;
+static int             only_clients = 0, only_servers = 0, mask_port = 53, mask_v4 = 24, mask_v6 = 48, edns = 0;
 static struct in_addr  in4  = { INADDR_ANY };
 static struct in6_addr in6  = IN6ADDR_ANY_INIT;
 static uint32_t*       in6p = (uint32_t*)&in6;
@@ -71,7 +73,9 @@ void anonmask_usage()
         "\t-s            Only mask servers (port == 53)\n"
         "\t-p <port>     Set port for -c/-s masking, default 53\n"
         "\t-4 <netmask>  The /mask for IPv4 addresses, default /24\n"
-        "\t-6 <netmask>  The /mask for IPv6 addresses, default /48\n");
+        "\t-6 <netmask>  The /mask for IPv6 addresses, default /48\n"
+        "\t-e            Also mask EDNS(0) Client Subnet\n"
+        "\t-E            ONLY mask EDNS(0) Client Subnet, not IP addresses\n");
 }
 
 void anonmask_extension(int ext, void* arg)
@@ -89,7 +93,7 @@ void anonmask_getopt(int* argc, char** argv[])
     unsigned long ul;
     char*         p;
 
-    while ((c = getopt(*argc, *argv, "?csp:4:6:")) != EOF) {
+    while ((c = getopt(*argc, *argv, "?csp:4:6:eE")) != EOF) {
         switch (c) {
         case 'c':
             only_clients = 1;
@@ -114,6 +118,13 @@ void anonmask_getopt(int* argc, char** argv[])
             if (*p != '\0' || ul > 127U)
                 usage("IPv6 mask must be an integer 0..127");
             mask_v6 = (unsigned)ul;
+            break;
+        case 'e':
+            if (!edns)
+                edns = 1;
+            break;
+        case 'E':
+            edns = -1;
             break;
         case '?':
             anonmask_usage();
@@ -173,11 +184,43 @@ int anonmask_close(my_bpftimeval ts)
     return 0;
 }
 
+void ecs_callback(int family, u_char* buf, size_t len)
+{
+    u_char* mask;
+
+    switch (family) {
+    case 1: // IPv4
+        if (len > sizeof(struct in_addr))
+            break;
+        mask = (u_char*)&in4;
+        while (len--) {
+            *buf++ &= *mask++;
+        }
+        break;
+    case 2: // IPv6
+        if (len > sizeof(struct in6_addr))
+            break;
+        mask = (u_char*)&in6;
+        while (len--) {
+            *buf++ &= *mask++;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 int anonmask_filter(const char* descr, iaddr* from, iaddr* to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
-    const u_char* pkt_copy, const unsigned olen,
-    const u_char* payload, const unsigned payloadlen)
+    u_char* pkt_copy, unsigned olen,
+    u_char* payload, unsigned payloadlen)
 {
+    if (edns && flags & DNSCAP_OUTPUT_ISDNS && payload && payloadlen > DNS_MSG_HDR_SZ) {
+        parse_for_edns0_ecs(payload, payloadlen, ecs_callback);
+        if (edns < 0)
+            return 0;
+    }
+
     uint32_t* p6;
 
     for (;;) {

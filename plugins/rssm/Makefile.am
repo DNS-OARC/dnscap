@@ -1,6 +1,5 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
-CLEANFILES = $(srcdir)/hashtbl.c \
-    hashtbl.c *.gcda *.gcno *.gcov
+CLEANFILES = *.gcda *.gcno *.gcov *.pcap-dist
 
 AM_CFLAGS = -I$(srcdir) \
     -I$(top_srcdir)/src \
@@ -10,8 +9,6 @@ AM_CFLAGS = -I$(srcdir) \
 
 pkglib_LTLIBRARIES = rssm.la
 rssm_la_SOURCES = rssm.c
-nodist_rssm_la_SOURCES = hashtbl.c
-BUILT_SOURCES = hashtbl.c
 rssm_la_LDFLAGS = -module -avoid-version $(libldns_LIBS)
 TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh
 EXTRA_DIST = $(TESTS) test1.gold test2.gold dnscap-rssm-rssac002.1.in \
@@ -28,12 +25,6 @@ gcov-local:
 	  gcov -o .libs -l -r -s "$(srcdir)" "$$src"; \
 	done
 endif
-
-hashtbl.c: $(top_srcdir)/src/hashtbl.c
-	cp $(top_srcdir)/src/hashtbl.c ./
-
-$(srcdir)/hashtbl.c: $(top_srcdir)/src/hashtbl.c
-	cp $(top_srcdir)/src/hashtbl.c $(srcdir)/
 
 dnscap-rssm-rssac002.1: dnscap-rssm-rssac002.1.in Makefile
 	sed -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g' \

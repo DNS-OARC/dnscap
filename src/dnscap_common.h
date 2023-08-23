@@ -116,10 +116,10 @@ typedef int filter_t(const char* descr,
     unsigned                     sport,
     unsigned                     dport,
     my_bpftimeval                ts,
-    const u_char*                pkt_copy,
-    const unsigned               olen,
-    const u_char*                payload,
-    const unsigned               payloadlen);
+    u_char*                      pkt_copy,
+    unsigned                     olen,
+    u_char*                      payload,
+    unsigned                     payloadlen);
 
 /*
  * Extensions

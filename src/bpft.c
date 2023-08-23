@@ -41,7 +41,7 @@
 
 void prepare_bpft(void)
 {
-    unsigned  udp10_mbs, udp10_mbc, udp11_mbc; //udp11_mbs
+    unsigned  udp10_mbs, udp10_mbc, udp11_mbc; // udp11_mbs
     text_list bpfl;
     text_ptr  text;
     size_t    len;
@@ -70,13 +70,13 @@ void prepare_bpft(void)
     }
 
     /*
- * Model
- * (vlan) and (transport)
- * (vlan) and ((icmp) or (frags) or (dns))
- * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
- * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
- * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
- */
+     * Model
+     * (vlan) and (transport)
+     * (vlan) and ((icmp) or (frags) or (dns))
+     * (vlan) and ((icmp) or (frags) or ((ports) and (hosts)))
+     * (vlan) and ((icmp) or (frags) or (((tcp) or (udp)) and (hosts)))
+     * [(vlan) and] ( [(icmp) or] [(frags) or] ( ( [(tcp) or] (udp) ) [and (hosts)] ) )
+     */
 
     /* Make a BPF program to do early course kernel-level filtering. */
     INIT_LIST(bpfl);

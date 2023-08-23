@@ -2856,3 +2856,249 @@ cryptopant.so usage error: must have a -k keyfile
 	ns3.google.com.,IN,A,157794,216.239.36.10 \
 	ns4.google.com.,IN,A,157794,216.239.38.10
 cryptopant.so usage error: -c and -s options are mutually exclusive
+[64] 2023-07-05 07:21:38.669836 [#0 edns.pcap-dist 4095] \
+	[172.24.244.221].58541 [172.24.244.218].53  \
+	dns QUERY,NOERROR,31428,rd \
+	1 h.root-servers.net.,IN,A 0 0 0
+[64] 2023-07-05 07:21:38.669891 [#1 edns.pcap-dist 4095] \
+	[172.24.244.221].58541 [172.24.244.218].53  \
+	dns QUERY,NOERROR,5824,rd \
+	1 h.root-servers.net.,IN,AAAA 0 0 0
+[80] 2023-07-05 07:21:38.669977 [#2 edns.pcap-dist 4095] \
+	[172.24.244.218].53 [172.24.244.221].58541  \
+	dns QUERY,NOERROR,31428,qr|rd|ra \
+	1 h.root-servers.net.,IN,A \
+	1 h.root-servers.net.,IN,A,85098,198.97.190.53 0 0
+[92] 2023-07-05 07:21:38.670010 [#3 edns.pcap-dist 4095] \
+	[172.24.244.218].53 [172.24.244.221].58541  \
+	dns QUERY,NOERROR,5824,qr|rd|ra \
+	1 h.root-servers.net.,IN,AAAA \
+	1 h.root-servers.net.,IN,AAAA,85098,2001:500:1::53 0 0
+[88] 2023-07-05 07:21:38.670793 [#4 edns.pcap-dist 4095] \
+	[172.24.244.221].33737 [198.221.87.229].53  \
+	dns QUERY,NOERROR,56979,rd|ad \
+	1 ns1.dns.nic.aaa.,IN,NS 0 0 \
+	1 .,4096,4096,0,edns0[len=16,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[code=3,codelen=0],edns0opt[code=10,codelen=8]
+[464] 2023-07-05 07:21:38.698303 [#5 edns.pcap-dist 4095] \
+	[198.221.87.229].53 [172.24.244.221].33737  \
+	dns QUERY,NOERROR,56979,qr|rd \
+	1 ns1.dns.nic.aaa.,IN,NS 0 \
+	6 aaa.,IN,NS,172800,a.nic.aaa. \
+	aaa.,IN,NS,172800,b.nic.aaa. \
+	aaa.,IN,NS,172800,c.nic.aaa. \
+	aaa.,IN,NS,172800,ns1.dns.nic.aaa. \
+	aaa.,IN,NS,172800,ns2.dns.nic.aaa. \
+	aaa.,IN,NS,172800,ns3.dns.nic.aaa. \
+	13 a.nic.aaa.,IN,A,172800,37.209.192.9 \
+	b.nic.aaa.,IN,A,172800,37.209.194.9 \
+	c.nic.aaa.,IN,A,172800,37.209.196.9 \
+	ns1.dns.nic.aaa.,IN,A,172800,156.154.144.2 \
+	ns2.dns.nic.aaa.,IN,A,172800,156.154.145.2 \
+	ns3.dns.nic.aaa.,IN,A,172800,156.154.159.2 \
+	a.nic.aaa.,IN,AAAA,172800,2001:dcd:1::9 \
+	b.nic.aaa.,IN,AAAA,172800,2001:dcd:2::9 \
+	c.nic.aaa.,IN,AAAA,172800,2001:dcd:3::9 \
+	ns1.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1071::2 \
+	ns2.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1072::2 \
+	ns3.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1073::2 \
+	.,1232,1232,0,edns0[len=30,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=3,codelen=26]
+[64] 2023-07-05 07:21:42.739334 [#6 edns.pcap-dist 4095] \
+	[172.24.244.221].53174 [172.24.244.218].53  \
+	dns QUERY,NOERROR,48648,rd \
+	1 g.root-servers.net.,IN,A 0 0 0
+[64] 2023-07-05 07:21:42.739396 [#7 edns.pcap-dist 4095] \
+	[172.24.244.221].53174 [172.24.244.218].53  \
+	dns QUERY,NOERROR,48141,rd \
+	1 g.root-servers.net.,IN,AAAA 0 0 0
+[80] 2023-07-05 07:21:42.739525 [#8 edns.pcap-dist 4095] \
+	[172.24.244.218].53 [172.24.244.221].53174  \
+	dns QUERY,NOERROR,48648,qr|rd|ra \
+	1 g.root-servers.net.,IN,A \
+	1 g.root-servers.net.,IN,A,85094,192.112.36.4 0 0
+[92] 2023-07-05 07:21:42.739558 [#9 edns.pcap-dist 4095] \
+	[172.24.244.218].53 [172.24.244.221].53174  \
+	dns QUERY,NOERROR,48141,qr|rd|ra \
+	1 g.root-servers.net.,IN,AAAA \
+	1 g.root-servers.net.,IN,AAAA,85094,2001:500:12::d0d 0 0
+[83] 2023-07-05 07:21:42.740590 [#10 edns.pcap-dist 4095] \
+	[172.24.244.221].50901 [192.37.47.233].53  \
+	dns QUERY,NOERROR,35713,rd|ad \
+	1 net.,IN,A 0 0 \
+	1 .,4096,4096,0,edns0[len=23,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[ECS,family=1,source=24,scope=0,addr=172.24.244.0],edns0opt[code=10,codelen=8]
+[895] 2023-07-05 07:21:42.836816 [#11 edns.pcap-dist 4095] \
+	[192.37.47.233].53 [172.24.244.221].50901  \
+	dns QUERY,NOERROR,35713,qr|rd \
+	1 net.,IN,A 0 \
+	13 net.,IN,NS,172800,j.gtld-servers.net. \
+	net.,IN,NS,172800,b.gtld-servers.net. \
+	net.,IN,NS,172800,a.gtld-servers.net. \
+	net.,IN,NS,172800,h.gtld-servers.net. \
+	net.,IN,NS,172800,d.gtld-servers.net. \
+	net.,IN,NS,172800,c.gtld-servers.net. \
+	net.,IN,NS,172800,i.gtld-servers.net. \
+	net.,IN,NS,172800,e.gtld-servers.net. \
+	net.,IN,NS,172800,m.gtld-servers.net. \
+	net.,IN,NS,172800,f.gtld-servers.net. \
+	net.,IN,NS,172800,k.gtld-servers.net. \
+	net.,IN,NS,172800,l.gtld-servers.net. \
+	net.,IN,NS,172800,g.gtld-servers.net. \
+	27 m.gtld-servers.net.,IN,A,172800,192.55.83.30 \
+	l.gtld-servers.net.,IN,A,172800,192.41.162.30 \
+	k.gtld-servers.net.,IN,A,172800,192.52.178.30 \
+	j.gtld-servers.net.,IN,A,172800,192.48.79.30 \
+	i.gtld-servers.net.,IN,A,172800,192.43.172.30 \
+	h.gtld-servers.net.,IN,A,172800,192.54.112.30 \
+	g.gtld-servers.net.,IN,A,172800,192.42.93.30 \
+	f.gtld-servers.net.,IN,A,172800,192.35.51.30 \
+	e.gtld-servers.net.,IN,A,172800,192.12.94.30 \
+	d.gtld-servers.net.,IN,A,172800,192.31.80.30 \
+	c.gtld-servers.net.,IN,A,172800,192.26.92.30 \
+	b.gtld-servers.net.,IN,A,172800,192.33.14.30 \
+	a.gtld-servers.net.,IN,A,172800,192.5.6.30 \
+	m.gtld-servers.net.,IN,AAAA,172800,2001:501:b1f9::30 \
+	l.gtld-servers.net.,IN,AAAA,172800,2001:500:d937::30 \
+	k.gtld-servers.net.,IN,AAAA,172800,2001:503:d2d::30 \
+	j.gtld-servers.net.,IN,AAAA,172800,2001:502:7094::30 \
+	i.gtld-servers.net.,IN,AAAA,172800,2001:503:39c1::30 \
+	h.gtld-servers.net.,IN,AAAA,172800,2001:502:8cc::30 \
+	g.gtld-servers.net.,IN,AAAA,172800,2001:503:eea3::30 \
+	f.gtld-servers.net.,IN,AAAA,172800,2001:503:d414::30 \
+	e.gtld-servers.net.,IN,AAAA,172800,2001:502:1ca1::30 \
+	d.gtld-servers.net.,IN,AAAA,172800,2001:500:856e::30 \
+	c.gtld-servers.net.,IN,AAAA,172800,2001:503:83eb::30 \
+	b.gtld-servers.net.,IN,AAAA,172800,2001:503:231d::2:30 \
+	a.gtld-servers.net.,IN,AAAA,172800,2001:503:a83e::2:30 \
+	.,1232,1232,0,edns0[len=39,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=10,codelen=24],edns0opt[ECS,family=1,source=24,scope=0,addr=172.24.244.0]
+[86] 2023-07-05 07:21:46.511502 [#12 edns.pcap-dist 4095] \
+	[172.24.244.221].35191 [1.183.102.77].53  \
+	dns QUERY,NOERROR,960,rd|ad \
+	1 dnssec-failed.org.,IN,A 0 0 \
+	1 .,4096,4096,0,edns0[len=12,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[code=10,codelen=8]
+[131] 2023-07-05 07:21:46.518500 [#13 edns.pcap-dist 4095] \
+	[1.183.102.77].53 [172.24.244.221].35191  \
+	dns QUERY,SERVFAIL,960,qr|rd|ra \
+	1 dnssec-failed.org.,IN,A 0 0 \
+	1 .,1232,1232,0,edns0[len=57,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=15,codelen=53]
+[64] 2023-07-05 07:21:38.669836 [#0 edns.pcap-dist 4095] \
+	[172.17.0.6].58541 [172.17.0.1].53  \
+	dns QUERY,NOERROR,31428,rd \
+	1 h.root-servers.net.,IN,A 0 0 0
+[64] 2023-07-05 07:21:38.669891 [#1 edns.pcap-dist 4095] \
+	[172.17.0.6].58541 [172.17.0.1].53  \
+	dns QUERY,NOERROR,5824,rd \
+	1 h.root-servers.net.,IN,AAAA 0 0 0
+[80] 2023-07-05 07:21:38.669977 [#2 edns.pcap-dist 4095] \
+	[172.17.0.1].53 [172.17.0.6].58541  \
+	dns QUERY,NOERROR,31428,qr|rd|ra \
+	1 h.root-servers.net.,IN,A \
+	1 h.root-servers.net.,IN,A,85098,198.97.190.53 0 0
+[92] 2023-07-05 07:21:38.670010 [#3 edns.pcap-dist 4095] \
+	[172.17.0.1].53 [172.17.0.6].58541  \
+	dns QUERY,NOERROR,5824,qr|rd|ra \
+	1 h.root-servers.net.,IN,AAAA \
+	1 h.root-servers.net.,IN,AAAA,85098,2001:500:1::53 0 0
+[88] 2023-07-05 07:21:38.670793 [#4 edns.pcap-dist 4095] \
+	[172.17.0.6].33737 [198.97.190.53].53  \
+	dns QUERY,NOERROR,56979,rd|ad \
+	1 ns1.dns.nic.aaa.,IN,NS 0 0 \
+	1 .,4096,4096,0,edns0[len=16,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[code=3,codelen=0],edns0opt[code=10,codelen=8]
+[464] 2023-07-05 07:21:38.698303 [#5 edns.pcap-dist 4095] \
+	[198.97.190.53].53 [172.17.0.6].33737  \
+	dns QUERY,NOERROR,56979,qr|rd \
+	1 ns1.dns.nic.aaa.,IN,NS 0 \
+	6 aaa.,IN,NS,172800,a.nic.aaa. \
+	aaa.,IN,NS,172800,b.nic.aaa. \
+	aaa.,IN,NS,172800,c.nic.aaa. \
+	aaa.,IN,NS,172800,ns1.dns.nic.aaa. \
+	aaa.,IN,NS,172800,ns2.dns.nic.aaa. \
+	aaa.,IN,NS,172800,ns3.dns.nic.aaa. \
+	13 a.nic.aaa.,IN,A,172800,37.209.192.9 \
+	b.nic.aaa.,IN,A,172800,37.209.194.9 \
+	c.nic.aaa.,IN,A,172800,37.209.196.9 \
+	ns1.dns.nic.aaa.,IN,A,172800,156.154.144.2 \
+	ns2.dns.nic.aaa.,IN,A,172800,156.154.145.2 \
+	ns3.dns.nic.aaa.,IN,A,172800,156.154.159.2 \
+	a.nic.aaa.,IN,AAAA,172800,2001:dcd:1::9 \
+	b.nic.aaa.,IN,AAAA,172800,2001:dcd:2::9 \
+	c.nic.aaa.,IN,AAAA,172800,2001:dcd:3::9 \
+	ns1.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1071::2 \
+	ns2.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1072::2 \
+	ns3.dns.nic.aaa.,IN,AAAA,172800,2610:a1:1073::2 \
+	.,1232,1232,0,edns0[len=30,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=3,codelen=26]
+[64] 2023-07-05 07:21:42.739334 [#6 edns.pcap-dist 4095] \
+	[172.17.0.6].53174 [172.17.0.1].53  \
+	dns QUERY,NOERROR,48648,rd \
+	1 g.root-servers.net.,IN,A 0 0 0
+[64] 2023-07-05 07:21:42.739396 [#7 edns.pcap-dist 4095] \
+	[172.17.0.6].53174 [172.17.0.1].53  \
+	dns QUERY,NOERROR,48141,rd \
+	1 g.root-servers.net.,IN,AAAA 0 0 0
+[80] 2023-07-05 07:21:42.739525 [#8 edns.pcap-dist 4095] \
+	[172.17.0.1].53 [172.17.0.6].53174  \
+	dns QUERY,NOERROR,48648,qr|rd|ra \
+	1 g.root-servers.net.,IN,A \
+	1 g.root-servers.net.,IN,A,85094,192.112.36.4 0 0
+[92] 2023-07-05 07:21:42.739558 [#9 edns.pcap-dist 4095] \
+	[172.17.0.1].53 [172.17.0.6].53174  \
+	dns QUERY,NOERROR,48141,qr|rd|ra \
+	1 g.root-servers.net.,IN,AAAA \
+	1 g.root-servers.net.,IN,AAAA,85094,2001:500:12::d0d 0 0
+[83] 2023-07-05 07:21:42.740590 [#10 edns.pcap-dist 4095] \
+	[172.17.0.6].50901 [192.112.36.4].53  \
+	dns QUERY,NOERROR,35713,rd|ad \
+	1 net.,IN,A 0 0 \
+	1 .,4096,4096,0,edns0[len=23,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[ECS,family=1,source=24,scope=0,addr=172.24.244.0],edns0opt[code=10,codelen=8]
+[895] 2023-07-05 07:21:42.836816 [#11 edns.pcap-dist 4095] \
+	[192.112.36.4].53 [172.17.0.6].50901  \
+	dns QUERY,NOERROR,35713,qr|rd \
+	1 net.,IN,A 0 \
+	13 net.,IN,NS,172800,j.gtld-servers.net. \
+	net.,IN,NS,172800,b.gtld-servers.net. \
+	net.,IN,NS,172800,a.gtld-servers.net. \
+	net.,IN,NS,172800,h.gtld-servers.net. \
+	net.,IN,NS,172800,d.gtld-servers.net. \
+	net.,IN,NS,172800,c.gtld-servers.net. \
+	net.,IN,NS,172800,i.gtld-servers.net. \
+	net.,IN,NS,172800,e.gtld-servers.net. \
+	net.,IN,NS,172800,m.gtld-servers.net. \
+	net.,IN,NS,172800,f.gtld-servers.net. \
+	net.,IN,NS,172800,k.gtld-servers.net. \
+	net.,IN,NS,172800,l.gtld-servers.net. \
+	net.,IN,NS,172800,g.gtld-servers.net. \
+	27 m.gtld-servers.net.,IN,A,172800,192.55.83.30 \
+	l.gtld-servers.net.,IN,A,172800,192.41.162.30 \
+	k.gtld-servers.net.,IN,A,172800,192.52.178.30 \
+	j.gtld-servers.net.,IN,A,172800,192.48.79.30 \
+	i.gtld-servers.net.,IN,A,172800,192.43.172.30 \
+	h.gtld-servers.net.,IN,A,172800,192.54.112.30 \
+	g.gtld-servers.net.,IN,A,172800,192.42.93.30 \
+	f.gtld-servers.net.,IN,A,172800,192.35.51.30 \
+	e.gtld-servers.net.,IN,A,172800,192.12.94.30 \
+	d.gtld-servers.net.,IN,A,172800,192.31.80.30 \
+	c.gtld-servers.net.,IN,A,172800,192.26.92.30 \
+	b.gtld-servers.net.,IN,A,172800,192.33.14.30 \
+	a.gtld-servers.net.,IN,A,172800,192.5.6.30 \
+	m.gtld-servers.net.,IN,AAAA,172800,2001:501:b1f9::30 \
+	l.gtld-servers.net.,IN,AAAA,172800,2001:500:d937::30 \
+	k.gtld-servers.net.,IN,AAAA,172800,2001:503:d2d::30 \
+	j.gtld-servers.net.,IN,AAAA,172800,2001:502:7094::30 \
+	i.gtld-servers.net.,IN,AAAA,172800,2001:503:39c1::30 \
+	h.gtld-servers.net.,IN,AAAA,172800,2001:502:8cc::30 \
+	g.gtld-servers.net.,IN,AAAA,172800,2001:503:eea3::30 \
+	f.gtld-servers.net.,IN,AAAA,172800,2001:503:d414::30 \
+	e.gtld-servers.net.,IN,AAAA,172800,2001:502:1ca1::30 \
+	d.gtld-servers.net.,IN,AAAA,172800,2001:500:856e::30 \
+	c.gtld-servers.net.,IN,AAAA,172800,2001:503:83eb::30 \
+	b.gtld-servers.net.,IN,AAAA,172800,2001:503:231d::2:30 \
+	a.gtld-servers.net.,IN,AAAA,172800,2001:503:a83e::2:30 \
+	.,1232,1232,0,edns0[len=39,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=10,codelen=24],edns0opt[ECS,family=1,source=24,scope=0,addr=172.24.244.0]
+[86] 2023-07-05 07:21:46.511502 [#12 edns.pcap-dist 4095] \
+	[172.17.0.6].35191 [1.1.1.1].53  \
+	dns QUERY,NOERROR,960,rd|ad \
+	1 dnssec-failed.org.,IN,A 0 0 \
+	1 .,4096,4096,0,edns0[len=12,UDP=4096,ver=0,rcode=0,DO=0,z=0],edns0opt[code=10,codelen=8]
+[131] 2023-07-05 07:21:46.518500 [#13 edns.pcap-dist 4095] \
+	[1.1.1.1].53 [172.17.0.6].35191  \
+	dns QUERY,SERVFAIL,960,qr|rd|ra \
+	1 dnssec-failed.org.,IN,A 0 0 \
+	1 .,1232,1232,0,edns0[len=57,UDP=1232,ver=0,rcode=0,DO=0,z=0],edns0opt[code=15,codelen=53]

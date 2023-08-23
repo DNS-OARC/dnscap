@@ -60,7 +60,7 @@
 
 #include "dnscap_common.h"
 
-#include "hashtbl.h"
+#include "hashtbl.c"
 
 static logerr_t*     logerr;
 static my_bpftimeval open_ts;

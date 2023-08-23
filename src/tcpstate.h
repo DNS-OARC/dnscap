@@ -42,5 +42,6 @@ tcpstate_ptr tcpstate_new(iaddr from, iaddr to, unsigned sport, unsigned dport);
 void         tcpstate_discard(tcpstate_ptr tcpstate, const char* msg);
 tcpstate_ptr tcpstate_getcurr(void);
 void         tcpstate_reset(tcpstate_ptr tcpstate, const char* msg);
+void         tcpstate_free(tcpstate_ptr tcpstate);
 
 #endif /* __dnscap_tcpstate_h */

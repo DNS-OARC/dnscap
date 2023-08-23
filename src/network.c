@@ -517,7 +517,7 @@ _match_rr(const ldns_rr_list* rrs, char** reason, int* negmatch, int* match, ldn
     /* Look at each RR in the section (or each QNAME in
        the question section). */
     myregex_ptr myregex;
-    size_t i, n;
+    size_t      i, n;
     for (i = 0, n = ldns_rr_list_rr_count(rrs); i < n; i++) {
         ldns_rr* rr = ldns_rr_list_rr(rrs, i);
         if (!rr) {
@@ -536,7 +536,7 @@ _match_rr(const ldns_rr_list* rrs, char** reason, int* negmatch, int* match, ldn
              myregex = NEXT(myregex, link)) {
 
             if (regexec(&myregex->reg, (char*)ldns_buffer_begin(buf), 0, NULL, 0) == 0) {
-                if (myregex->not)
+                if (myregex->not )
                     (*negmatch)++;
                 else
                     (*match)++;
@@ -571,7 +571,7 @@ _filter_by_qname(const ldns_pkt* lpkt, char** reason)
      */
     myregex_ptr myregex;
     for (myregex = HEAD(myregexes); myregex != NULL; myregex = NEXT(myregex, link)) {
-        if (myregex->not) {
+        if (myregex->not ) {
             negmatch = 0;
         } else {
             match = 0;
@@ -609,15 +609,15 @@ _filter_by_qname(const ldns_pkt* lpkt, char** reason)
 
 void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_t* packet, const u_char* payload, size_t length)
 {
-    u_char        pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char* dnspkt = 0;
-    unsigned      proto, sport, dport;
-    iaddr         from, to, initiator, responder;
-    int           response, m;
-    unsigned      flags    = DNSCAP_OUTPUT_ISLAYER;
-    tcpstate_ptr  tcpstate = NULL;
-    size_t        len, dnslen = 0;
-    HEADER        dns;
+    u_char       pkt_copy[SNAPLEN], *pkt = pkt_copy;
+    u_char*      dnspkt = 0;
+    unsigned     proto, sport, dport;
+    iaddr        from, to, initiator, responder;
+    int          response, m;
+    unsigned     flags    = DNSCAP_OUTPUT_ISLAYER;
+    tcpstate_ptr tcpstate = NULL;
+    size_t       len, dnslen = 0;
+    HEADER       dns;
 
     /* Make a writable copy of the packet and use that copy from now on. */
     if (length > SNAPLEN)
@@ -664,8 +664,8 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
         proto  = IPPROTO_UDP;
         sport  = packet->udphdr.uh_sport;
         dport  = packet->udphdr.uh_dport;
-        dnspkt = payload;
-        dnslen = length;
+        dnspkt = pkt;
+        dnslen = len;
         flags |= DNSCAP_OUTPUT_ISDNS;
     } else if (packet->have_tcphdr) {
         uint32_t seq = packet->tcphdr.th_seq;
@@ -730,14 +730,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
             _curr_tcpstate = 0;
 
             /* End of stream; deallocate the tcpstate. */
-            if (tcpstate) {
-                UNLINK(tcpstates, tcpstate, link);
-                if (tcpstate->reasm) {
-                    tcpreasm_free(tcpstate->reasm);
-                }
-                free(tcpstate);
-                tcpstate_count--;
-            }
+            tcpstate_free(tcpstate);
             return;
         }
         if (packet->tcphdr.th_flags & TH_SYN) {
@@ -1084,7 +1077,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     const u_char* opkt, size_t olen)
 {
     u_char          pkt_copy[SNAPLEN], *pkt = pkt_copy;
-    const u_char*   dnspkt = 0;
+    u_char*         dnspkt = 0;
     unsigned        proto, sport, dport;
     iaddr           from, to, initiator, responder;
     struct ip6_hdr* ipv6;
@@ -1314,14 +1307,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 pkt_copy, olen, NULL, 0);
             _curr_tcpstate = 0;
             /* End of stream; deallocate the tcpstate. */
-            if (tcpstate) {
-                UNLINK(tcpstates, tcpstate, link);
-                if (tcpstate->reasm) {
-                    tcpreasm_free(tcpstate->reasm);
-                }
-                free(tcpstate);
-                tcpstate_count--;
-            }
+            tcpstate_free(tcpstate);
             goto network_pkt_end;
         }
         if (tcp->th_flags & TH_SYN) {
@@ -1448,8 +1434,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 tcpstate->lastdns = seq + tcpstate->dnslen;
             } else if (seqdiff == 0 && len > 2) {
                 /* This is the first segment of the stream, and
-             * contains the dnslen and dns header, so we can
-             * filter on it. */
+                 * contains the dnslen and dns header, so we can
+                 * filter on it. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "len+hdr\n");
                 dnslen = tcpstate->dnslen = (pkt[0] << 8) | (pkt[1] << 0);
@@ -1461,7 +1447,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 tcpstate->lastdns = seq + 2 + tcpstate->dnslen;
             } else if (seqdiff == 0 && len == 2) {
                 /* This is the first segment of the stream, but only
-             * contains the dnslen. */
+                 * contains the dnslen. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "len\n");
                 tcpstate->dnslen  = (pkt[0] << 8) | (pkt[1] << 0);
@@ -1478,7 +1464,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 goto network_pkt_end;
             } else if (seqdiff == 2) {
                 /* This is not the first segment, but it does contain
-             * the first dns header, so we can filter on it. */
+                 * the first dns header, so we can filter on it. */
                 if (dumptrace >= 3)
                     fprintf(stderr, "hdr\n");
                 tcpstate->maxdiff = seqdiff + (uint32_t)len;

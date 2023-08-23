@@ -1,5 +1,7 @@
 #!/bin/sh -xe
 
+test -e dns.pcap || ln -s "$srcdir/dns.pcap" dns.pcap
+
 ../dnscap -?
 ! ../dnscap -j
 
@@ -42,13 +44,13 @@ fi
 
 ../dnscap -V
 
-../dnscap -r dns.pcap-dist -g -ddddd
-../dnscap -r dns.pcap-dist -x '.*' -X '.*' -g -ddddd
+../dnscap -r dns.pcap -g -ddddd
+../dnscap -r dns.pcap -x '.*' -X '.*' -g -ddddd
 
-! ../dnscap -r dns.pcap-dist -i fake 2>test11.out
+! ../dnscap -r dns.pcap -i fake 2>test11.out
 cat test11.out
 grep -qF -- "-i makes no sense after -r" test11.out
-! ../dnscap -i fake -r dns.pcap-dist 2>test11.out
+! ../dnscap -i fake -r dns.pcap 2>test11.out
 cat test11.out
 grep -qF -- "-r makes no sense after -i" test11.out
 
