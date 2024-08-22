@@ -1,6 +1,6 @@
 # dnscap
 
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/DNS-OARC/dnscap.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/DNS-OARC/dnscap/alerts/) [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=bugs)](https://sonarcloud.io/dashboard?id=dns-oarc%3Adnscap) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=security_rating)](https://sonarcloud.io/dashboard?id=dns-oarc%3Adnscap)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=bugs)](https://sonarcloud.io/summary/new_code?id=dns-oarc%3Adnscap) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=dns-oarc%3Adnscap)
 
 `dnscap` is a network capture utility designed specifically for DNS traffic.
 It produces binary data in `pcap(3)` and other format. This utility is similar
