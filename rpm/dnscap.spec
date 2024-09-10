@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.2.0
+Version:        2.2.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -60,6 +60,17 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Sep 10 2024 Jerry Lundström <lundstrom.jerry@gmail.com> 2.2.1-1
+- Release 2.2.1
+  * This patch release fixes the BPF to correct capture ICMPv6, a typo in
+    the filter had it matching "ip" and not "ip6".
+  * Other changes are updates to GitHub workflows and man-pages.
+  * Commits:
+    ea82cd1 Copyright
+    aa14a9f ICMP BPF filter
+    6ef17e2 Badges
+    6722677 Workflow
+    1cb22f0 Man-page opt, Dumper
 * Wed Aug 23 2023 Jerry Lundström <lundstrom.jerry@gmail.com> 2.2.0-1
 - Release 2.2.0
   * This release adds anonymization of EDNS Client Subnet to all
