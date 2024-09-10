@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2023, OARC, Inc.
+ * Copyright (c) 2016-2024 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -325,7 +325,7 @@ int dumper_close(my_bpftimeval ts)
         int x;
         if (!p->close)
             continue;
-        x = (*p->close)(ts);
+        x = (*p->close)();
         if (x)
             logerr("%s_close returned %d", p->name, x);
     }

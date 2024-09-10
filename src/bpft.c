@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2023, OARC, Inc.
+ * Copyright (c) 2016-2024 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ void prepare_bpft(void)
     else
         len += text_add(&bpfl, "("); /* ( transports ...  */
     if (wanticmp) {
-        len += text_add(&bpfl, " ( ip proto 1 or ip proto 58 ) or");
+        len += text_add(&bpfl, " ( icmp or icmp6 ) or");
     }
     if (wantfrags) {
         len += text_add(&bpfl, " ( ip[6:2] & 0x1fff != 0 or ip6[6] = 44 ) or");

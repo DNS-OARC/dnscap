@@ -1,4 +1,4 @@
-.\" Copyright (c) 2016-2023, OARC, Inc.
+.\" Copyright (c) 2016-2024 OARC, Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -226,8 +226,8 @@ This depends on the libpcap version.
 If you want to make sure you're capturing on all interfaces then use the
 special "any" or "all" (depends on system).
 
-More than one interface may be selected which will cause output to be
-interleaved from all selected interfaces.
+Can be specified more than once to select multiple interfaces, this will
+cause output to be interleaved from all selected interfaces.
 .TP
 .B \-p
 Asks that the interface not be put into promiscuous mode.
@@ -468,7 +468,7 @@ VLAN id 4095 can be used to specify all vlans.
 .BI "\-L " vlan
 Captures 802.1Q encapsulated packets matching the specified vlans AND
 packets without VLAN tags.
-Can be specified more than one to select multiple vlans.
+Can be specified more than once to select multiple vlans.
 VLAN id 4095 can be used to specify all vlans.
 .TP
 .BI "\-u " port

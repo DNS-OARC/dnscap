@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2023, OARC, Inc.
+# Copyright (c) 2016-2024 OARC, Inc.
 # Copyright (c) 2007, The Measurement Factory, Inc.
 # Copyright (c) 2007, Internet Systems Consortium, Inc.
 # All rights reserved.
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ(2.61)
-AC_INIT([dnscap], [2.2.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_INIT([dnscap], [2.2.1], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
 AC_CONFIG_HEADER([src/config.h])
