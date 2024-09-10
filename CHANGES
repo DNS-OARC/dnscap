@@ -1,3 +1,18 @@
+2024-09-10 Jerry Lundström
+
+    Release 2.2.1
+
+    This patch release fixes the BPF to correct capture ICMPv6, a typo in
+    the filter had it matching "ip" and not "ip6".
+
+    Other changes are updates to GitHub workflows and man-pages.
+
+    ea82cd1 Copyright
+    aa14a9f ICMP BPF filter
+    6ef17e2 Badges
+    6722677 Workflow
+    1cb22f0 Man-page opt, Dumper
+
 2023-08-23 Jerry Lundström
 
     Release 2.2.0
