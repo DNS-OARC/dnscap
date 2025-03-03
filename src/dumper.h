@@ -37,6 +37,8 @@
 #ifndef __dnscap_dumper_h
 #define __dnscap_dumper_h
 
+void set_output_pkt(u_char* pkt, const unsigned olen);
+
 void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned flags,
     unsigned sport, unsigned dport, my_bpftimeval ts,
     u_char* pkt_copy, const unsigned olen,
@@ -45,6 +47,7 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
 int dumper_open(my_bpftimeval ts);
 int dumper_close(my_bpftimeval ts);
 
+void           dnscap_dump_open_gz(const char* path, FILE** fp);
 pcap_dumper_t* dnscap_pcap_dump_open(pcap_t* pcap, const char* path);
 
 #endif /* __dnscap_dumper_h */

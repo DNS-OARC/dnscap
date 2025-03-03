@@ -143,7 +143,7 @@ AC_SUBST(SECCOMPFLAGS, ["$SECCOMPFLAGS"])
 AC_CONFIG_FILES([
     Makefile
     src/Makefile
-	src/test/Makefile
+    src/test/Makefile
     plugins/Makefile
     plugins/pcapdump/Makefile
     plugins/rssm/Makefile
@@ -152,9 +152,10 @@ AC_CONFIG_FILES([
     plugins/royparse/Makefile
     plugins/anonmask/Makefile
     plugins/ipcrypt/Makefile
-	plugins/anonaes128/Makefile
-	plugins/cryptopan/Makefile
+    plugins/anonaes128/Makefile
+    plugins/cryptopan/Makefile
     plugins/cryptopant/Makefile
     plugins/eventlog/Makefile
+    plugins/asudp/Makefile
 ])
 AC_OUTPUT

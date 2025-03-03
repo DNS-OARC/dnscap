@@ -360,7 +360,7 @@ is used, then
 will exit after reaching the limit.
 .TP
 .BI "\-C " lim
-Set a size limit, measured in bytes.
+Set a size limit, measured in (uncompressed) bytes.
 When writing to a file, the packet dump file will be closed when
 .I lim
 number of bytes (or larger then) has been written.
@@ -734,6 +734,9 @@ Anonymize IP addresses using AES128.
 .B anonmask.so
 Pseudo\-anonymize IP addresses by masking them.
 .TP
+.B asudp.so
+Rewrites outgoing packet, takes the DNS and constructs UDP packets, can be used together with layers and reassembling/defrag'ing packets.
+.TP
 .B cryptopan.so
 Anonymize IP addresses using an extension to Crypto\-PAn (College of
 Computing, Georgia Tech) made by David Stott (Lucent).
@@ -785,6 +788,11 @@ for details and below for all extended options related to this format.
 .B pcap
 This uses the pcap library to output the captured DNS packets. (default)
 .TP
+.B tcpdns
+This format outputs the DNS as a TCP stream, first 16bit size (network order) then the DNS message.
+This output is compatible with
+.IR "dnsperf -B" .
+.TP
 .B diagnostic
 This is the output produced by
 .BR \-g ,
@@ -797,10 +805,6 @@ First line contains packet and capturing information:
 .EX
   [<pktsize>] <date> <timestamp> [<pktnum> <file|interface> <vlanid>]
 .EE
-
-Note;
-.B pktsize
-is before parsing the IPv4/v6 packet and can include padding.
 
 Second line shows IP information or if the packet is a fragment:
 

@@ -239,7 +239,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
 
     network_pkt2(descr, firstpkt->pkthdr.ts, packet, payload, length);
 
-    if (limit_packets != 0U && msgcount == limit_packets) {
+    if (limit_packets != 0U && msgcount >= limit_packets) {
         if (preso)
             goto breakloop;
         if (dumper_opened == dump_state && dumper_close(firstpkt->pkthdr.ts))
@@ -446,7 +446,7 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
 
     network_pkt(descr, hdr->ts, pf, pkt, len);
 
-    if (limit_packets != 0U && msgcount == limit_packets) {
+    if (limit_packets != 0U && msgcount >= limit_packets) {
         if (preso)
             goto breakloop;
         if (dumper_opened == dump_state && dumper_close(hdr->ts))

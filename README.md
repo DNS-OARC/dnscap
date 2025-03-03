@@ -124,6 +124,7 @@ $ env CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" ./configure
 
 - `anonaes128.so`: Anonymize IP addresses using AES128
 - `anonmask.so`: Pseudo-anonymize IP addresses by masking them
+- `asudp.so`: Rewrites outgoing packet, takes the DNS and constructs UDP packets, can be used together with layers and reassembling/defrag'ing packets
 - `cryptopan.so`: Anonymize IP addresses using an extension to Crypto-PAn (College of Computing, Georgia Tech) made by David Stott (Lucent)
 - `cryptopant.so`: Anonymize IP addresses using cryptopANT, a different implementation of Crypto-PAn made by the ANT project at USC/ISI
 - `ipcrypt.so`: Anonymize IP addresses using ipcrypt create by Jean-Philippe Aumasson
