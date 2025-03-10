@@ -798,6 +798,10 @@ First line contains packet and capturing information:
   [<pktsize>] <date> <timestamp> [<pktnum> <file|interface> <vlanid>]
 .EE
 
+Note;
+.B pktsize
+is before parsing the IPv4/v6 packet and can include padding.
+
 Second line shows IP information or if the packet is a fragment:
 
 .EX
@@ -845,6 +849,14 @@ Each DNS record contains the following:
 
 .EX
   <fqdn>,<class>,<type>[,<ttl>[,<additional information>]]
+.EE
+
+Note; comma characters in
+.B fqdn
+will be quoted with a backslash, for example:
+
+.EX
+  1 exam\\,ple.com.,IN,A 0 0 0
 .EE
 
 Additional information will be displayed for SOA, A, AAAA, MX, NS, PTR,
