@@ -86,7 +86,7 @@ size_t          limit_pcapfilesize = 0U;
 pcap_t*         pcap_dead;
 pcap_dumper_t*  dumper;
 time_t          dumpstart;
-unsigned        msgcount;
+size_t          msgcount      = 0;
 size_t          capturedbytes = 0;
 char *          dumpname, *dumpnamepart;
 char*           bpft;

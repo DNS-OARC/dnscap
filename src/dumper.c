@@ -165,9 +165,9 @@ int dumper_open(my_bpftimeval ts)
 
         gmtime_r((time_t*)&ts.tv_sec, &tm);
         strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
-        if (asprintf(&dumpname, "%s.%s.%06lu%s",
+        if (asprintf(&dumpname, "%s.%s.%06ld%s",
                 dump_base, sbuf,
-                (u_long)ts.tv_usec, dump_suffix ? dump_suffix : "")
+                ts.tv_usec, dump_suffix ? dump_suffix : "")
                 < 0
             || asprintf(&dumpnamepart, "%s.part", dumpname) < 0) {
             logerr("asprintf: %s", strerror(errno));
