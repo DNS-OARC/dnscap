@@ -196,21 +196,31 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         gmtime_r(&t, &tm);
         strftime(when, sizeof(when), "%Y-%m-%d %T", &tm);
 
+        if (packet->have_iphdr && !options.defrag_ipv4) {
+            if (len > packet->iphdr.ip_len) {
+                len = packet->iphdr.ip_len;
+            }
+        } else if (packet->have_ip6hdr && !options.defrag_ipv6) {
+            if (len > 40 + packet->ip6hdr.ip6_plen) {
+                len = 40 + packet->ip6hdr.ip6_plen;
+            }
+        }
+
         if (vlan != MAX_VLAN) {
-            snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s (vlan %u) %u] \\\n",
-                (u_long)len,
+            snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zd %s (vlan %u) %u] \\\n",
+                len,
                 when,
-                (u_long)firstpkt->pkthdr.ts.tv_usec,
-                (long)msgcount,
+                firstpkt->pkthdr.ts.tv_usec,
+                msgcount,
                 mypcap->name ? mypcap->name : "\"some interface\"",
                 vlan,
                 vlan);
         } else {
-            snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s %u] \\\n",
-                (u_long)len,
+            snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zd %s %u] \\\n",
+                len,
                 when,
-                (u_long)firstpkt->pkthdr.ts.tv_usec,
-                (long)msgcount,
+                firstpkt->pkthdr.ts.tv_usec,
+                msgcount,
                 mypcap->name ? mypcap->name : "\"some interface\"",
                 vlan);
         }
@@ -417,8 +427,8 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         } else {
             viap = "\"some interface\"";
         }
-        snprintf(descr, sizeof(descr), "[%lu] %s.%06lu [#%ld %s %u] \\\n",
-            (u_long)len, when, (u_long)hdr->ts.tv_usec, (long)msgcount, viap, vlan);
+        snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zu %s %u] \\\n",
+            len, when, hdr->ts.tv_usec, msgcount, viap, vlan);
     } else {
         descr[0] = '\0';
     }
@@ -705,11 +715,11 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
-            fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] %15s -> ",
+            fprintf(stderr, "%s: tcp pkt: %" PRIdMAX ".%06ld [%4zu] %15s -> ",
                 ProgramName,
-                (u_long)ts.tv_sec,
-                (u_long)ts.tv_usec,
-                (u_long)len,
+                (intmax_t)ts.tv_sec,
+                ts.tv_usec,
+                len,
                 ia_str(from));
             fprintf(stderr, "%15s; ", ia_str(to));
 
@@ -753,7 +763,7 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
                     fprintf(stderr, "warning: recycling state for "
                         "duplicate tcp stream after only %ld "
                         "seconds idle\n",
-                        (u_long)(ts.tv_sec - tcpstate->last_use));
+                        ts.tv_sec - tcpstate->last_use);
                     */
                 }
             } else {
@@ -1089,6 +1099,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
     struct ip*      ip;
     size_t          len, dnslen = 0;
     HEADER          dns;
+    char            descr_[512];
 
     if (dumptrace >= 4)
         fprintf(stderr, "processing %s packet: len=%zu\n", (pf == PF_INET ? "IPv4" : (pf == PF_INET6 ? "IPv6" : "unknown")), olen);
@@ -1118,8 +1129,16 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         to.af = AF_INET;
         memcpy(&to.u.a4, &ip->ip_dst, sizeof(struct in_addr));
         offset = ip->ip_hl << 2;
-        if (len > ntohs(ip->ip_len)) /* small IP packets have L2 padding */
+        if (len > ntohs(ip->ip_len)) {
+            /* IP packets have L2 padding */
+            olen -= len - ntohs(ip->ip_len); // remove ether frame padding
+            if (preso) {
+                // rewrite descr
+                snprintf(descr_, sizeof(descr_), "[%zu]%s", olen, strchr(descr, ' '));
+                descr = descr_;
+            }
             len = ntohs(ip->ip_len);
+        }
         if (len <= (size_t)offset)
             goto network_pkt_end;
         pkt += offset;
@@ -1150,6 +1169,16 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
         nexthdr     = ipv6->ip6_nxt;
         offset      = sizeof(struct ip6_hdr);
         payload_len = ntohs(ipv6->ip6_plen);
+
+        if (len > sizeof(*ipv6) + payload_len) {
+            /* IP packets have L2 padding */
+            olen -= len - sizeof(*ipv6) - payload_len; // remove ether frame padding
+            if (preso) {
+                // rewrite descr
+                snprintf(descr_, sizeof(descr_), "[%zu]%s", olen, strchr(descr, ' '));
+                descr = descr_;
+            }
+        }
 
         memset(&from, 0, sizeof from);
         from.af = AF_INET6;
@@ -1288,8 +1317,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
-            fprintf(stderr, "%s: tcp pkt: %lu.%06lu [%4lu] ", ProgramName,
-                (u_long)ts.tv_sec, (u_long)ts.tv_usec, (u_long)len);
+            fprintf(stderr, "%s: tcp pkt: %" PRIdMAX ".%06ld [%4zu] ", ProgramName,
+                (intmax_t)ts.tv_sec, ts.tv_usec, len);
             fprintf(stderr, "%15s -> ", ia_str(from));
             fprintf(stderr, "%15s; ", ia_str(to));
             if (tcpstate)
@@ -1325,7 +1354,7 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
                 fprintf(stderr, "warning: recycling state for "
                     "duplicate tcp stream after only %ld "
                     "seconds idle\n",
-                    (u_long)(ts.tv_sec - tcpstate->last_use));
+                    ts.tv_sec - tcpstate->last_use);
             }
 #endif
             } else {

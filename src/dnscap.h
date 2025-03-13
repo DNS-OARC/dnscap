@@ -413,7 +413,7 @@ extern size_t          limit_pcapfilesize;
 extern pcap_t*         pcap_dead;
 extern pcap_dumper_t*  dumper;
 extern time_t          dumpstart;
-extern unsigned        msgcount;
+extern size_t          msgcount;
 extern size_t          capturedbytes;
 extern char *          dumpname, *dumpnamepart;
 extern char*           bpft;
