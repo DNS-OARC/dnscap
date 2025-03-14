@@ -38,6 +38,16 @@
 #include "iaddr.h"
 #include "log.h"
 #include "pcaps.h"
+#include "args.h"
+
+static u_char*  _pkt;
+static unsigned _olen;
+
+void set_output_pkt(u_char* pkt, const unsigned olen)
+{
+    _pkt  = pkt;
+    _olen = olen;
+}
 
 /*
  * when flags & DNSCAP_OUTPUT_ISDNS, payload points to a DNS packet
@@ -49,8 +59,11 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
 {
     struct plugin* p;
 
+    _pkt  = pkt_copy;
+    _olen = olen;
+
     for (p = HEAD(plugins); p != NULL; p = NEXT(p, link)) {
-        if (p->filter && (*p->filter)(descr, &from, &to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen)) {
+        if (p->filter && (*p->filter)(descr, &from, &to, proto, flags, sport, dport, ts, _pkt, _olen, payload, payloadlen)) {
             if (dumptrace >= 3) {
                 fprintf(stderr, "filtered: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
                     capturedbytes,
@@ -66,6 +79,7 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
 
     msgcount++;
     capturedbytes += olen;
+    // TODO: += olen is incorrect when receiving multiple DNS messages in a single packet, such as TCP
 
     if (dumptrace >= 3) {
         fprintf(stderr, "output: capturedbytes=%zu, proto=%d, isfrag=%s, isdns=%s, olen=%u, payloadlen=%u\n",
@@ -93,12 +107,15 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
     }
     if (dump_type != nowhere) {
         if (options.dump_format == pcap) {
+            if ((options.use_layers || options.reassemble_tcp) && _pkt == pkt_copy)
+                usage("use_layers or reassemble_tcp with PCAP output is not supported unless used with plugins that rewrites packets");
+
             struct pcap_pkthdr h;
 
             memset(&h, 0, sizeof h);
             h.ts  = ts;
-            h.len = h.caplen = olen;
-            pcap_dump((u_char*)dumper, &h, pkt_copy);
+            h.len = h.caplen = _olen;
+            pcap_dump((u_char*)dumper, &h, _pkt);
             if (flush)
                 pcap_dump_flush(dumper);
         } else if (options.dump_format == cbor && (flags & DNSCAP_OUTPUT_ISDNS) && payload) {
@@ -118,7 +135,7 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
                 exit(1);
             }
         } else if (options.dump_format == cds) {
-            int ret = output_cds(from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+            int ret = output_cds(from, to, proto, flags, sport, dport, ts, _pkt, _olen, payload, payloadlen);
 
             if (ret == DUMP_CDS_FLUSH) {
                 if (dumper_close(ts)) {
@@ -133,11 +150,27 @@ void output(const char* descr, iaddr from, iaddr to, uint8_t proto, unsigned fla
                 fprintf(stderr, "%s: output to cds failed [%u]\n", ProgramName, ret);
                 exit(1);
             }
+        } else if (options.dump_format == tcpdns) {
+            if ((flags & DNSCAP_OUTPUT_ISDNS) && payload && payloadlen > 0) {
+                uint16_t len = htons(payloadlen);
+                if (fwrite(&len, 1, 2, dumper_fp) != 2
+                    || fwrite(payload, 1, payloadlen, dumper_fp) != payloadlen) {
+                    fprintf(stderr, "%s: output to tcpdns failed: %s\n", ProgramName, strerror(errno));
+                    exit(1);
+                }
+
+                // readjust captured bytes
+                capturedbytes -= olen;
+                capturedbytes += 2 + payloadlen;
+            } else {
+                // readjust msgcount
+                msgcount--;
+            }
         }
     }
     for (p = HEAD(plugins); p != NULL; p = NEXT(p, link))
         if (p->output)
-            (*p->output)(descr, from, to, proto, flags, sport, dport, ts, pkt_copy, olen, payload, payloadlen);
+            (*p->output)(descr, from, to, proto, flags, sport, dport, ts, _pkt, _olen, payload, payloadlen);
     return;
 }
 
@@ -181,6 +214,20 @@ int dumper_open(my_bpftimeval ts)
             if (dumper == NULL) {
                 logerr("pcap dump open: %s",
                     pcap_geterr(pcap_dead));
+                return (TRUE);
+            }
+        } else if (options.dump_format == tcpdns) {
+            if (wantgzip) {
+                dnscap_dump_open_gz(t, &dumper_fp);
+            } else {
+                if (!strncmp(t, "-", 1)) {
+                    dumper_fp = fdopen(1, "w");
+                } else {
+                    dumper_fp = fopen(t, "w");
+                }
+            }
+            if (dumper_fp == NULL) {
+                logerr("dump fopen: %s", strerror(errno));
                 return (TRUE);
             }
         }
@@ -284,6 +331,11 @@ int dumper_close(my_bpftimeval ts)
                 exit(1);
             }
         }
+    } else if (options.dump_format == tcpdns) {
+        if (dumper_fp) {
+            fclose(dumper_fp);
+            dumper_fp = 0;
+        }
     }
 
     if (dump_type == to_stdout) {
@@ -355,23 +407,22 @@ gzip_cookie_close(void* cookie)
 }
 #endif /* HAVE_ZLIB_H */
 
-pcap_dumper_t* dnscap_pcap_dump_open(pcap_t* pcap, const char* path)
+void dnscap_dump_open_gz(const char* path, FILE** fp)
 {
 #if HAVE_ZLIB_H
 #if HAVE_GZOPEN
     if (wantgzip) {
-        FILE*  fp = NULL;
-        gzFile z  = gzopen(path, "w");
+        gzFile z = gzopen(path, "w");
         if (z == NULL) {
             perror("gzopen");
-            return NULL;
+            return;
         }
 
 #if HAVE_FUNOPEN
-        fp = funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
-        if (fp == NULL) {
+        *fp = funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
+        if (*fp == NULL) {
             perror("funopen");
-            return NULL;
+            return;
         }
 #elif HAVE_FOPENCOOKIE
         {
@@ -379,17 +430,32 @@ pcap_dumper_t* dnscap_pcap_dump_open(pcap_t* pcap, const char* path)
                 NULL, gzip_cookie_write, NULL, gzip_cookie_close
             };
 
-            fp = fopencookie(z, "w", cookiefuncs);
-            if (fp == NULL) {
+            *fp = fopencookie(z, "w", cookiefuncs);
+            if (*fp == NULL) {
                 perror("fopencookie");
-                return NULL;
+                return;
             }
         }
 #endif
-        return pcap_dump_fopen(pcap, fp);
+        return;
     }
 #endif /* HAVE_GZOPEN */
 #endif /* HAVE_ZLIB_H */
+
+    *fp = 0;
+    return;
+}
+
+pcap_dumper_t* dnscap_pcap_dump_open(pcap_t* pcap, const char* path)
+{
+    if (wantgzip) {
+        FILE* fp = 0;
+        dnscap_dump_open_gz(path, &fp);
+        if (!fp) {
+            return NULL;
+        }
+        return pcap_dump_fopen(pcap, fp);
+    }
 
     return pcap_dump_open(pcap, path);
 }

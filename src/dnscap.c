@@ -85,6 +85,7 @@ unsigned        limit_packets      = 0U;
 size_t          limit_pcapfilesize = 0U;
 pcap_t*         pcap_dead;
 pcap_dumper_t*  dumper;
+FILE*           dumper_fp = 0;
 time_t          dumpstart;
 size_t          msgcount      = 0;
 size_t          capturedbytes = 0;

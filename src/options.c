@@ -137,6 +137,9 @@ int option_parse(options_t* options, const char* option)
         } else if (!strcmp(argument, "cds")) {
             options->dump_format = cds;
             return 0;
+        } else if (!strcmp(argument, "tcpdns")) {
+            options->dump_format = tcpdns;
+            return 0;
         }
     } else if (have("user")) {
         if (options->user) {

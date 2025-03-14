@@ -18,11 +18,13 @@ CLEANFILES = test*.log test*.trs \
   test_regex_match.out \
   edns.out \
   test_icmp.out \
-  ether_padd.out
+  ether_padd.out \
+  tcpdns.out
 
 TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh test6.sh test7.sh \
   test8.sh test9.sh test10.sh test11.sh test12.sh test13.sh test14.sh \
-  test_regex_match.sh test_edns.sh test_icmp.sh test_ether_padd.sh
+  test_regex_match.sh test_edns.sh test_icmp.sh test_ether_padd.sh \
+  test_tcpdns.sh
 
 EXTRA_DIST = $(TESTS) \
   dns.gold dns.pcap \

@@ -248,7 +248,7 @@ typedef LIST(struct vlan) vlan_list;
 #define MAX_TCP_MSGS 8
 #define MAX_TCP_SEGS 8
 #define MAX_TCP_HOLES 8
-#define MAX_TCP_DNS_MSG 8
+#define MAX_TCP_DNS_MSG 200 // based on 1500 MTU / 14 (min-size DNS message) * 2 rounded up
 
 typedef struct tcphole    tcphole_t;
 typedef struct tcp_msgbuf tcp_msgbuf_t;
@@ -412,6 +412,7 @@ extern unsigned        limit_packets;
 extern size_t          limit_pcapfilesize;
 extern pcap_t*         pcap_dead;
 extern pcap_dumper_t*  dumper;
+extern FILE*           dumper_fp;
 extern time_t          dumpstart;
 extern size_t          msgcount;
 extern size_t          capturedbytes;

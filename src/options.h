@@ -43,7 +43,8 @@ typedef enum dump_format dump_format_t;
 enum dump_format {
     pcap,
     cbor,
-    cds
+    cds,
+    tcpdns
 };
 
 /* clang-format off */

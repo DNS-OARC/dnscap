@@ -20,6 +20,7 @@ Makefile.old
 aclocal.m4
 compile
 configure
+configure~
 depcomp
 install-sh
 missing
