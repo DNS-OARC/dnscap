@@ -367,6 +367,16 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         break;
     }
 #endif
+#ifdef DLT_LINUX_SLL2
+    case DLT_LINUX_SLL2: {
+        if (len < 20)
+            return;
+        etype = _need16(&pkt[0]);
+        pkt += 20;
+        len -= 20;
+        break;
+    }
+#endif
     default:
         return;
     }
