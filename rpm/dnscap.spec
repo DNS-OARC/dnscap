@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.2.1
+Version:        2.3.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -54,6 +54,35 @@ sh autogen.sh
 
 
 %changelog
+* Thu Apr 17 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.3.0-1
+- Release 2.3.0
+  * This release adds support for Linux cooked v2 link-type, a new output
+    format, a new plugin and fixes a couple of issues.
+  * The new output format `tcpdns` can be used to generate a file with the
+    DNS as a TCP stream, first 16bit size (network order) then the DNS
+    message, which is compatible with `dnsperf -B`.
+  * The new plugin `asudp` can be used to rewrite outgoing packet by taking
+    the DNS that's found and construct UDP packets from it.
+  * Other changes:
+    - Fix #314:
+      - man-page: Clarify that `pktsize` is shown before parsing the IP packet
+      - `-g`: Quote `,` characters
+    - Fix #316: Fix handling of L2/ethernet frames that are larger than the IPv4/v6 packet
+    - Fix multiple print statements w.r.t. `size_t`/`struct timeval`, `%zu`/`%ld` and type casting
+    - Handle extension function pointers better
+    - Clarify that `-C` counts uncompressed output
+    - Block PCAP output if TCP reassemble is used
+    - Increase maximum DNS messages in a reassembled TCP message
+    - Add new extension interface for setting output packet
+    - Update pcap-thread to v4.1.0
+  * Commits:
+    e689bc8 pcap-thread v4.1.0
+    29d184b DLT_LINUX_SLL2
+    ba793a9 Fixes, asudp plugin, tcpdns output format
+    6c133d4 Ethernet padding
+    420548a Diag output
+    8b92a52 SPEC
+    a3fb1dd Mailing-list
 * Tue Sep 10 2024 Jerry Lundström <lundstrom.jerry@gmail.com> 2.2.1-1
 - Release 2.2.1
   * This patch release fixes the BPF to correct capture ICMPv6, a typo in
