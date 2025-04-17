@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,13 @@ static void dump_dns_rr(ldns_rr* rr, FILE* trace, ldns_buffer* lbuf, bool qsect)
     if (ldns_rdf2buffer_str(lbuf, ldns_rr_owner(rr)) != LDNS_STATUS_OK) {
         goto error;
     }
-    fprintf(trace, "%s", (char*)ldns_buffer_begin(lbuf));
+    char* p = (char*)ldns_buffer_begin(lbuf);
+    for (; *p; p++) {
+        if (*p == ',') {
+            fputc('\\', trace);
+        }
+        fputc(*p, trace);
+    }
 
     // class
     ldns_buffer_clear(lbuf);

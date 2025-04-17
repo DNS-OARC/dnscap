@@ -1,0 +1,14 @@
+[71] 2025-03-07 12:44:52.219938 [#0 sll2.pcap 4095] \
+	[238.0.0.1].37273 [238.0.0.2].53  \
+	dns QUERY,NOERROR,20793,rd|ad \
+	1 \,\..,IN,A 0 0 \
+	1 .,1232,1232,0,edns0[len=12,UDP=1232,ver=0,rcode=0,DO=1,z=32768],edns0opt[code=10,codelen=8]
+[760] 2025-03-07 12:44:52.234317 [#1 sll2.pcap 4095] \
+	[238.0.0.2].53 [238.0.0.1].37273  \
+	dns QUERY,NXDOMAIN,20793,qr|rd|ra \
+	1 \,\..,IN,A 0 \
+	4 .,IN,SOA,5,a.root-servers.net.,nstld.verisign-grs.com.,2025030700,1800,900,604800,86400 \
+	.,IN,RRSIG,5,[275] \
+	.,IN,RRSIG,5,[275] \
+	.,IN,NSEC,5,[15] \
+	1 .,1220,1220,0,edns0[len=28,UDP=1220,ver=0,rcode=0,DO=1,z=32768],edns0opt[code=10,codelen=24]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,6 +139,9 @@ typedef void (*tcpstate_reset_t)(void* tcpstate, const char* msg);
 
 #define DNSCAP_EXT_SET_IADDR 5
 typedef void (*set_iaddr_t)(iaddr* from, iaddr* to);
+
+#define DNSCAP_EXT_SET_OUTPUT_PKT 6
+typedef void (*set_output_pkt_t)(u_char* pkt, const unsigned olen);
 
 /*
  * Flags

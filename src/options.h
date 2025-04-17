@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,8 @@ typedef enum dump_format dump_format_t;
 enum dump_format {
     pcap,
     cbor,
-    cds
+    cds,
+    tcpdns
 };
 
 /* clang-format off */

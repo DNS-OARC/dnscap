@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,6 +136,9 @@ int option_parse(options_t* options, const char* option)
             return 0;
         } else if (!strcmp(argument, "cds")) {
             options->dump_format = cds;
+            return 0;
+        } else if (!strcmp(argument, "tcpdns")) {
+            options->dump_format = tcpdns;
             return 0;
         }
     } else if (have("user")) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 #include "log.h"
 #include "tcpstate.h"
 #include "network.h"
+#include "dumper.h"
 
 #include <ldns/ldns.h>
 
@@ -504,6 +505,8 @@ void parse_args(int argc, char* argv[])
                 options.dump_format = cbor;
             } else if (!strcmp(optarg, "cds")) {
                 options.dump_format = cds;
+            } else if (!strcmp(optarg, "tcpdns")) {
+                options.dump_format = tcpdns;
             } else {
                 usage("invalid output format for -F");
             }
@@ -616,11 +619,12 @@ void parse_args(int argc, char* argv[])
             snprintf(sn, sizeof(sn), "%s_extension", pl->name);
             pl->extension = dlsym(pl->handle, sn);
             if (pl->extension) {
-                (*pl->extension)(DNSCAP_EXT_IS_RESPONDER, (void*)is_responder);
-                (*pl->extension)(DNSCAP_EXT_IA_STR, (void*)_ia_str);
-                (*pl->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (void*)_tcpstate_getcurr);
-                (*pl->extension)(DNSCAP_EXT_TCPSTATE_RESET, (void*)_tcpstate_reset);
-                (*pl->extension)(DNSCAP_EXT_SET_IADDR, (void*)set_iaddr);
+                (*pl->extension)(DNSCAP_EXT_IS_RESPONDER, (is_responder_t)is_responder);
+                (*pl->extension)(DNSCAP_EXT_IA_STR, (ia_str_t)_ia_str);
+                (*pl->extension)(DNSCAP_EXT_TCPSTATE_GETCURR, (tcpstate_getcurr_t)_tcpstate_getcurr);
+                (*pl->extension)(DNSCAP_EXT_TCPSTATE_RESET, (tcpstate_reset_t)_tcpstate_reset);
+                (*pl->extension)(DNSCAP_EXT_SET_IADDR, (set_iaddr_t)set_iaddr);
+                (*pl->extension)(DNSCAP_EXT_SET_OUTPUT_PKT, (set_output_pkt_t)set_output_pkt);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", pl->name);
             pl->getopt = dlsym(pl->handle, sn);
@@ -692,8 +696,6 @@ void parse_args(int argc, char* argv[])
     }
     assert(msg_wanted != 0U);
     assert(err_wanted != 0U);
-    if (dump_type != nowhere && options.use_layers)
-        usage("use_layers is only compatible with -g so far");
     if (dump_type == nowhere && !preso && EMPTY(plugins))
         usage("without -w or -g, there would be no output");
     if (end_hide != 0U && wantfrags)

@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (c) 2016-2024 OARC, Inc.
+ * Copyright (c) 2016-2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,8 +85,9 @@ unsigned        limit_packets      = 0U;
 size_t          limit_pcapfilesize = 0U;
 pcap_t*         pcap_dead;
 pcap_dumper_t*  dumper;
+FILE*           dumper_fp = 0;
 time_t          dumpstart;
-unsigned        msgcount;
+size_t          msgcount      = 0;
 size_t          capturedbytes = 0;
 char *          dumpname, *dumpnamepart;
 char*           bpft;
