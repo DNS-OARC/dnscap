@@ -3,7 +3,7 @@ Upstream-Name: dnscap
 Source: https://github.com/DNS-OARC/dnscap
 
 Files: *
-Copyright: 2016-2024 OARC, Inc.
+Copyright: 2016-2025 OARC, Inc.
 License: BSD-3-Clause
 
 Files: isc/*
@@ -16,7 +16,7 @@ Copyright: 2016 Duane Wessels
 License: MIT
 
 Files: src/pcap-thread/*
-Copyright: 2016-2017 OARC, Inc.
+Copyright: 2016-2025 OARC, Inc.
 License: BSD-3-Clause
 
 Files: m4/*
