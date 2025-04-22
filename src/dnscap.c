@@ -143,8 +143,8 @@ int main(int argc, char* argv[])
             struct tm tm;
             gmtime_r(&start_time, &tm);
             strftime(when, sizeof when, "%F %T", &tm);
-            fprintf(stderr, "Sleeping for %d seconds until %s UTC\n",
-                (int)(start_time - now.tv_sec), when);
+            fprintf(stderr, "Sleeping for %" PRI_tv_sec " seconds until %s UTC\n",
+                start_time - now.tv_sec, when);
             sleep(start_time - now.tv_sec);
             fprintf(stderr, "Awake.\n");
         }

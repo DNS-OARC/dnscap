@@ -286,7 +286,7 @@ void rssm_save_counts(const char* sbuf)
     FILE* fp;
     int   i;
     char* tbuf = 0;
-    i          = asprintf(&tbuf, "%s.%s.%06lu", counts_prefix ? counts_prefix : COUNTS_PREFIX_DEFAULT, sbuf, (u_long)open_ts.tv_usec);
+    i          = asprintf(&tbuf, "%s.%s.%06" PRI_tv_usec, counts_prefix ? counts_prefix : COUNTS_PREFIX_DEFAULT, sbuf, open_ts.tv_usec);
     if (i < 1 || !tbuf) {
         logerr("asprintf: out of memory");
         return;
@@ -302,7 +302,7 @@ void rssm_save_counts(const char* sbuf)
         char      tz[21];
         struct tm tm;
 
-        gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+        gmtime_r(&open_ts.tv_sec, &tm);
         if (!strftime(tz, sizeof(tz), "%Y-%m-%dT%H:%M:%SZ", &tm)) {
             logerr("rssm: strftime failed");
             fclose(fp);
@@ -443,8 +443,8 @@ void rssm_save_counts(const char* sbuf)
             }
         }
     } else {
-        fprintf(fp, "first-packet-time %ld\n", (long)open_ts.tv_sec);
-        fprintf(fp, "last-packet-time %ld\n", (long)close_ts.tv_sec);
+        fprintf(fp, "first-packet-time %" PRI_tv_sec "\n", open_ts.tv_sec);
+        fprintf(fp, "last-packet-time %" PRI_tv_sec "\n", close_ts.tv_sec);
         fprintf(fp, "dns-udp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv4);
         fprintf(fp, "dns-udp-queries-received-ipv6 %" PRIu64 "\n", counts.dns_udp_queries_received_ipv6);
         fprintf(fp, "dns-tcp-queries-received-ipv4 %" PRIu64 "\n", counts.dns_tcp_queries_received_ipv4);
@@ -510,7 +510,7 @@ void rssm_save_sources(const char* sbuf)
     FILE* fp;
     char* tbuf = 0;
     int   i;
-    i = asprintf(&tbuf, "%s.%s.%06lu", sources_prefix, sbuf, (u_long)open_ts.tv_usec);
+    i = asprintf(&tbuf, "%s.%s.%06" PRI_tv_usec, sources_prefix, sbuf, open_ts.tv_usec);
     if (i < 1 || !tbuf) {
         logerr("asprintf: out of memory");
         return;
@@ -535,7 +535,7 @@ void rssm_save_aggregated(const char* sbuf)
     FILE* fp;
     char* tbuf = 0;
     int   i;
-    i = asprintf(&tbuf, "%s.%s.%06lu", aggregated_prefix, sbuf, (u_long)open_ts.tv_usec);
+    i = asprintf(&tbuf, "%s.%s.%06" PRI_tv_usec, aggregated_prefix, sbuf, open_ts.tv_usec);
     if (i < 1 || !tbuf) {
         logerr("asprintf: out of memory");
         return;
@@ -566,7 +566,7 @@ int rssm_close(my_bpftimeval ts)
     struct tm tm;
 
     if (dont_fork_on_close) {
-        gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+        gmtime_r(&open_ts.tv_sec, &tm);
         strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
         close_ts = ts;
         rssm_save_counts(sbuf);
@@ -596,7 +596,7 @@ int rssm_close(my_bpftimeval ts)
         exit(0);
     }
     /* grandchild (2nd gen) continues */
-    gmtime_r((time_t*)&open_ts.tv_sec, &tm);
+    gmtime_r(&open_ts.tv_sec, &tm);
     strftime(sbuf, sizeof(sbuf), "%Y%m%d.%H%M%S", &tm);
     close_ts = ts;
     rssm_save_counts(sbuf);
