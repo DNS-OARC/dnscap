@@ -198,7 +198,7 @@ int dumper_open(my_bpftimeval ts)
 
         gmtime_r((time_t*)&ts.tv_sec, &tm);
         strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
-        if (asprintf(&dumpname, "%s.%s.%06ld%s",
+        if (asprintf(&dumpname, "%s.%s.%06" PRI_tv_usec "%s",
                 dump_base, sbuf,
                 ts.tv_usec, dump_suffix ? dump_suffix : "")
                 < 0
