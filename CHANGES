@@ -1,3 +1,14 @@
+2025-04-24 Jerry Lundström
+
+    Release 2.3.1
+
+    This patch release fixes issues on 32bit systems when they are using
+    64bit time structures (`_TIME_BITS` set to 64) and updates pcap-thread
+    to require libpcap with `DLT_LINUX_SLL2` support.
+
+    a5e9a4a pcap-thread v4.1.1
+    731d9e0 Add support for 64bit time structures on 32bit systems
+
 2025-04-17 Jerry Lundström
 
     Release 2.3.0

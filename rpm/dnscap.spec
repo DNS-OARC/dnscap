@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.3.0
+Version:        2.3.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -54,6 +54,14 @@ sh autogen.sh
 
 
 %changelog
+* Thu Apr 24 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.3.1-1
+- Release 2.3.1
+  * This patch release fixes issues on 32bit systems when they are using
+    64bit time structures (`_TIME_BITS` set to 64) and updates pcap-thread
+    to require libpcap with `DLT_LINUX_SLL2` support.
+  * Commits:
+    a5e9a4a pcap-thread v4.1.1
+    731d9e0 Add support for 64bit time structures on 32bit systems
 * Thu Apr 17 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.3.0-1
 - Release 2.3.0
   * This release adds support for Linux cooked v2 link-type, a new output
