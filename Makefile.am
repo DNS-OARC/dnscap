@@ -6,7 +6,7 @@ MAINTAINERCLEANFILES = $(srcdir)/Makefile.in \
 
 SUBDIRS = src plugins
 
-dist_doc_DATA = README.md LICENSE CONTRIBUTORS
+dist_doc_DATA = README.md LICENSE CONTRIBUTORS CHANGES
 
 EXTRA_DIST = isc m4 .clang-format fmt.sh
 
