@@ -175,10 +175,10 @@ int pcapdump_open(my_bpftimeval ts)
             ts.tv_sec++;
             ts.tv_usec -= MILLION;
         }
-        gmtime_r((time_t*)&ts.tv_sec, &tm);
+        gmtime_r(&ts.tv_sec, &tm);
         strftime(sbuf, 64, "%Y%m%d.%H%M%S", &tm);
-        if (asprintf(&dumpname, "%s.%s.%06lu",
-                dump_base, sbuf, (u_long)ts.tv_usec)
+        if (asprintf(&dumpname, "%s.%s.%06" PRI_tv_usec,
+                dump_base, sbuf, ts.tv_usec)
                 < 0
             || asprintf(&dumpnamepart, "%s.part", dumpname) < 0) {
             logerr("asprintf: %s", strerror(errno));

@@ -290,8 +290,8 @@ void rzkeychange_submit_counts(void)
     double    elapsed = (double)clos_ts.tv_sec - (double)open_ts.tv_sec + 0.000001 * clos_ts.tv_usec - 0.000001 * open_ts.tv_usec; // NOSONAR
     int       k;
 
-    k = snprintf(qname, sizeof(qname), "%lu-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
-        (u_long)open_ts.tv_sec,
+    k = snprintf(qname, sizeof(qname), "%" PRI_tv_sec "-%u-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 "-%" PRIu64 ".%s.%s.%s",
+        open_ts.tv_sec,
         (unsigned int)(elapsed + 0.5),
         counts.total,
         counts.dnskey,
@@ -330,8 +330,8 @@ void rzkeychange_submit_counts(void)
                 if (*t == '.' || *t == ':')
                     *t = '-';
 
-            k = snprintf(qname, sizeof(qname), "%lu.%s.%hhx.%s.%s.%s.%s",
-                (u_long)open_ts.tv_sec,
+            k = snprintf(qname, sizeof(qname), "%" PRI_tv_sec ".%s.%hhx.%s.%s.%s.%s",
+                open_ts.tv_sec,
                 s,
                 key_tag_signals[i].flags,
                 key_tag_signals[i].signal,

@@ -49,6 +49,21 @@
 #endif
 #endif
 
+/* Macros for printing timeval */
+#include <inttypes.h>
+#if _TIME_BITS == 64
+#define PRI_tv_sec PRId64
+#define PRI_tv_usec PRId64
+#else
+#ifdef __OpenBSD__
+#define PRI_tv_sec PRId64
+#define PRI_tv_usec "ld"
+#else
+#define PRI_tv_sec "ld"
+#define PRI_tv_usec "ld"
+#endif
+#endif
+
 /*
  * setup MY_BPFTIMEVAL as the timeval structure that bpf packets
  * will be assoicated with packets from libpcap

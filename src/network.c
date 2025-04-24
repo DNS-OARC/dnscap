@@ -192,7 +192,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
                 break;
         }
 
-        t = (time_t)firstpkt->pkthdr.ts.tv_sec;
+        t = firstpkt->pkthdr.ts.tv_sec;
         gmtime_r(&t, &tm);
         strftime(when, sizeof(when), "%Y-%m-%d %T", &tm);
 
@@ -207,7 +207,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
         }
 
         if (vlan != MAX_VLAN) {
-            snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zd %s (vlan %u) %u] \\\n",
+            snprintf(descr, sizeof(descr), "[%zu] %s.%06" PRI_tv_usec " [#%zd %s (vlan %u) %u] \\\n",
                 len,
                 when,
                 firstpkt->pkthdr.ts.tv_usec,
@@ -216,7 +216,7 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
                 vlan,
                 vlan);
         } else {
-            snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zd %s %u] \\\n",
+            snprintf(descr, sizeof(descr), "[%zu] %s.%06" PRI_tv_usec " [#%zd %s %u] \\\n",
                 len,
                 when,
                 firstpkt->pkthdr.ts.tv_usec,
@@ -426,7 +426,7 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         struct tm   tm;
         time_t      t;
 
-        t = (time_t)hdr->ts.tv_sec;
+        t = hdr->ts.tv_sec;
         gmtime_r(&t, &tm);
         strftime(when, sizeof when, "%Y-%m-%d %T", &tm);
         if (vlan != MAX_VLAN) {
@@ -437,7 +437,7 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
         } else {
             viap = "\"some interface\"";
         }
-        snprintf(descr, sizeof(descr), "[%zu] %s.%06ld [#%zu %s %u] \\\n",
+        snprintf(descr, sizeof(descr), "[%zu] %s.%06" PRI_tv_usec " [#%zu %s %u] \\\n",
             len, when, hdr->ts.tv_usec, msgcount, viap, vlan);
     } else {
         descr[0] = '\0';
@@ -725,9 +725,9 @@ void network_pkt2(const char* descr, my_bpftimeval ts, const pcap_thread_packet_
 
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
-            fprintf(stderr, "%s: tcp pkt: %" PRIdMAX ".%06ld [%4zu] %15s -> ",
+            fprintf(stderr, "%s: tcp pkt: %" PRI_tv_sec ".%06" PRI_tv_usec " [%4zu] %15s -> ",
                 ProgramName,
-                (intmax_t)ts.tv_sec,
+                ts.tv_sec,
                 ts.tv_usec,
                 len,
                 ia_str(from));
@@ -1327,8 +1327,8 @@ void network_pkt(const char* descr, my_bpftimeval ts, unsigned pf,
 
         tcpstate = tcpstate_find(from, to, sport, dport, ts.tv_sec);
         if (dumptrace >= 3) {
-            fprintf(stderr, "%s: tcp pkt: %" PRIdMAX ".%06ld [%4zu] ", ProgramName,
-                (intmax_t)ts.tv_sec, ts.tv_usec, len);
+            fprintf(stderr, "%s: tcp pkt: %" PRI_tv_sec ".%06" PRI_tv_usec " [%4zu] ", ProgramName,
+                ts.tv_sec, ts.tv_usec, len);
             fprintf(stderr, "%15s -> ", ia_str(from));
             fprintf(stderr, "%15s; ", ia_str(to));
             if (tcpstate)
