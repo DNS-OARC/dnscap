@@ -20,6 +20,9 @@ BuildRequires:  libtool
 BuildRequires:  perl-YAML
 BuildRequires:  cryptopant-devel
 BuildRequires:  pkgconfig
+BuildRequires:  lz4-devel
+BuildRequires:  libzstd-devel
+BuildRequires:  xz-devel
 
 %description
 dnscap is a network capture utility designed specifically for DNS

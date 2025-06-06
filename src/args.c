@@ -114,6 +114,16 @@ void set_iaddr(iaddr* from, iaddr* to)
     }
 }
 
+long _get_pcap_thread_ftell(void)
+{
+    return pcap_thread_ftell(&pcap_thread);
+}
+
+size_t _get_pkthdr_caplen(void)
+{
+    return pkthdr_caplen;
+}
+
 #ifdef __linux__
 extern char* strptime(const char*, const char*, struct tm*);
 #endif
@@ -333,7 +343,7 @@ void parse_args(int argc, char* argv[])
             break;
         case 'r':
             if (!EMPTY(mypcaps))
-                usage("-r makes no sense after -i");
+                usage("-r makes no sense after -i, or specified multiple times");
             pcap_offline = calloc(1, sizeof *pcap_offline);
             assert(pcap_offline != NULL);
             INIT_LINK(pcap_offline, link);
@@ -625,6 +635,8 @@ void parse_args(int argc, char* argv[])
                 (*pl->extension)(DNSCAP_EXT_TCPSTATE_RESET, (tcpstate_reset_t)_tcpstate_reset);
                 (*pl->extension)(DNSCAP_EXT_SET_IADDR, (set_iaddr_t)set_iaddr);
                 (*pl->extension)(DNSCAP_EXT_SET_OUTPUT_PKT, (set_output_pkt_t)set_output_pkt);
+                (*pl->extension)(DNSCAP_EXT_GET_PCAP_THREAD_FTELL, (get_pcap_thread_ftell_t)_get_pcap_thread_ftell);
+                (*pl->extension)(DNSCAP_EXT_GET_PKTHDR_CAPLEN, (get_pkthdr_caplen_t)_get_pkthdr_caplen);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", pl->name);
             pl->getopt = dlsym(pl->handle, sn);

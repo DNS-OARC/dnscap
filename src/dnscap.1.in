@@ -212,6 +212,8 @@ file produced by this utility or by
 .BR tcpdump (1)
 (or simiar tools) as the input packet source.
 Can be given as "\-" to indicate standard input.
+
+Supports reading gz/xz/lz4/zst compressed PCAPs based on file extension.
 .TP
 .BI "\-i " if
 Select an interface to be monitored.
