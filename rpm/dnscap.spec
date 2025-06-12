@@ -20,7 +20,11 @@ BuildRequires:  libtool
 BuildRequires:  perl-YAML
 BuildRequires:  cryptopant-devel
 BuildRequires:  pkgconfig
+%if 0%{?suse_version} || 0%{?sle_version}
+BuildRequires:  liblz4-devel
+%else
 BuildRequires:  lz4-devel
+%endif
 BuildRequires:  libzstd-devel
 BuildRequires:  xz-devel
 
