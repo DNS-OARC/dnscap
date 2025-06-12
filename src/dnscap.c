@@ -89,6 +89,7 @@ FILE*           dumper_fp = 0;
 time_t          dumpstart;
 size_t          msgcount      = 0;
 size_t          capturedbytes = 0;
+size_t          pkthdr_caplen = 0;
 char *          dumpname, *dumpnamepart;
 char*           bpft;
 unsigned        dns_port       = DNS_PORT;

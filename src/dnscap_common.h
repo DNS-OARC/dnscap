@@ -37,17 +37,7 @@
 
 #include <netinet/in.h>
 #include <sys/types.h>
-
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
 #include <time.h>
-#else
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-#endif
 
 /* Macros for printing timeval */
 #include <inttypes.h>
@@ -157,6 +147,12 @@ typedef void (*set_iaddr_t)(iaddr* from, iaddr* to);
 
 #define DNSCAP_EXT_SET_OUTPUT_PKT 6
 typedef void (*set_output_pkt_t)(u_char* pkt, const unsigned olen);
+
+#define DNSCAP_EXT_GET_PCAP_THREAD_FTELL 7
+typedef long (*get_pcap_thread_ftell_t)(void);
+
+#define DNSCAP_EXT_GET_PKTHDR_CAPLEN 8
+typedef size_t (*get_pkthdr_caplen_t)(void);
 
 /*
  * Flags

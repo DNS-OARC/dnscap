@@ -40,6 +40,8 @@
 #include "pcaps.h"
 #include "args.h"
 
+#include <zlib.h>
+
 static u_char*  _pkt;
 static unsigned _olen;
 
@@ -385,65 +387,47 @@ int dumper_close(my_bpftimeval ts)
     return (ret);
 }
 
-#if HAVE_ZLIB_H
-#if HAVE_FUNOPEN
-static int
-gzip_cookie_write(void* cookie, const char* buf, int size)
-{
-    return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned)size);
-}
-#elif HAVE_FOPENCOOKIE
-static ssize_t
-gzip_cookie_write(void* cookie, const char* buf, size_t size)
-{
-    return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned)size);
-}
+#if HAVE_FOPENCOOKIE
+static ssize_t gzip_cookie_write(void* cookie, const char* buf, size_t size)
+#elif HAVE_FUNOPEN
+static int gzip_cookie_write(void* cookie, const char* buf, int size)
 #endif
+{
+    return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned)size);
+}
 
-static int
-gzip_cookie_close(void* cookie)
+static int gzip_cookie_close(void* cookie)
 {
     return gzclose((gzFile)cookie);
 }
-#endif /* HAVE_ZLIB_H */
 
 void dnscap_dump_open_gz(const char* path, FILE** fp)
 {
-#if HAVE_ZLIB_H
-#if HAVE_GZOPEN
-    if (wantgzip) {
-        gzFile z = gzopen(path, "w");
-        if (z == NULL) {
-            perror("gzopen");
-            return;
-        }
+    *fp = 0;
 
-#if HAVE_FUNOPEN
-        *fp = funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
-        if (*fp == NULL) {
-            perror("funopen");
-            return;
-        }
-#elif HAVE_FOPENCOOKIE
-        {
-            static cookie_io_functions_t cookiefuncs = {
-                NULL, gzip_cookie_write, NULL, gzip_cookie_close
-            };
-
-            *fp = fopencookie(z, "w", cookiefuncs);
-            if (*fp == NULL) {
-                perror("fopencookie");
-                return;
-            }
-        }
-#endif
+    gzFile z = gzopen(path, "w");
+    if (z == NULL) {
+        perror("gzopen");
         return;
     }
-#endif /* HAVE_GZOPEN */
-#endif /* HAVE_ZLIB_H */
 
-    *fp = 0;
-    return;
+#if HAVE_FOPENCOOKIE
+    static cookie_io_functions_t cookiefuncs = {
+        NULL, gzip_cookie_write, NULL, gzip_cookie_close
+    };
+
+    *fp = fopencookie(z, "w", cookiefuncs);
+    if (*fp == NULL) {
+        perror("fopencookie");
+        return;
+    }
+#elif HAVE_FUNOPEN
+    *fp = funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
+    if (*fp == NULL) {
+        perror("funopen");
+        return;
+    }
+#endif
 }
 
 pcap_dumper_t* dnscap_pcap_dump_open(pcap_t* pcap, const char* path)
