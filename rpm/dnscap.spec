@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.3.1
+Version:        2.4.0
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -20,6 +20,13 @@ BuildRequires:  libtool
 BuildRequires:  perl-YAML
 BuildRequires:  cryptopant-devel
 BuildRequires:  pkgconfig
+%if 0%{?suse_version} || 0%{?sle_version}
+BuildRequires:  liblz4-devel
+%else
+BuildRequires:  lz4-devel
+%endif
+BuildRequires:  libzstd-devel
+BuildRequires:  xz-devel
 
 %description
 dnscap is a network capture utility designed specifically for DNS
@@ -54,6 +61,21 @@ sh autogen.sh
 
 
 %changelog
+* Mon Jun 23 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.4.0-1
+- Release 2.4.0
+  * This release brings support for reading compressed PCAPs, a few new
+    plugin extensions and updates to autotools.
+  * Changes:
+    - Add `CHANGES` to docs
+    - Update autotools requirement to 2.69 and fix deprecation warnings
+    - Support reading gz/xz/lz4/zst compressed PCAPs based on file extension
+    - New plugin extensions:
+      - `DNSCAP_EXT_GET_PCAP_THREAD_FTELL`: function for getting the current uncompressed position in the PCAP file being read upon being called
+      - `DNSCAP_EXT_GET_PKTHDR_CAPLEN`: function that returns the actual packet length as reported by libpcap
+  * Commits:
+    f7e4cad SLE/openSUSE lz4
+    b30d82f Autotools, compressed PCAPs, plugin extensions
+    ac7f37b CHANGES
 * Thu Apr 24 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.3.1-1
 - Release 2.3.1
   * This patch release fixes issues on 32bit systems when they are using

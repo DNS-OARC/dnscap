@@ -123,7 +123,8 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (only_offline_pcaps && start_time != 0 && firstpkt->pkthdr.ts.tv_sec < start_time)
         return;
 
-    len = firstpkt->pkthdr.caplen;
+    len           = firstpkt->pkthdr.caplen;
+    pkthdr_caplen = len;
 
     last_ts = firstpkt->pkthdr.ts;
     if (stop_time != 0 && firstpkt->pkthdr.ts.tv_sec >= stop_time) {
@@ -285,6 +286,8 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     /* If ever SNAPLEN wasn't big enough, we have no recourse. */
     if (hdr->len != hdr->caplen)
         return;
+
+    pkthdr_caplen = hdr->caplen;
 
     /* Data link. */
     vlan = MAX_VLAN; /* MAX_VLAN (0xFFF) is reserved and shouldn't appear on the wire */

@@ -40,6 +40,12 @@
 
 #include "pcap-thread/pcap_thread_ext_frag.h"
 
+#include <zlib.h>
+#include <lz4frame.h>
+#include <zstd.h>
+#include <lzma.h>
+#include <errno.h>
+
 static void
 drop_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, const char* name, const int dlt)
 {
@@ -71,6 +77,373 @@ void print_pcap_thread_error(const char* func, int err)
 
 static pcap_thread_ext_frag_conf_t frag_conf_v4 = PCAP_THREAD_EXT_FRAG_CONF_T_INIT;
 static pcap_thread_ext_frag_conf_t frag_conf_v6 = PCAP_THREAD_EXT_FRAG_CONF_T_INIT;
+
+/* GZ compression */
+
+#if HAVE_FOPENCOOKIE
+static ssize_t gzip_cookie_read(void* cookie, char* buf, size_t size)
+#elif HAVE_FUNOPEN
+static int gzip_cookie_read(void* cookie, char* buf, int size)
+#endif
+{
+    return gzread((gzFile)cookie, buf, size);
+}
+#if HAVE_FOPENCOOKIE
+static int gzip_cookie_seek(void* cookie, off_t* offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        if (offset) {
+            int ret = gztell((gzFile)cookie);
+            *offset = ret;
+            return 0;
+        }
+    default:
+        break;
+    }
+    return -1;
+}
+#elif HAVE_FUNOPEN
+static off_t gzip_cookie_seek(void* cookie, off_t offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        return gztell((gzFile)cookie);
+    default:
+        break;
+    }
+    errno = EINVAL;
+    return -1;
+}
+#endif
+static int gzip_cookie_close(void* cookie)
+{
+    return gzclose((gzFile)cookie);
+}
+
+/* LZ4 compression */
+
+struct _lz4_ctx {
+    LZ4F_dctx*               ctx;
+    LZ4F_decompressOptions_t opts;
+
+    void * in, *out;
+    size_t in_size, out_size;
+    size_t in_have, out_have;
+    size_t in_at, out_at;
+
+    void* file;
+
+    size_t total_read;
+};
+#define lz4 ((struct _lz4_ctx*)cookie)
+#if HAVE_FOPENCOOKIE
+static ssize_t lz4_cookie_read(void* cookie, char* dst, size_t len)
+#elif HAVE_FUNOPEN
+static int lz4_cookie_read(void* cookie, char* dst, int len)
+#endif
+{
+    size_t need = len;
+
+    for (;;) {
+        if (lz4->out_have >= need) {
+            memcpy(dst, lz4->out + lz4->out_at, need);
+            lz4->out_have -= need;
+            lz4->out_at += need;
+            lz4->total_read += need;
+            return len;
+        }
+
+        memcpy(dst, lz4->out + lz4->out_at, lz4->out_have);
+        need -= lz4->out_have;
+        dst += lz4->out_have;
+        lz4->total_read += lz4->out_have;
+
+        ssize_t n = fread(lz4->in + lz4->in_at, 1, lz4->in_size - lz4->in_have, lz4->file);
+        if (n < 0) {
+            return n;
+        }
+        lz4->in_at += n;
+        lz4->in_have += n;
+        if (!lz4->in_have) {
+            if (need < len) {
+                return len - need;
+            }
+            return 0;
+        }
+
+        size_t dst_size = lz4->out_size, src_size = lz4->in_have;
+        size_t code = LZ4F_decompress(lz4->ctx, lz4->out, &dst_size, lz4->in, &src_size, &lz4->opts);
+        if (LZ4F_isError(code)) {
+            fprintf(stderr, "LZ4F_decompress() failed: %s\n", LZ4F_getErrorName(code));
+            exit(1);
+        }
+
+        if (src_size < lz4->in_have) {
+            lz4->in_have -= src_size;
+            memmove(lz4->in, lz4->in + src_size, lz4->in_have);
+            lz4->in_at = lz4->in_have;
+        } else {
+            lz4->in_at   = 0;
+            lz4->in_have = 0;
+        }
+
+        lz4->out_at   = 0;
+        lz4->out_have = dst_size;
+    }
+}
+#if HAVE_FOPENCOOKIE
+static int lz4_cookie_seek(void* cookie, off_t* offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        if (offset) {
+            *offset = lz4->total_read;
+            return 0;
+        }
+    default:
+        break;
+    }
+    return -1;
+}
+#elif HAVE_FUNOPEN
+static off_t lz4_cookie_seek(void* cookie, off_t offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        return lz4->total_read;
+    default:
+        break;
+    }
+    errno = EINVAL;
+    return -1;
+}
+#endif
+static int lz4_cookie_close(void* cookie)
+{
+    FILE* fp = lz4->file;
+
+    LZ4F_errorCode_t code;
+    if ((code = LZ4F_freeDecompressionContext(lz4->ctx))) {
+        fprintf(stderr, "LZ4F_freeDecompressionContext() failed: %s\n", LZ4F_getErrorName(code));
+        exit(1);
+    }
+    free(lz4->in);
+    free(lz4->out);
+    free(lz4);
+
+    return fclose(fp);
+}
+
+/* ZSTD compression */
+
+struct _zstd_ctx {
+    ZSTD_DCtx*     ctx;
+    ZSTD_inBuffer  zin;
+    ZSTD_outBuffer zout;
+
+    void * in, *out;
+    size_t in_size, out_size;
+    size_t in_have, out_have;
+    size_t in_at, out_at;
+
+    void* file;
+
+    size_t total_read;
+};
+#define zstd ((struct _zstd_ctx*)cookie)
+
+#if HAVE_FOPENCOOKIE
+static ssize_t zstd_cookie_read(void* cookie, char* dst, size_t len)
+#elif HAVE_FUNOPEN
+static int zstd_cookie_read(void* cookie, char* dst, int len)
+#endif
+{
+    size_t need = len;
+
+    for (;;) {
+        if (zstd->out_have >= need) {
+            memcpy(dst, zstd->out + zstd->out_at, need);
+            zstd->out_have -= need;
+            zstd->out_at += need;
+            zstd->total_read += need;
+            return len;
+        }
+
+        memcpy(dst, zstd->out + zstd->out_at, zstd->out_have);
+        need -= zstd->out_have;
+        dst += zstd->out_have;
+        zstd->total_read += zstd->out_have;
+
+        if (zstd->zin.pos >= zstd->zin.size) {
+            ssize_t n = fread(zstd->in, 1, zstd->in_size, zstd->file);
+            if (n < 1) {
+                if (!n && need < len) {
+                    return len - need;
+                }
+                return n;
+            }
+            zstd->zin.size = n;
+            zstd->zin.pos  = 0;
+        }
+
+        zstd->zout.size = zstd->out_size;
+        zstd->zout.pos  = 0;
+        size_t code     = ZSTD_decompressStream(zstd->ctx, &zstd->zout, &zstd->zin);
+        if (ZSTD_isError(code)) {
+            fprintf(stderr, "ZSTD_decompressStream() failed: %s\n", ZSTD_getErrorName(code));
+            exit(1);
+        }
+
+        zstd->out_have = zstd->zout.pos;
+        zstd->out_at   = 0;
+    }
+}
+#if HAVE_FOPENCOOKIE
+static int zstd_cookie_seek(void* cookie, off_t* offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        if (offset) {
+            *offset = zstd->total_read;
+            return 0;
+        }
+    default:
+        break;
+    }
+    return -1;
+}
+#elif HAVE_FUNOPEN
+static off_t zstd_cookie_seek(void* cookie, off_t offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        return zstd->total_read;
+    default:
+        break;
+    }
+    errno = EINVAL;
+    return -1;
+}
+#endif
+static int zstd_cookie_close(void* cookie)
+{
+    FILE* fp = zstd->file;
+    ZSTD_freeDCtx(zstd->ctx);
+    free(zstd->in);
+    free(zstd->out);
+    free(zstd);
+    return fclose(fp);
+}
+
+/* LZMA compression */
+
+struct _lzma_ctx {
+    lzma_stream strm;
+
+    void * in, *out;
+    size_t in_size, out_size;
+    size_t in_have, out_have;
+    size_t in_at, out_at;
+
+    void* file;
+
+    size_t total_read;
+};
+#define lzma ((struct _lzma_ctx*)cookie)
+static lzma_stream lzma_stream_init = LZMA_STREAM_INIT;
+#if HAVE_FOPENCOOKIE
+static ssize_t lzma_cookie_read(void* cookie, char* dst, size_t len)
+#elif HAVE_FUNOPEN
+static int lzma_cookie_read(void* cookie, char* dst, int len)
+#endif
+{
+    size_t need = len;
+
+    lzma_action action = LZMA_RUN;
+    uint8_t     inbuf[BUFSIZ];
+    for (;;) {
+        if (lzma->out_have >= need) {
+            memcpy(dst, lzma->out + lzma->out_at, need);
+            lzma->out_have -= need;
+            lzma->out_at += need;
+            lzma->total_read += need;
+            return len;
+        }
+
+        memcpy(dst, lzma->out + lzma->out_at, lzma->out_have);
+        need -= lzma->out_have;
+        dst += lzma->out_have;
+        lzma->total_read += lzma->out_have;
+
+        ssize_t n = fread(inbuf, 1, sizeof(inbuf), lzma->file);
+        if (n < 0) {
+            return n;
+        }
+        if (!n) {
+            action = LZMA_FINISH;
+        }
+
+        lzma->strm.next_in   = inbuf;
+        lzma->strm.avail_in  = n;
+        lzma->strm.next_out  = lzma->out;
+        lzma->strm.avail_out = lzma->out_size;
+
+        lzma_ret ret = lzma_code(&lzma->strm, action);
+        if (ret != LZMA_OK) {
+            if (ret == LZMA_STREAM_END) {
+                if (need < len) {
+                    return len - need;
+                }
+                return 0;
+            }
+            fprintf(stderr, "lzma_code() failed: %d\n", ret);
+            exit(1);
+        }
+
+        lzma->out_at   = 0;
+        lzma->out_have = lzma->out_size - lzma->strm.avail_out;
+    }
+}
+#if HAVE_FOPENCOOKIE
+static int lzma_cookie_seek(void* cookie, off_t* offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        if (offset) {
+            *offset = lzma->total_read;
+            return 0;
+        }
+    default:
+        break;
+    }
+    return -1;
+}
+#elif HAVE_FUNOPEN
+static off_t lzma_cookie_seek(void* cookie, off_t offset, int whence)
+{
+    switch (whence) {
+    case SEEK_CUR:
+        return lzma->total_read;
+    default:
+        break;
+    }
+    errno = EINVAL;
+    return -1;
+}
+#endif
+static int lzma_cookie_close(void* cookie)
+{
+    FILE* fp = lzma->file;
+
+    lzma_end(&lzma->strm);
+    free(lzma->out);
+    free(lzma);
+
+    return fclose(fp);
+}
+
+/* compression end */
 
 void open_pcaps(void)
 {
@@ -167,9 +540,143 @@ void open_pcaps(void)
     for (mypcap = HEAD(mypcaps);
          mypcap != NULL;
          mypcap = NEXT(mypcap, link)) {
-        if (pcap_offline)
-            err = pcap_thread_open_offline(&pcap_thread, mypcap->name, (u_char*)mypcap);
-        else
+        if (pcap_offline) {
+            FILE* fp = 0;
+
+            char* dot = strrchr(mypcap->name, '.');
+            if (dot) {
+                if (!strcasecmp(dot, ".gz")) {
+                    gzFile cookie = gzopen(mypcap->name, "r");
+                    if (cookie == NULL) {
+                        perror("gzopen");
+                        exit(1);
+                    }
+
+#if HAVE_FOPENCOOKIE
+                    static cookie_io_functions_t cookiefuncs = {
+                        gzip_cookie_read, 0, gzip_cookie_seek, gzip_cookie_close
+                    };
+                    fp = fopencookie(cookie, "r", cookiefuncs);
+                    if (fp == NULL) {
+                        perror("fopencookie");
+                        exit(1);
+                    }
+#elif HAVE_FUNOPEN
+                    fp = funopen(cookie, gzip_cookie_read, 0, gzip_cookie_seek, gzip_cookie_close);
+                    if (fp == NULL) {
+                        perror("funopen");
+                        return;
+                    }
+#endif
+                } else if (!strcasecmp(dot, ".lz4")) {
+                    LZ4F_errorCode_t code;
+                    struct _lz4_ctx* cookie = calloc(1, sizeof(struct _lz4_ctx));
+                    assert(cookie);
+                    lz4->in_size = 256 * 1024;
+                    assert((lz4->in = malloc(lz4->in_size)));
+                    lz4->out_size = 256 * 1024;
+                    assert((lz4->out = malloc(lz4->out_size)));
+                    if ((code = LZ4F_createDecompressionContext(&lz4->ctx, LZ4F_VERSION))) {
+                        fprintf(stderr, "LZ4F_createDecompressionContext() failed: %s\n", LZ4F_getErrorName(code));
+                        exit(1);
+                    }
+                    lz4->opts.stableDst = 1;
+
+                    if (!(lz4->file = fopen(mypcap->name, "r"))) {
+                        perror("fopen");
+                        exit(1);
+                    }
+
+#if HAVE_FOPENCOOKIE
+                    static cookie_io_functions_t cookiefuncs = {
+                        lz4_cookie_read, 0, lz4_cookie_seek, lz4_cookie_close
+                    };
+                    fp = fopencookie(cookie, "r", cookiefuncs);
+                    if (fp == NULL) {
+                        perror("fopencookie");
+                        exit(1);
+                    }
+#elif HAVE_FUNOPEN
+                    fp = funopen(cookie, lz4_cookie_read, 0, lz4_cookie_seek, lz4_cookie_close);
+                    if (fp == NULL) {
+                        perror("funopen");
+                        return;
+                    }
+#endif
+                } else if (!strcasecmp(dot, ".zst")) {
+                    struct _zstd_ctx* cookie = calloc(1, sizeof(struct _zstd_ctx));
+                    assert(cookie);
+                    assert((zstd->ctx = ZSTD_createDCtx()));
+                    zstd->in_size = ZSTD_DStreamInSize();
+                    assert((zstd->in = malloc(zstd->in_size)));
+                    zstd->out_size = ZSTD_DStreamOutSize();
+                    assert((zstd->out = malloc(zstd->out_size)));
+
+                    zstd->zin.src   = zstd->in;
+                    zstd->zout.dst  = zstd->out;
+                    zstd->zout.size = zstd->out_size;
+
+                    if (!(zstd->file = fopen(mypcap->name, "r"))) {
+                        perror("fopen");
+                        exit(1);
+                    }
+
+#if HAVE_FOPENCOOKIE
+                    static cookie_io_functions_t cookiefuncs = {
+                        zstd_cookie_read, 0, zstd_cookie_seek, zstd_cookie_close
+                    };
+                    fp = fopencookie(cookie, "r", cookiefuncs);
+                    if (fp == NULL) {
+                        perror("fopencookie");
+                        exit(1);
+                    }
+#elif HAVE_FUNOPEN
+                    fp = funopen(cookie, zstd_cookie_read, 0, zstd_cookie_seek, zstd_cookie_close);
+                    if (fp == NULL) {
+                        perror("funopen");
+                        return;
+                    }
+#endif
+                } else if (!strcasecmp(dot, ".xz")) {
+                    struct _lzma_ctx* cookie = calloc(1, sizeof(struct _lzma_ctx));
+                    assert(cookie);
+                    lzma->strm   = lzma_stream_init;
+                    lzma_ret ret = lzma_stream_decoder(&lzma->strm, UINT64_MAX, LZMA_CONCATENATED);
+                    if (ret != LZMA_OK) {
+                        fprintf(stderr, "lzma_stream_decoder() error: %d\n", ret);
+                        exit(1);
+                    }
+                    lzma->out_size = 256 * 1024;
+                    assert((lzma->out = malloc(lzma->out_size)));
+
+                    if (!(lzma->file = fopen(mypcap->name, "r"))) {
+                        perror("fopen");
+                        exit(1);
+                    }
+
+#if HAVE_FOPENCOOKIE
+                    static cookie_io_functions_t cookiefuncs = {
+                        lzma_cookie_read, 0, lzma_cookie_seek, lzma_cookie_close
+                    };
+                    fp = fopencookie(cookie, "r", cookiefuncs);
+                    if (fp == NULL) {
+                        perror("fopencookie");
+                        exit(1);
+                    }
+#elif HAVE_FUNOPEN
+                    fp = funopen(cookie, lzma_cookie_read, 0, lzma_cookie_seek, lzma_cookie_close);
+                    if (fp == NULL) {
+                        perror("funopen");
+                        return;
+                    }
+#endif
+                }
+            }
+            if (fp)
+                err = pcap_thread_open_offline_fp(&pcap_thread, mypcap->name, fp, (u_char*)mypcap);
+            else
+                err = pcap_thread_open_offline(&pcap_thread, mypcap->name, (u_char*)mypcap);
+        } else
             err = pcap_thread_open(&pcap_thread, mypcap->name, (u_char*)mypcap);
 
         if (err == PCAP_THREAD_EPCAP) {

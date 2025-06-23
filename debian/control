@@ -4,7 +4,8 @@ Priority: optional
 Maintainer: Jerry Lundström <lundstrom.jerry@gmail.com>
 Build-Depends: debhelper (>= 10), build-essential, automake, autoconf,
  libpcap-dev, netbase, libldns-dev, libtool, zlib1g-dev, libyaml-perl,
- libssl-dev, libcryptopant-dev, pkg-config
+ libssl-dev, libcryptopant-dev, pkg-config, liblz4-dev, libzstd-dev,
+ liblzma-dev
 Standards-Version: 3.9.4
 Homepage: https://www.dns-oarc.net/tools/dnscap
 Vcs-Git: https://github.com/DNS-OARC/dnscap.git

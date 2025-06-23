@@ -37,6 +37,7 @@
 
 #ifdef __linux__
 #define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64 /* for fopencookie() */
 #endif
 
 #include <sys/param.h>
@@ -135,10 +136,6 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
-
-#if HAVE_ZLIB_H
-#include <zlib.h>
-#endif
 
 #include <ldns/ldns.h>
 
@@ -416,6 +413,7 @@ extern FILE*           dumper_fp;
 extern time_t          dumpstart;
 extern size_t          msgcount;
 extern size_t          capturedbytes;
+extern size_t          pkthdr_caplen;
 extern char *          dumpname, *dumpnamepart;
 extern char*           bpft;
 extern unsigned        dns_port;

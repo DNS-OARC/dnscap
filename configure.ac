@@ -32,11 +32,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-AC_PREREQ(2.61)
-AC_INIT([dnscap], [2.3.1], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
+AC_PREREQ(2.69)
+AC_INIT([dnscap], [2.4.0], [dnscap-users@dns-oarc.net], [dnscap], [https://github.com/DNS-OARC/dnscap/issues])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/dnscap.c])
-AC_CONFIG_HEADER([src/config.h])
+AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
@@ -81,7 +81,6 @@ AM_EXTRA_RECURSIVE_TARGETS([gcov])
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([tinycbor], [cbor_parser_init])
 AM_CONDITIONAL([HAVE_CBOR], [test "x$ac_cv_lib_tinycbor_cbor_parser_init" = "xyes"])
-AC_CHECK_LIB([z], [gzopen])
 PKG_CHECK_MODULES([libcrypto], [libcrypto],
     [AC_DEFINE([HAVE_LIBCRYPTO], [1], [Define to 1 if you have libcrypto.])])
 AC_CHECK_LIB([cryptopant], [scramble_init], [], [
@@ -90,6 +89,10 @@ AC_CHECK_LIB([cryptopant], [scramble_init], [], [
 PKG_CHECK_MODULES([libldns], [libldns], , [
   PKG_CHECK_MODULES([libldns], [ldns])
 ])
+PKG_CHECK_MODULES([liblz4], [liblz4 >= 1.8.0 liblz4 != 131],, [AC_MSG_ERROR([liblz4 not found])])
+PKG_CHECK_MODULES([libzstd], [libzstd >= 1.3.0],, [AC_MSG_ERROR([libzstd not found])])
+AC_CHECK_LIB([z], [gzopen],, [AC_MSG_ERROR([zlib not found])])
+PKG_CHECK_MODULES([liblzma], [liblzma >= 5.2.0],, [AC_MSG_ERROR([liblzma not found])])
 
 # Check for OS specific libraries
 case "$host_os" in
@@ -109,12 +112,9 @@ esac
 
 # Checks for header files.
 AC_HEADER_RESOLV
-AC_HEADER_TIME
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/param.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS([ldns/ldns.h arpa/nameser_compat.h cbor.h cbor/cbor.h])
-AC_CHECK_HEADERS([sys/time.h])
-AC_CHECK_HEADERS([zlib.h])
 AC_CHECK_HEADERS([openssl/conf.h openssl/evp.h openssl/err.h])
 AC_CHECK_HEADERS([cryptopANT.h])
 AC_CHECK_HEADERS([endian.h sys/endian.h machine/endian.h])
@@ -122,12 +122,13 @@ AC_CHECK_HEADERS([endian.h sys/endian.h machine/endian.h])
 # Checks for library functions.
 AC_CHECK_FUNCS([snprintf])
 AC_CHECK_FUNCS([setreuid setresuid setregid setresgid setegid seteuid initgroups setgroups])
-AC_CHECK_FUNCS([funopen fopencookie gzopen])
+AC_CHECK_FUNCS([fopencookie funopen])
+AS_IF([test "x$ac_cv_func_fopencookie$ac_cv_func_funopen" = "xnono"], [AC_MSG_ERROR([required function, fopencookie or funopen, not found])])
 AC_CHECK_FUNCS([__assertion_failed])
 
 # Check for SECCOMP
 SECCOMPFLAGS=
-AC_ARG_ENABLE(seccomp, AC_HELP_STRING([--enable-seccomp], [Linux seccomp-bpf sandbox]))
+AC_ARG_ENABLE(seccomp, AS_HELP_STRING([--enable-seccomp], [Linux seccomp-bpf sandbox]))
 case "$enable_seccomp" in
     yes)
         AC_DEFINE_UNQUOTED([USE_SECCOMP], [1], [Define this to enable Linux seccomp-bpf sandbox.])

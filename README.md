@@ -31,16 +31,17 @@ General support and discussion:
 `dnscap` requires a couple of libraries beside a normal C compiling
 environment with autoconf, automake, libtool and pkgconfig.
 
-`dnscap` has a non-optional dependency on the PCAP library and LDNS.
+`dnscap` has a non-optional dependency on the PCAP library, LDNS, zlib,
+liblz4, libzstd and liblzma.
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev
+apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev liblz4-dev libzstd-dev liblzma-dev
 ```
 
 To install the dependencies under CentOS (with EPEL/PowerTools enabled):
 ```
-yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML
+yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML lz4-devel libzstd-devel xz-devel
 ```
 
 For the following OS you will need to install some of the dependencies
@@ -48,16 +49,19 @@ from source or Ports, these instructions are not included.
 
 To install some of the dependencies under FreeBSD 10+ using `pkg`:
 ```
-pkg install -y libpcap ldns p5-YAML openssl-devel
+pkg install -y libpcap ldns p5-YAML openssl-devel liblz4 zstd
 ```
 
 To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
-pkg_add libldns p5-YAML
+pkg_add libldns p5-YAML lz4 zstd xz
 ```
 
 NOTE: It is recommended to install the PCAP library from source/ports on
 OpenBSD since the bundled version is an older and modified version.
+
+Perl YAML is required by the Root Server Scaling Measurement (RSSM)
+plugin's `dnscap-rssm-rssac002` script.
 
 ### Dependencies for `cryptopant.so` plugin
 
