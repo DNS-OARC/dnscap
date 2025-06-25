@@ -379,7 +379,7 @@ int dumper_close(my_bpftimeval ts)
         int x;
         if (!p->close)
             continue;
-        x = (*p->close)();
+        x = (*p->close)(ts);
         if (x)
             logerr("%s_close returned %d", p->name, x);
     }
