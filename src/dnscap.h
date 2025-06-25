@@ -355,7 +355,7 @@ struct plugin {
     int (*start)(logerr_t*);
     void (*stop)();
     int (*open)(my_bpftimeval);
-    int (*close)();
+    int (*close)(my_bpftimeval);
     output_t(*output);
     filter_t(*filter);
     void (*getopt)(int*, char**[]);
