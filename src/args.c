@@ -252,13 +252,6 @@ void check_gzip()
     if (dot) {
         wantgzip = (strcmp(dot, ".gz") == 0) ? TRUE : FALSE;
     }
-
-#if !(HAVE_GZOPEN && (HAVE_FUNOPEN || HAVE_FOPENCOOKIE))
-    if (wantgzip) {
-        fprintf(stderr, "error: gzip compression requested but not supported\n");
-        exit(1);
-    }
-#endif
 }
 
 int is_responder(iaddr ia)

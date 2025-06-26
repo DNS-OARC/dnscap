@@ -14,6 +14,9 @@ test -e dns.pcap.zst || ln -s "$srcdir/dns.pcap.zst" dns.pcap.zst
 ../dnscap -g -r dns.pcap.xz 2>>dns.out
 ../dnscap -g -r dns.pcap.lz4 2>>dns.out
 ../dnscap -g -r dns.pcap.zst 2>>dns.out
+# compress write test
+../dnscap -r dns.pcap -w test -W .pcap.gz
+../dnscap -g -r test.20161020.152301.075993.pcap.gz 2>>dns.out
 
 mv dns.out dns.out.old
 grep -v "^libgcov profiling error:" dns.out.old > dns.out
