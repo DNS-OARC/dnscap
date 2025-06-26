@@ -1,3 +1,23 @@
+dnscap (2.4.1-1~unstable+1) unstable; urgency=low
+
+  * Release 2.4.1
+
+    This patch release fixes a bug introduced in v2.4.0 where writing gziped
+    PCAPs broke, and readds sending timestamp to plugins close function which
+    was incorrectly removed in v2.2.1.
+
+    Changes:
+    - Remove obsolete code with zlib being required
+    - Add gz write test
+    - Fix #334:
+      - Readd timestamp when calling plugin close
+      - Update plugin close interface to pass timestamp that was missed in 2f65abd0ea059046a3ab54260806891d557d1180
+
+    9abd07d plugin close
+    b10f923 gz write
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 26 Jun 2025 13:29:22 +0200
+
 dnscap (2.4.0-1~unstable+1) unstable; urgency=low
 
   * Release 2.4.0

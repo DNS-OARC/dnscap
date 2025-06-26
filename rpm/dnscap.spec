@@ -1,5 +1,5 @@
 Name:           dnscap
-Version:        2.4.0
+Version:        2.4.1
 Release:        1%{?dist}
 Summary:        Network capture utility designed specifically for DNS traffic
 Group:          Productivity/Networking/DNS/Utilities
@@ -61,6 +61,20 @@ sh autogen.sh
 
 
 %changelog
+* Thu Jun 26 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.4.1-1
+- Release 2.4.1
+  * This patch release fixes a bug introduced in v2.4.0 where writing gziped
+    PCAPs broke, and readds sending timestamp to plugins close function which
+    was incorrectly removed in v2.2.1.
+  * Changes:
+    - Remove obsolete code with zlib being required
+    - Add gz write test
+    - Fix #334:
+      - Readd timestamp when calling plugin close
+      - Update plugin close interface to pass timestamp that was missed in 2f65abd0ea059046a3ab54260806891d557d1180
+  * Commits:
+    9abd07d plugin close
+    b10f923 gz write
 * Mon Jun 23 2025 Jerry Lundström <lundstrom.jerry@gmail.com> 2.4.0-1
 - Release 2.4.0
   * This release brings support for reading compressed PCAPs, a few new
