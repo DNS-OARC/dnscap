@@ -35,10 +35,6 @@
 #ifndef __dnscap_dnscap_common_h
 #define __dnscap_dnscap_common_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <time.h>
@@ -56,6 +52,10 @@ extern "C" {
 #define PRI_tv_sec "ld"
 #define PRI_tv_usec "ld"
 #endif
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /*
