@@ -35,6 +35,10 @@
 #ifndef __dnscap_dnscap_common_h
 #define __dnscap_dnscap_common_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <time.h>
@@ -168,5 +172,9 @@ typedef size_t (*get_pkthdr_caplen_t)(void);
 
 #define DIR_INITIATE 0x0001
 #define DIR_RESPONSE 0x0002
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __dnscap_dnscap_common_h */
