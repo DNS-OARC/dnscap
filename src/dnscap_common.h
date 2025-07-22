@@ -158,6 +158,9 @@ typedef long (*get_pcap_thread_ftell_t)(void);
 #define DNSCAP_EXT_GET_PKTHDR_CAPLEN 8
 typedef size_t (*get_pkthdr_caplen_t)(void);
 
+#define DNSCAP_EXT_BREAKLOOP_PCAPS 9
+typedef void (*breakloop_pcaps_t)(void);
+
 /*
  * Flags
  */
