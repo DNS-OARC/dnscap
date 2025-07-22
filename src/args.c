@@ -41,6 +41,7 @@
 #include "tcpstate.h"
 #include "network.h"
 #include "dumper.h"
+#include "pcaps.h"
 
 #include <ldns/ldns.h>
 
@@ -630,6 +631,7 @@ void parse_args(int argc, char* argv[])
                 (*pl->extension)(DNSCAP_EXT_SET_OUTPUT_PKT, (set_output_pkt_t)set_output_pkt);
                 (*pl->extension)(DNSCAP_EXT_GET_PCAP_THREAD_FTELL, (get_pcap_thread_ftell_t)_get_pcap_thread_ftell);
                 (*pl->extension)(DNSCAP_EXT_GET_PKTHDR_CAPLEN, (get_pkthdr_caplen_t)_get_pkthdr_caplen);
+                (*pl->extension)(DNSCAP_EXT_BREAKLOOP_PCAPS, (breakloop_pcaps_t)breakloop_pcaps);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", pl->name);
             pl->getopt = dlsym(pl->handle, sn);
