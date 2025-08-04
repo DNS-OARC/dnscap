@@ -9,14 +9,26 @@ test -f vlan11.out && ! test -s vlan11.out
 ../dnscap -g -r vlan11.pcap -L 10 2>vlan11.out
 test -f vlan11.out && ! test -s vlan11.out
 ../dnscap -g -r vlan11.pcap -L 4095 2>vlan11.out
+mv vlan11.out vlan11.out.old
+grep -v "^libgcov profiling error:" vlan11.out.old > vlan11.out
+rm vlan11.out.old
 diff vlan11.out "$srcdir/vlan11.gold"
 ../dnscap -g -r vlan11.pcap -L 11 2>vlan11.out
+mv vlan11.out vlan11.out.old
+grep -v "^libgcov profiling error:" vlan11.out.old > vlan11.out
+rm vlan11.out.old
 diff vlan11.out "$srcdir/vlan11.gold"
 ../dnscap -g -r vlan11.pcap -o use_layers=yes 2>vlan11.out
 test -f vlan11.out && ! test -s vlan11.out
 ../dnscap -g -r vlan11.pcap -o use_layers=yes -L 10 2>vlan11.out
 test -f vlan11.out && ! test -s vlan11.out
 ../dnscap -g -r vlan11.pcap -o use_layers=yes -L 4095 2>vlan11.out
+mv vlan11.out vlan11.out.old
+grep -v "^libgcov profiling error:" vlan11.out.old > vlan11.out
+rm vlan11.out.old
 diff vlan11.out "$srcdir/vlan11.gold"
 ../dnscap -g -r vlan11.pcap -o use_layers=yes -L 11 2>vlan11.out
+mv vlan11.out vlan11.out.old
+grep -v "^libgcov profiling error:" vlan11.out.old > vlan11.out
+rm vlan11.out.old
 diff vlan11.out "$srcdir/vlan11.gold"
