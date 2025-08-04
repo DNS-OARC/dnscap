@@ -27,7 +27,4 @@ if [ "$osrel" = "OpenBSD" ]; then
     rm test3.out.old
 fi
 
-mv test3.out test3.out.old
-grep -v "^libgcov profiling error:" test3.out.old > test3.out
-rm test3.out.old
 diff test3.out "$srcdir/test3.gold"
