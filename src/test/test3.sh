@@ -12,4 +12,7 @@ cp "$srcdir/dns.gold" frags.gold
 sed -i -e 's%^\(\[[0-9]*\]\)[^\[]*\[%\1 [%g' frags.gold
 sed -i -e 's%dns.pcap%frags.pcap%g' frags.gold
 
+mv frags.out frags.out.old
+grep -v "^libgcov profiling error:" frags.out.old > frags.out
+rm frags.out.old
 diff frags.out frags.gold
