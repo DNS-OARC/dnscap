@@ -33,11 +33,5 @@ for what in dnso1tcp.pcap 1qtcpnosyn.pcap do1t-nosyn-1nolen.pcap dnso1tcp-midmis
     fi
 done
 
-mv test7.out test7.out.old
-grep -v "^libgcov profiling error:" test7.out.old > test7.out
-rm test7.out.old
 diff test7.out "$srcdir/test7.gold"
-mv test7.layer.out test7.layer.out.old
-grep -v "^libgcov profiling error:" test7.layer.out.old > test7.layer.out
-rm test7.layer.out.old
 diff test7.layer.out "$srcdir/test7.gold"

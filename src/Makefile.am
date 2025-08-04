@@ -1,5 +1,6 @@
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/config.h.in
-CLEANFILES = dnscap.1 *.gcda *.gcno *.gcov
+CLEANFILES = dnscap.1 *.gcda *.gcno *.gcov \
+  */*.gcda */*.gcno */*.gcov
 
 SUBDIRS = test
 
