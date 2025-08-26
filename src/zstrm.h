@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2025 OARC, Inc.
+ * Copyright (c) 2025 OARC, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,20 +32,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dnscap.h"
+#include <stdio.h>
 
-#ifndef __dnscap_pcaps_h
-#define __dnscap_pcaps_h
+#ifndef __dnscap_zstrm_h
+#define __dnscap_zstrm_h
 
-void print_pcap_thread_error(const char* func, int err);
-void open_pcaps(void);
-void poll_pcaps(void);
-void breakloop_pcaps(void);
-void close_pcaps(void);
-void do_pcap_stats();
+FILE* zstrm_open_gz(const char*);
+FILE* zstrm_open_lz4(const char*);
+FILE* zstrm_open_zstd(const char*);
+FILE* zstrm_open_xz(const char*);
+FILE* zstrm_open_bz2(const char*);
 
-extern size_t last_total_compress_read;
-
-size_t get_last_total_compress_read();
-
-#endif /* __dnscap_pcaps_h */
+#endif /* __dnscap_zstrm_h */

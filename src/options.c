@@ -238,6 +238,13 @@ int option_parse(options_t* options, const char* option)
         if ((options->pid_file = strdup(argument))) {
             return 0;
         }
+    } else if (have("override_compress_extension")) {
+        if (options->override_compress_extension) {
+            free(options->override_compress_extension);
+        }
+        if ((options->override_compress_extension = strdup(argument))) {
+            return 0;
+        }
     }
 
     return 1;

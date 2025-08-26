@@ -32,16 +32,16 @@ General support and discussion:
 environment with autoconf, automake, libtool and pkgconfig.
 
 `dnscap` has a non-optional dependency on the PCAP library, LDNS, zlib,
-liblz4, libzstd and liblzma.
+liblz4, libzstd, liblzma and libbz2.
 
 To install the dependencies under Debian/Ubuntu:
 ```
-apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev liblz4-dev libzstd-dev liblzma-dev
+apt-get install -y libpcap-dev libldns-dev zlib1g-dev libyaml-perl libssl-dev liblz4-dev libzstd-dev liblzma-dev libbz2-dev
 ```
 
 To install the dependencies under CentOS (with EPEL/PowerTools enabled):
 ```
-yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML lz4-devel libzstd-devel xz-devel
+yum install -y libpcap-devel ldns-devel openssl-devel zlib-devel perl-YAML lz4-devel libzstd-devel xz-devel bzip2-devel
 ```
 
 For the following OS you will need to install some of the dependencies
@@ -54,7 +54,7 @@ pkg install -y libpcap ldns p5-YAML openssl-devel liblz4 zstd
 
 To install some of the dependencies under OpenBSD 5+ using `pkg_add`:
 ```
-pkg_add libldns p5-YAML lz4 zstd xz
+pkg_add libldns p5-YAML lz4 zstd xz bzip2
 ```
 
 NOTE: It is recommended to install the PCAP library from source/ports on

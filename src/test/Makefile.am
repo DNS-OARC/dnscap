@@ -28,7 +28,8 @@ TESTS = test1.sh test2.sh test3.sh test4.sh test5.sh test6.sh test7.sh \
   test_tcpdns.sh test_sll2.sh
 
 EXTRA_DIST = $(TESTS) \
-  dns.gold dns.pcap dns.pcap.gz dns.pcap.xz dns.pcap.lz4 dns.pcap.zst dns.gold2 \
+  dns.gold dns.pcap dns.pcap.gz dns.pcap.xz dns.pcap.lz4 dns.pcap.zst dns.pcap.bz2 dns.gold2 \
+  dns_short.pcap dns_short.pcap.gz dns_short.pcap.xz dns_short.pcap.lz4 dns_short.pcap.zst dns_short.pcap.bz2 \
   frags.pcap \
   1qtcppadd.pcap \
   vlan11.gold vlan11.pcap \

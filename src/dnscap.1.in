@@ -213,7 +213,13 @@ file produced by this utility or by
 (or simiar tools) as the input packet source.
 Can be given as "\-" to indicate standard input.
 
-Supports reading gz/xz/lz4/zst compressed PCAPs based on file extension.
+Supports reading compressed PCAPs based on file extension, see below for
+list of recognized extensions.
+.TP
+.BI "\-o " override_compress_extension=ext
+Override which compression backend to use when decompressing the PCAP file.
+
+Supported compression extensions: gz, xz, lz4, zst, bz2
 .TP
 .BI "\-i " if
 Select an interface to be monitored.
