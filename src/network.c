@@ -135,10 +135,6 @@ void layer_pkt(u_char* user, const pcap_thread_packet_t* packet, const u_char* p
     if (main_exit)
         return;
 
-    /* If ever SNAPLEN wasn't big enough, we have no recourse. */
-    if (firstpkt->pkthdr.len != firstpkt->pkthdr.caplen)
-        return;
-
     vlan = MAX_VLAN;
     for (prevpkt = packet; prevpkt; prevpkt = prevpkt->prevpkt) {
         if (prevpkt->have_ieee802hdr) {
@@ -281,10 +277,6 @@ void dl_pkt(u_char* user, const struct pcap_pkthdr* hdr, const u_char* pkt, cons
     }
 
     if (main_exit)
-        return;
-
-    /* If ever SNAPLEN wasn't big enough, we have no recourse. */
-    if (hdr->len != hdr->caplen)
         return;
 
     pkthdr_caplen = hdr->caplen;
