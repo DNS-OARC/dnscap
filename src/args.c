@@ -632,6 +632,7 @@ void parse_args(int argc, char* argv[])
                 (*pl->extension)(DNSCAP_EXT_GET_PCAP_THREAD_FTELL, (get_pcap_thread_ftell_t)_get_pcap_thread_ftell);
                 (*pl->extension)(DNSCAP_EXT_GET_PKTHDR_CAPLEN, (get_pkthdr_caplen_t)_get_pkthdr_caplen);
                 (*pl->extension)(DNSCAP_EXT_BREAKLOOP_PCAPS, (breakloop_pcaps_t)breakloop_pcaps);
+                (*pl->extension)(DNSCAP_EXT_GET_LAST_TOTAL_COMPRESS_READ, (get_last_total_compress_read_t)get_last_total_compress_read);
             }
             snprintf(sn, sizeof(sn), "%s_getopt", pl->name);
             pl->getopt = dlsym(pl->handle, sn);

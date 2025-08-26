@@ -161,6 +161,9 @@ typedef size_t (*get_pkthdr_caplen_t)(void);
 #define DNSCAP_EXT_BREAKLOOP_PCAPS 9
 typedef void (*breakloop_pcaps_t)(void);
 
+#define DNSCAP_EXT_GET_LAST_TOTAL_COMPRESS_READ 10
+typedef size_t (*get_last_total_compress_read_t)(void);
+
 /*
  * Flags
  */

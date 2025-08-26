@@ -91,8 +91,11 @@ PKG_CHECK_MODULES([libldns], [libldns], , [
 ])
 PKG_CHECK_MODULES([liblz4], [liblz4 >= 1.8.0 liblz4 != 131],, [AC_MSG_ERROR([liblz4 not found])])
 PKG_CHECK_MODULES([libzstd], [libzstd >= 1.3.0],, [AC_MSG_ERROR([libzstd not found])])
+AC_CHECK_HEADER([zlib.h],, [AC_MSG_ERROR([zlib.h not found])])
 AC_CHECK_LIB([z], [gzopen],, [AC_MSG_ERROR([zlib not found])])
 PKG_CHECK_MODULES([liblzma], [liblzma >= 5.2.0],, [AC_MSG_ERROR([liblzma not found])])
+AC_CHECK_HEADER([bzlib.h],, [AC_MSG_ERROR([bzlib.h not found])])
+AC_CHECK_LIB([bz2], [BZ2_bzlibVersion],, [AC_MSG_ERROR([libbz2 not found])])
 
 # Check for OS specific libraries
 case "$host_os" in

@@ -21,12 +21,13 @@ bin_PROGRAMS = dnscap
 dnscap_SOURCES = args.c assert.c bpft.c daemon.c dnscap.c dump_cbor.c \
   dump_cds.c dump_dns.c dumper.c endpoint.c hashtbl.c iaddr.c log.c \
   network.c options.c pcaps.c sig.c tcpstate.c tcpreasm.c memzero.c \
+  zstrm.c \
   pcap-thread/pcap_thread.c pcap-thread/pcap_thread_ext_frag.c \
   ext/lookup3.c
 dist_dnscap_SOURCES = args.h bpft.h daemon.h dnscap_common.h dnscap.h \
   dump_cbor.h dump_cds.h dump_dns.h dumper.h endpoint.h hashtbl.h iaddr.h \
   log.h network.h options.h pcaps.h sig.h tcpstate.h tcpreasm.h memzero.h \
-  endian_compat.h \
+  endian_compat.h zstrm.h \
   pcap-thread/pcap_thread.h pcap-thread/pcap_thread_ext_frag.h
 dnscap_LDADD = $(PTHREAD_LIBS) $(libcrypto_LIBS) $(libldns_LIBS) \
   $(liblz4_LIBS) $(libzstd_LIBS) $(liblzma_LIBS)

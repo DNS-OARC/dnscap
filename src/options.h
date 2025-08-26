@@ -75,6 +75,8 @@ enum dump_format {
 \
     0, \
 \
+    0, \
+\
     0 \
 }
 
@@ -118,6 +120,8 @@ struct options {
     int bpf_hosts_apply_all;
 
     char* pid_file;
+
+    char* override_compress_extension;
 };
 
 int  option_parse(options_t* options, const char* option);

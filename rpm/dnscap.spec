@@ -27,6 +27,7 @@ BuildRequires:  lz4-devel
 %endif
 BuildRequires:  libzstd-devel
 BuildRequires:  xz-devel
+BuildRequires:  bzip2-devel
 
 %description
 dnscap is a network capture utility designed specifically for DNS
