@@ -22,12 +22,13 @@ BuildRequires:  cryptopant-devel
 BuildRequires:  pkgconfig
 %if 0%{?suse_version} || 0%{?sle_version}
 BuildRequires:  liblz4-devel
+BuildRequires:  libbz2-devel
 %else
 BuildRequires:  lz4-devel
+BuildRequires:  bzip2-devel
 %endif
 BuildRequires:  libzstd-devel
 BuildRequires:  xz-devel
-BuildRequires:  bzip2-devel
 
 %description
 dnscap is a network capture utility designed specifically for DNS
