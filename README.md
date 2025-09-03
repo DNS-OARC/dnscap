@@ -21,7 +21,7 @@ More information may be found here:
 - https://www.dns-oarc.net/oarc/data/ditl
 
 Issues should be reported here:
-- https://github.com/DNS-OARC/dnscap/issues
+- https://codeberg.org/DNS-OARC/dnscap/issues
 
 General support and discussion:
 - Mattermost: https://chat.dns-oarc.net/community/channels/oarc-software
@@ -71,7 +71,7 @@ can be found here: https://ant.isi.edu/software/cryptopANT/index.html .
 For DNS-OARC packages we build our own fork, with slight modifications to
 conform across distributions, of this library which is included in the same
 package repository as `dnscap`. The modifications and packaging files can be
-found here: https://github.com/DNS-OARC/cryptopANT .
+found here: https://codeberg.org/DNS-OARC/cryptopANT .
 
 ## Building from source tarball
 
@@ -94,7 +94,7 @@ files, this will require a build environment with autoconf, automake, libtool
 and pkg-config to be installed.
 
 ```
-git clone https://github.com/DNS-OARC/dnscap.git
+git clone https://codeberg.org/DNS-OARC/dnscap.git
 cd dnscap
 git submodule update --init
 ./autogen.sh
@@ -151,7 +151,7 @@ with the goals to:
 - Have close to no data quality and signature degradation
 - Support additional non-DNS meta data (such as ICMP/TCP attributes)
 
-Read [CBOR_DNS_STREAM.md](https://github.com/DNS-OARC/dnscap/blob/develop/CBOR_DNS_STREAM.md) for more information.
+Read [CBOR_DNS_STREAM.md](https://codeberg.org/DNS-OARC/dnscap/src/branch/main/CBOR_DNS_STREAM.md) for more information.
 
 To enable this output please follow the instructions below for Enabling
 CBOR Output, note that this only requires Tinycbor.
@@ -184,7 +184,7 @@ is new so you need to download and compile it, you do not necessary need to
 install it as shown in the example below.
 
 ```sh
-git clone https://github.com/DNS-OARC/dnscap.git
+git clone https://codeberg.org/DNS-OARC/dnscap.git
 cd dnscap
 git submodule update --init
 git clone https://github.com/01org/tinycbor.git

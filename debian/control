@@ -8,8 +8,8 @@ Build-Depends: debhelper (>= 10), build-essential, automake, autoconf,
  liblzma-dev, libbz2-dev
 Standards-Version: 3.9.4
 Homepage: https://www.dns-oarc.net/tools/dnscap
-Vcs-Git: https://github.com/DNS-OARC/dnscap.git
-Vcs-Browser: https://github.com/DNS-OARC/dnscap
+Vcs-Git: https://codeberg.org/DNS-OARC/dnscap.git
+Vcs-Browser: https://codeberg.org/DNS-OARC/dnscap
 
 Package: dnscap
 Architecture: any
