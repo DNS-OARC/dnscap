@@ -1,3 +1,5 @@
+# NOTE: Moved to https://codeberg.org/DNS-OARC/dnscap
+
 # dnscap
 
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=bugs)](https://sonarcloud.io/summary/new_code?id=dns-oarc%3Adnscap) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dns-oarc%3Adnscap&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=dns-oarc%3Adnscap)
